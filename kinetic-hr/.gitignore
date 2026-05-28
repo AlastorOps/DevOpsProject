@@ -52,6 +52,9 @@ test-results/
 tmp/
 temp/
 
+#claude
+.claude/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
