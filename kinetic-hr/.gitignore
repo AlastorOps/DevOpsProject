@@ -1,0 +1,64 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+*.local
+*.secret
+*.secrets
+secrets/
+secret/
+
+# Keys, certificates, and credentials
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.crt
+*.csr
+*.jks
+*.keystore
+*.mobileprovision
+service-account*.json
+firebase-adminsdk*.json
+credentials*.json
+auth*.json
+token*.json
+
+node_modules
+dist
+dist-ssr
+
+# Local caches and temporary output
+.cache/
+.parcel-cache/
+.vite/
+.turbo/
+.eslintcache
+.stylelintcache
+coverage/
+playwright-report/
+test-results/
+tmp/
+temp/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
