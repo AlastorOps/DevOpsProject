@@ -1,33 +1,41 @@
-name: Python CI
+name: React CI
 
 on:
   push:
     branches:
       - main
       - dev
-      - feature
-
+      - 'feature/**'
   pull_request:
     branches:
       - main
+      - dev
+      - 'feature/**'
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: "3.12"
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install Dependencies
-        run: |
-          pip install -r requirements.txt
+        run: npm ci
 
-      - name: Run Tests
-        run: |
-          python -m unittest discover
+      - name: Lint
+        run: npm run lint
+
+      - name: Build React App
+        run: npm run build
