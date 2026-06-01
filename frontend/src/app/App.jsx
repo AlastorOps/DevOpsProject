@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from '../components/layout/Layout'
 import LoginPage from '../features/admin/LoginPage'
+import NotFoundPage from '../features/errors/NotFoundPage'
 import AdminDashboard from '../features/dashboard/AdminDashboard'
 import EmployeeList from '../features/employees/EmployeeList'
 import AddEmployee from '../features/employees/AddEmployee'
@@ -46,7 +47,7 @@ export default function App() {
           <Route path="settings" element={<SystemSettings />} />
           <Route path="profile" element={<PersonalProfile />} />
         </Route>
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   )

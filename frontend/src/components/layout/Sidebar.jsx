@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 
 const navItems = [
   { icon: 'dashboard', label: 'Dashboard', to: '/dashboard' },
@@ -16,6 +16,8 @@ const navItems = [
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
+  const location = useLocation()
+
   return (
     <>
       <div
@@ -43,11 +45,12 @@ export default function Sidebar({ isOpen, onClose }) {
               key={item.to}
               to={item.to}
               onClick={onClose}
-              className={({ isActive }) =>
-                isActive
+              className={() => {
+                const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + '/')
+                return isActive
                   ? 'relative flex items-center px-lg py-md text-primary font-bold before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-primary bg-surface-container-low transition-colors'
                   : 'flex items-center px-lg py-md text-on-surface-variant hover:bg-surface-container-low transition-colors'
-              }
+              }}
             >
               <span className="material-symbols-outlined mr-md">{item.icon}</span>
               <span className="text-body-md">{item.label}</span>

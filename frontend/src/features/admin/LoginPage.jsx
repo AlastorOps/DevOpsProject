@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -91,10 +93,10 @@ export default function LoginPage() {
                     id="password"
                     name="password"
                     placeholder="••••••••"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                   />
-                  <button className="absolute right-md top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors" type="button">
-                    <span className="material-symbols-outlined text-[20px]">visibility</span>
+                  <button className="absolute right-md top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors" type="button" onClick={() => setShowPassword(v => !v)}>
+                    <span className="material-symbols-outlined text-[20px]">{showPassword ? 'visibility_off' : 'visibility'}</span>
                   </button>
                 </div>
               </div>
@@ -138,7 +140,7 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-xl text-center pointer-events-none">
-          <p className="text-label-sm text-outline/40">Kinetic HR Admin Center v2.4.1 © 2024</p>
+          <p className="text-label-sm text-outline/40">Kinetic HR Admin Center v2.4.1 © {new Date().getFullYear()}</p>
         </div>
       </div>
     </main>
