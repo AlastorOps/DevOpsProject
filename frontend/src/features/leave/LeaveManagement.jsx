@@ -1,24 +1,40 @@
 import { useState } from 'react'
 
-const leaveRequests = [
-  { id: 'LV-2024-0041', name: 'Alice Wang', init: 'AW', dept: 'Engineering', type: 'Annual Leave', from: 'Oct 28', to: 'Oct 31', days: 4, reason: 'Family vacation', status: 'Pending' },
-  { id: 'LV-2024-0040', name: 'Brad Kim', init: 'BK', dept: 'Marketing', type: 'Sick Leave', from: 'Oct 25', to: 'Oct 26', days: 2, reason: 'Medical appointment', status: 'Approved' },
-  { id: 'LV-2024-0039', name: 'Carla Osei', init: 'CO', dept: 'Sales', type: 'Personal Leave', from: 'Nov 1', to: 'Nov 1', days: 1, reason: 'Personal errand', status: 'Rejected' },
+const initialRequests = [
+  { id: 'LV-2024-0041', name: 'Alice Wang',  init: 'AW', dept: 'Engineering', type: 'Annual Leave',   from: 'Oct 28', to: 'Oct 31', days: 4, reason: 'Family vacation',     status: 'Pending' },
+  { id: 'LV-2024-0040', name: 'Brad Kim',    init: 'BK', dept: 'Marketing',   type: 'Sick Leave',     from: 'Oct 25', to: 'Oct 26', days: 2, reason: 'Medical appointment', status: 'Approved' },
+  { id: 'LV-2024-0039', name: 'Carla Osei',  init: 'CO', dept: 'Sales',       type: 'Personal Leave', from: 'Nov 1',  to: 'Nov 1',  days: 1, reason: 'Personal errand',    status: 'Rejected' },
 ]
 
 const statusStyle = {
-  Pending: 'bg-tertiary-fixed text-on-tertiary-fixed-variant',
+  Pending:  'bg-tertiary-fixed text-on-tertiary-fixed-variant',
   Approved: 'bg-secondary-container text-on-secondary-container',
   Rejected: 'bg-error-container text-on-error-container',
 }
 
 export default function LeaveManagement() {
-  const [toast, setToast] = useState(null)
+  const [requests, setRequests]       = useState(initialRequests)
+  const [toast, setToast]             = useState(null)
+  const [search, setSearch]           = useState('')
+  const [filterType, setFilterType]   = useState('All Leave Types')
+  const [filterStatus, setFilterStatus] = useState('All Status')
 
-  const handleAction = (action, name) => {
-    setToast(`${action}: Leave request for ${name}`)
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type })
     setTimeout(() => setToast(null), 3000)
   }
+
+  const handleAction = (newStatus, req) => {
+    setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: newStatus } : r))
+    showToast(`Leave request for ${req.name} ${newStatus.toLowerCase()}.`, newStatus === 'Rejected' ? 'error' : 'success')
+  }
+
+  const filtered = requests.filter(r => {
+    const matchSearch = `${r.name} ${r.dept}`.toLowerCase().includes(search.toLowerCase())
+    const matchType   = filterType   === 'All Leave Types' || r.type   === filterType
+    const matchStatus = filterStatus === 'All Status'      || r.status === filterStatus
+    return matchSearch && matchType && matchStatus
+  })
 
   return (
     <div className="p-margin-mobile md:p-margin-desktop">
@@ -27,7 +43,10 @@ export default function LeaveManagement() {
           <h2 className="text-headline-lg text-on-surface">Leave Management</h2>
           <p className="text-body-md text-on-surface-variant">Review, approve, or reject employee leave requests</p>
         </div>
-        <button className="flex items-center gap-xs px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md hover:brightness-110 active:scale-95 transition-all shadow-md">
+        <button
+          onClick={() => showToast('Exporting leave report…')}
+          className="flex items-center gap-xs px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md hover:brightness-110 active:scale-95 transition-all shadow-md"
+        >
           <span className="material-symbols-outlined text-[18px]">download</span>
           Export Report
         </button>
@@ -36,10 +55,10 @@ export default function LeaveManagement() {
       {/* Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-gutter mb-lg">
         {[
-          { label: 'Total Requests', val: '124', icon: 'event_note', style: 'bg-primary text-on-primary', trend: '+8 this week' },
-          { label: 'Approved', val: '89', icon: 'event_available', style: 'bg-secondary-container/30', trend: '71.8%' },
-          { label: 'Pending', val: '24', icon: 'pending_actions', style: 'bg-tertiary-fixed/30', trend: 'Needs action' },
-          { label: 'Rejected', val: '11', icon: 'event_busy', style: 'bg-error-container/30', trend: '8.9%' },
+          { label: 'Total Requests', val: requests.length,                                        icon: 'event_note',     style: 'bg-primary text-on-primary',       trend: '+8 this week' },
+          { label: 'Approved',       val: requests.filter(r => r.status === 'Approved').length,   icon: 'event_available', style: 'bg-secondary-container/30',        trend: '' },
+          { label: 'Pending',        val: requests.filter(r => r.status === 'Pending').length,    icon: 'pending_actions', style: 'bg-tertiary-fixed/30',             trend: 'Needs action' },
+          { label: 'Rejected',       val: requests.filter(r => r.status === 'Rejected').length,   icon: 'event_busy',      style: 'bg-error-container/30',            trend: '' },
         ].map(s => (
           <div key={s.label} className={`p-lg rounded-xl border border-outline-variant shadow-sm ${s.style}`}>
             <div className="flex items-center justify-between mb-md">
@@ -56,15 +75,29 @@ export default function LeaveManagement() {
       <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md mb-lg flex flex-wrap gap-md shadow-sm">
         <div className="flex-1 min-w-[200px] relative">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
-          <input className="w-full bg-background border border-outline-variant rounded-lg py-2 pl-10 pr-4 text-body-md focus:ring-2 focus:ring-primary outline-none" placeholder="Search employee..." type="text" />
+          <input
+            className="w-full bg-background border border-outline-variant rounded-lg py-2 pl-10 pr-4 text-body-md focus:ring-2 focus:ring-primary outline-none"
+            placeholder="Search employee..."
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
         </div>
-        <select className="bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md">
+        <select
+          className="bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md"
+          value={filterType}
+          onChange={e => setFilterType(e.target.value)}
+        >
           <option>All Leave Types</option>
           <option>Annual Leave</option>
           <option>Sick Leave</option>
           <option>Personal Leave</option>
         </select>
-        <select className="bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md">
+        <select
+          className="bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md"
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+        >
           <option>All Status</option>
           <option>Pending</option>
           <option>Approved</option>
@@ -88,7 +121,13 @@ export default function LeaveManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant text-body-md">
-              {leaveRequests.map(req => (
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-lg py-xl text-center text-on-surface-variant text-body-md">
+                    No leave requests match the current filters.
+                  </td>
+                </tr>
+              ) : filtered.map(req => (
                 <tr key={req.id} className="hover:bg-surface-container-low transition-colors">
                   <td className="px-lg py-md">
                     <div className="flex items-center gap-sm">
@@ -112,22 +151,26 @@ export default function LeaveManagement() {
                     {req.status === 'Pending' ? (
                       <div className="flex items-center justify-center gap-sm">
                         <button
-                          onClick={() => handleAction('Approved', req.name)}
+                          onClick={() => handleAction('Approved', req)}
                           className="px-md py-xs bg-secondary-container text-on-secondary-container rounded-lg text-label-md font-bold hover:opacity-90"
                         >
                           Approve
                         </button>
                         <button
-                          onClick={() => handleAction('Rejected', req.name)}
+                          onClick={() => handleAction('Rejected', req)}
                           className="px-md py-xs bg-error-container text-on-error-container rounded-lg text-label-md font-bold hover:opacity-90"
                         >
                           Reject
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center">
-                        <button className="p-1 hover:bg-surface-container rounded-lg text-outline transition-all">
-                          <span className="material-symbols-outlined text-[20px]">more_vert</span>
+                      <div className="flex items-center justify-center gap-xs">
+                        <button
+                          onClick={() => handleAction('Pending', req)}
+                          title="Reset to Pending"
+                          className="p-1 hover:bg-surface-container rounded-lg text-outline transition-all"
+                        >
+                          <span className="material-symbols-outlined text-[20px]">restart_alt</span>
                         </button>
                       </div>
                     )}
@@ -137,8 +180,12 @@ export default function LeaveManagement() {
             </tbody>
           </table>
         </div>
-          <div className="p-md bg-surface-container-low flex flex-col gap-md sm:flex-row sm:items-center sm:justify-between border-t border-outline-variant">
-          <p className="text-label-sm text-on-surface-variant">Showing 3 of 124 requests</p>
+        <div className="p-md bg-surface-container-low flex flex-col gap-md sm:flex-row sm:items-center sm:justify-between border-t border-outline-variant">
+          <p className="text-label-sm text-on-surface-variant">
+            {search || filterType !== 'All Leave Types' || filterStatus !== 'All Status'
+              ? `${filtered.length} result${filtered.length !== 1 ? 's' : ''} found`
+              : `Showing ${requests.length} of ${requests.length} requests`}
+          </p>
           <div className="flex space-x-sm">
             <button className="p-1 rounded hover:bg-surface-container opacity-30" disabled>
               <span className="material-symbols-outlined">chevron_left</span>
@@ -154,10 +201,16 @@ export default function LeaveManagement() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-lg right-lg bg-inverse-surface text-inverse-on-surface px-lg py-md rounded-xl shadow-xl flex items-center gap-md z-50">
-          <span className="material-symbols-outlined text-secondary-fixed">check_circle</span>
-          <span className="text-body-md">{toast}</span>
-          <button onClick={() => setToast(null)} className="text-inverse-on-surface/60 hover:text-inverse-on-surface ml-md">
+        <div className={`fixed bottom-lg right-lg px-lg py-md rounded-xl shadow-xl flex items-center gap-md z-50 ${
+          toast.type === 'error'
+            ? 'bg-error-container text-on-error-container'
+            : 'bg-inverse-surface text-inverse-on-surface'
+        }`}>
+          <span className="material-symbols-outlined text-[18px]">
+            {toast.type === 'error' ? 'cancel' : 'check_circle'}
+          </span>
+          <span className="text-body-md">{toast.message}</span>
+          <button onClick={() => setToast(null)} className="ml-md opacity-60 hover:opacity-100">
             <span className="material-symbols-outlined text-[18px]">close</span>
           </button>
         </div>

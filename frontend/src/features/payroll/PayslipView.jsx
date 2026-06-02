@@ -1,8 +1,31 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 export default function PayslipView() {
+  const [toast, setToast] = useState(null)
+
+  const showToast = (message) => {
+    setToast(message)
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const handlePrint = () => window.print()
+
+  const handleDownloadPdf = () => {
+    showToast('Opening print dialog — choose "Save as PDF" to download.')
+    setTimeout(() => window.print(), 300)
+  }
+
   return (
     <div className="p-margin-mobile md:p-margin-desktop">
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-20 right-6 z-50 flex items-center gap-md px-lg py-md rounded-xl shadow-lg border text-label-md font-bold bg-secondary-container text-on-secondary-container border-secondary/30">
+          <span className="material-symbols-outlined text-[20px]">info</span>
+          {toast}
+        </div>
+      )}
+
       {/* Breadcrumb & Actions */}
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-lg gap-md">
         <div>
@@ -16,11 +39,17 @@ export default function PayslipView() {
           <h2 className="text-headline-lg">Payslip Detail</h2>
         </div>
         <div className="flex items-center gap-sm">
-          <button className="flex items-center gap-sm px-lg py-sm border border-outline-variant rounded-lg text-label-md text-on-surface hover:bg-surface-container transition-all">
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-sm px-lg py-sm border border-outline-variant rounded-lg text-label-md text-on-surface hover:bg-surface-container transition-all"
+          >
             <span className="material-symbols-outlined">print</span>
             Print Document
           </button>
-          <button className="flex items-center gap-sm px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md hover:bg-primary-container transition-all">
+          <button
+            onClick={handleDownloadPdf}
+            className="flex items-center gap-sm px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md hover:bg-primary-container transition-all"
+          >
             <span className="material-symbols-outlined">download</span>
             Download PDF
           </button>

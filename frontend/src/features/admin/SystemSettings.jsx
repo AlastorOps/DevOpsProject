@@ -180,7 +180,7 @@ export default function SystemSettings() {
               <div className="space-y-md">
                 {[
                   { label: 'English (United States)', value: 'en' },
-                  { label: 'Khmer (Cambodia)',         value: 'km' },
+                  { label: 'Khmer (Cambodia)',         value: 'kh' },
                 ].map(lang => (
                   <label
                     key={lang.value}

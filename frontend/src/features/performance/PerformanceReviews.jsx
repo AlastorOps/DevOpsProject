@@ -2,31 +2,89 @@ import { useState } from 'react'
 
 const ratingStyle = {
   Excellent: 'bg-secondary-container text-on-secondary-container',
-  Good: 'bg-surface-variant text-primary',
-  Average: 'bg-tertiary-fixed text-on-tertiary-fixed-variant',
-  Poor: 'bg-error-container text-on-error-container',
+  Good:      'bg-surface-variant text-primary',
+  Average:   'bg-tertiary-fixed text-on-tertiary-fixed-variant',
+  Poor:      'bg-error-container text-on-error-container',
 }
 
-const reviews = [
+const starsToRating = (s) => s >= 5 ? 'Excellent' : s >= 4 ? 'Good' : s >= 3 ? 'Average' : 'Poor'
+
+const initialReviews = [
   { init: 'JS', name: 'Jordan Smith', dept: 'Engineering', position: 'Senior Frontend Dev', lastReview: 'Oct 12, 2023', rating: 'Excellent', reviewer: 'Maria Garcia' },
-  { init: 'AL', name: 'Amara Lawson', dept: 'Marketing', position: 'Growth Manager', lastReview: 'Nov 04, 2023', rating: 'Good', reviewer: 'Chris Evans' },
-  { init: 'KT', name: 'Kevin Tuan', dept: 'Sales', position: 'Sales Associate', lastReview: 'Dec 15, 2023', rating: 'Average', reviewer: 'Sarah Blake' },
-  { init: 'DM', name: 'Dianne Miles', dept: 'Design', position: 'UI/UX Designer', lastReview: 'Jan 02, 2024', rating: 'Poor', reviewer: 'Maria Garcia' },
-  { init: 'RR', name: 'Riley Reid', dept: 'Engineering', position: 'QA Specialist', lastReview: 'Dec 20, 2023', rating: 'Excellent', reviewer: 'Chris Evans' },
+  { init: 'AL', name: 'Amara Lawson', dept: 'Marketing',   position: 'Growth Manager',       lastReview: 'Nov 04, 2023', rating: 'Good',      reviewer: 'Chris Evans' },
+  { init: 'KT', name: 'Kevin Tuan',   dept: 'Sales',       position: 'Sales Associate',       lastReview: 'Dec 15, 2023', rating: 'Average',   reviewer: 'Sarah Blake' },
+  { init: 'DM', name: 'Dianne Miles', dept: 'Design',      position: 'UI/UX Designer',        lastReview: 'Jan 02, 2024', rating: 'Poor',      reviewer: 'Maria Garcia' },
+  { init: 'RR', name: 'Riley Reid',   dept: 'Engineering', position: 'QA Specialist',         lastReview: 'Dec 20, 2023', rating: 'Excellent', reviewer: 'Chris Evans' },
 ]
 
+const emptyForm = { employee: '', cycle: 'Annual Review 2024', stars: 4, comments: '' }
+
 export default function PerformanceReviews() {
-  const [showModal, setShowModal] = useState(false)
+  const [reviewList, setReviewList]   = useState(initialReviews)
+  const [showModal, setShowModal]     = useState(false)
+  const [form, setForm]               = useState(emptyForm)
+  const [hoverStar, setHoverStar]     = useState(0)
+  const [toast, setToast]             = useState(null)
+  const [search, setSearch]           = useState('')
+  const [filterDept, setFilterDept]   = useState('All Departments')
+  const [filterRating, setFilterRating] = useState('All Ratings')
+
+  const showToast = (message) => {
+    setToast(message)
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const openModal = (employeeName = '') => {
+    setForm({ ...emptyForm, employee: employeeName })
+    setHoverStar(0)
+    setShowModal(true)
+  }
+
+  const handleSubmit = () => {
+    if (!form.employee) return
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+    const init  = form.employee.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+    setReviewList(prev => [
+      { init, name: form.employee, dept: '—', position: form.cycle, lastReview: today, rating: starsToRating(form.stars), reviewer: 'You' },
+      ...prev,
+    ])
+    setShowModal(false)
+    setForm(emptyForm)
+    showToast(`Review for ${form.employee} submitted.`)
+  }
+
+  const handleReset = () => {
+    setSearch('')
+    setFilterDept('All Departments')
+    setFilterRating('All Ratings')
+  }
+
+  const filtered = reviewList.filter(r => {
+    const matchSearch  = `${r.name} ${r.position}`.toLowerCase().includes(search.toLowerCase())
+    const matchDept    = filterDept   === 'All Departments' || r.dept   === filterDept
+    const matchRating  = filterRating === 'All Ratings'     || r.rating === filterRating
+    return matchSearch && matchDept && matchRating
+  })
+
+  const activeStar = hoverStar || form.stars
 
   return (
     <div className="p-margin-mobile md:p-margin-desktop space-y-lg">
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-20 right-6 z-50 flex items-center gap-md px-lg py-md rounded-xl shadow-lg border text-label-md font-bold bg-secondary-container text-on-secondary-container border-secondary/30">
+          <span className="material-symbols-outlined text-[20px]">check_circle</span>
+          {toast}
+        </div>
+      )}
+
       <div className="flex flex-col gap-md md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-display text-on-background">Performance Reviews</h2>
           <p className="text-body-lg text-on-surface-variant">Track and manage employee growth and evaluations.</p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => openModal()}
           className="flex items-center gap-xs px-lg py-md bg-primary text-on-primary rounded-lg text-label-md hover:opacity-90 transition-all active:scale-95 shadow-md"
         >
           <span className="material-symbols-outlined">add</span>
@@ -73,9 +131,19 @@ export default function PerformanceReviews() {
       <div className="flex flex-col md:flex-row items-center gap-md p-md bg-surface-container-low rounded-lg border border-outline-variant">
         <div className="relative flex-1 w-full">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">person_search</span>
-          <input className="w-full pl-10 pr-4 py-2 border border-outline-variant rounded-lg bg-surface-container-lowest text-body-md outline-none focus:ring-1 focus:ring-primary" placeholder="Search by name or position..." type="text" />
+          <input
+            className="w-full pl-10 pr-4 py-2 border border-outline-variant rounded-lg bg-surface-container-lowest text-body-md outline-none focus:ring-1 focus:ring-primary"
+            placeholder="Search by name or position..."
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
         </div>
-        <select className="w-full md:w-48 py-2 px-md border border-outline-variant rounded-lg bg-surface-container-lowest text-body-md">
+        <select
+          className="w-full md:w-48 py-2 px-md border border-outline-variant rounded-lg bg-surface-container-lowest text-body-md"
+          value={filterDept}
+          onChange={e => setFilterDept(e.target.value)}
+        >
           <option>All Departments</option>
           <option>Engineering</option>
           <option>Marketing</option>
@@ -83,14 +151,21 @@ export default function PerformanceReviews() {
           <option>Human Resources</option>
           <option>Design</option>
         </select>
-        <select className="w-full md:w-48 py-2 px-md border border-outline-variant rounded-lg bg-surface-container-lowest text-body-md">
+        <select
+          className="w-full md:w-48 py-2 px-md border border-outline-variant rounded-lg bg-surface-container-lowest text-body-md"
+          value={filterRating}
+          onChange={e => setFilterRating(e.target.value)}
+        >
           <option>All Ratings</option>
           <option>Excellent</option>
           <option>Good</option>
           <option>Average</option>
           <option>Poor</option>
         </select>
-        <button className="w-full md:w-auto px-lg py-2 bg-surface-container-highest border border-outline text-on-surface rounded-lg text-label-md hover:bg-surface-container-high transition-colors">
+        <button
+          onClick={handleReset}
+          className="w-full md:w-auto px-lg py-2 bg-surface-container-highest border border-outline text-on-surface rounded-lg text-label-md hover:bg-surface-container-high transition-colors"
+        >
           Reset
         </button>
       </div>
@@ -111,8 +186,14 @@ export default function PerformanceReviews() {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant">
-              {reviews.map(r => (
-                <tr key={r.name} className="hover:bg-surface-container-low transition-colors">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-lg py-xl text-center text-on-surface-variant text-body-md">
+                    No reviews match the current filters.
+                  </td>
+                </tr>
+              ) : filtered.map(r => (
+                <tr key={r.name + r.lastReview} className="hover:bg-surface-container-low transition-colors">
                   <td className="px-lg py-md">
                     <div className="flex items-center gap-sm">
                       <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-label-sm">{r.init}</div>
@@ -127,7 +208,12 @@ export default function PerformanceReviews() {
                   </td>
                   <td className="px-lg py-md text-body-md text-on-surface-variant">{r.reviewer}</td>
                   <td className="px-lg py-md text-center">
-                    <button onClick={() => setShowModal(true)} className="text-primary hover:bg-primary/10 px-md py-1 rounded transition-colors text-label-md">Add Review</button>
+                    <button
+                      onClick={() => openModal(r.name)}
+                      className="text-primary hover:bg-primary/10 px-md py-1 rounded transition-colors text-label-md"
+                    >
+                      Add Review
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -135,7 +221,11 @@ export default function PerformanceReviews() {
           </table>
         </div>
         <div className="px-lg py-md flex flex-col gap-md sm:flex-row sm:items-center sm:justify-between border-t border-outline-variant">
-          <p className="text-body-md text-on-surface-variant">Showing 1 to 5 of 42 employees</p>
+          <p className="text-body-md text-on-surface-variant">
+            {search || filterDept !== 'All Departments' || filterRating !== 'All Ratings'
+              ? `${filtered.length} result${filtered.length !== 1 ? 's' : ''} found`
+              : `Showing 1 to ${reviewList.length} of ${reviewList.length} employees`}
+          </p>
           <div className="flex items-center gap-xs">
             <button className="p-2 rounded-lg hover:bg-surface-container-low text-outline opacity-50" disabled>
               <span className="material-symbols-outlined">chevron_left</span>
@@ -165,15 +255,24 @@ export default function PerformanceReviews() {
               <div className="grid grid-cols-2 gap-md">
                 <div className="space-y-xs">
                   <label className="text-label-md text-on-surface">Employee</label>
-                  <select className="w-full py-2 px-md border border-outline-variant rounded-lg focus:ring-1 focus:ring-primary outline-none">
-                    <option>Search employee...</option>
-                    <option>Jordan Smith</option>
-                    <option>Amara Lawson</option>
+                  <select
+                    className="w-full py-2 px-md border border-outline-variant rounded-lg focus:ring-1 focus:ring-primary outline-none"
+                    value={form.employee}
+                    onChange={e => setForm(prev => ({ ...prev, employee: e.target.value }))}
+                  >
+                    <option value="">Select employee…</option>
+                    {initialReviews.map(r => (
+                      <option key={r.name} value={r.name}>{r.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-xs">
                   <label className="text-label-md text-on-surface">Review Cycle</label>
-                  <select className="w-full py-2 px-md border border-outline-variant rounded-lg focus:ring-1 focus:ring-primary outline-none">
+                  <select
+                    className="w-full py-2 px-md border border-outline-variant rounded-lg focus:ring-1 focus:ring-primary outline-none"
+                    value={form.cycle}
+                    onChange={e => setForm(prev => ({ ...prev, cycle: e.target.value }))}
+                  >
                     <option>Annual Review 2024</option>
                     <option>Q1 Mid-Year</option>
                   </select>
@@ -182,15 +281,20 @@ export default function PerformanceReviews() {
               <div className="space-y-xs">
                 <label className="text-label-md text-on-surface">Rating Score</label>
                 <div className="flex items-center gap-xs">
-                  {[1,2,3,4].map(i => (
-                    <button key={i} className="text-primary">
-                      <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <button
+                      key={i}
+                      onClick={() => setForm(prev => ({ ...prev, stars: i }))}
+                      onMouseEnter={() => setHoverStar(i)}
+                      onMouseLeave={() => setHoverStar(0)}
+                      className={i <= activeStar ? 'text-primary' : 'text-outline'}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontVariationSettings: i <= activeStar ? "'FILL' 1" : "'FILL' 0" }}>star</span>
                     </button>
                   ))}
-                  <button className="text-outline">
-                    <span className="material-symbols-outlined">star</span>
-                  </button>
-                  <span className="ml-md text-body-md font-bold text-on-surface">4.0 - Good</span>
+                  <span className="ml-md text-body-md font-bold text-on-surface">
+                    {activeStar}.0 — {starsToRating(activeStar)}
+                  </span>
                 </div>
               </div>
               <div className="space-y-xs">
@@ -199,12 +303,20 @@ export default function PerformanceReviews() {
                   className="w-full p-md border border-outline-variant rounded-lg focus:ring-1 focus:ring-primary outline-none text-body-md resize-none"
                   placeholder="Provide detailed feedback on strengths and areas for improvement..."
                   rows={4}
+                  value={form.comments}
+                  onChange={e => setForm(prev => ({ ...prev, comments: e.target.value }))}
                 />
               </div>
             </div>
             <div className="flex items-center justify-end gap-md pt-md">
               <button onClick={() => setShowModal(false)} className="px-lg py-md text-on-surface-variant text-label-md hover:bg-surface-container rounded-lg">Cancel</button>
-              <button className="px-xl py-md bg-primary text-on-primary text-label-md rounded-lg shadow-md hover:opacity-90">Submit Review</button>
+              <button
+                onClick={handleSubmit}
+                disabled={!form.employee}
+                className="px-xl py-md bg-primary text-on-primary text-label-md rounded-lg shadow-md hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Submit Review
+              </button>
             </div>
           </div>
         </div>

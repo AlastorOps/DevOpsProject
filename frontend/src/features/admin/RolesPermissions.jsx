@@ -98,6 +98,7 @@ export default function RolesPermissions() {
   const [newName, setNewName]           = useState('')
   const [newDesc, setNewDesc]           = useState('')
   const [nameError, setNameError]       = useState('')
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type })
@@ -145,6 +146,26 @@ export default function RolesPermissions() {
     setNewName('')
     setNewDesc('')
     setNameError('')
+  }
+
+  const confirmDeleteRole = (e, roleName) => {
+    e.stopPropagation()
+    if (roles.length === 1) return
+    setDeleteTarget(roleName)
+  }
+
+  const handleDeleteRole = () => {
+    const roleName = deleteTarget
+    setDeleteTarget(null)
+    const remaining = roles.filter(r => r.name !== roleName)
+    setRoles(remaining)
+    setPermissions(prev => {
+      const next = { ...prev }
+      delete next[roleName]
+      return next
+    })
+    if (activeRole === roleName) setActiveRole(remaining[0].name)
+    showToast(`Role "${roleName}" deleted.`, 'error')
   }
 
   const activePerms = permissions[activeRole] ?? buildPerms([])
@@ -204,6 +225,37 @@ export default function RolesPermissions() {
         </div>
       )}
 
+      {/* Delete Role Confirmation */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 bg-on-background/40 backdrop-blur-sm flex items-center justify-center p-margin-mobile">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-xl shadow-2xl max-w-md w-full">
+            <div className="flex items-center gap-md mb-md">
+              <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-error">warning</span>
+              </div>
+              <h3 className="text-headline-md text-on-surface">Delete Role?</h3>
+            </div>
+            <p className="text-body-md text-on-surface-variant mb-xl">
+              Are you sure you want to delete <strong>"{deleteTarget}"</strong>? All permission settings for this role will be permanently removed.
+            </p>
+            <div className="flex gap-sm justify-end">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="px-lg py-sm bg-surface-container border border-outline-variant text-on-surface rounded-lg text-label-md hover:bg-surface-container-high transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteRole}
+                className="px-lg py-sm bg-error text-on-error rounded-lg text-label-md hover:opacity-90 transition-all"
+              >
+                Delete Role
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-[1400px] mx-auto">
         <header className="mb-xl flex flex-col gap-md md:flex-row md:justify-between md:items-end">
           <div>
@@ -229,21 +281,31 @@ export default function RolesPermissions() {
               </div>
               <div className="flex flex-col divide-y divide-outline-variant">
                 {roles.map(role => (
-                  <button
+                  <div
                     key={role.name}
-                    onClick={() => setActiveRole(role.name)}
-                    className={`flex items-center justify-between p-lg transition-all text-left group ${
+                    className={`flex items-center justify-between p-lg transition-all text-left group cursor-pointer ${
                       activeRole === role.name
                         ? 'bg-surface-container-low border-r-4 border-primary'
                         : 'hover:bg-surface-container-low'
                     }`}
+                    onClick={() => setActiveRole(role.name)}
                   >
-                    <div className="flex flex-col min-w-0 pr-sm">
+                    <div className="flex flex-col min-w-0 pr-sm flex-1">
                       <span className={`text-body-md font-bold truncate ${activeRole === role.name ? 'text-primary' : 'text-on-surface'}`}>{role.name}</span>
                       <span className="text-label-sm text-on-surface-variant truncate">{role.desc}</span>
                     </div>
-                    <span className={`material-symbols-outlined shrink-0 ${activeRole === role.name ? 'text-primary' : 'text-outline group-hover:text-on-surface'} group-hover:translate-x-1 transition-all`}>chevron_right</span>
-                  </button>
+                    <div className="flex items-center gap-xs shrink-0">
+                      <span className={`material-symbols-outlined ${activeRole === role.name ? 'text-primary' : 'text-outline group-hover:text-on-surface'} group-hover:translate-x-1 transition-all`}>chevron_right</span>
+                      {roles.length > 1 && (
+                        <button
+                          onClick={(e) => confirmDeleteRole(e, role.name)}
+                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-error-container/20 rounded-lg text-error transition-all"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 ))}
               </div>
             </section>

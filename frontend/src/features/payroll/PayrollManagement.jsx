@@ -1,31 +1,163 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
-const payrollRecords = [
-  { id: '#PR-2024-001', name: 'Jane Doe', init: 'JD', dept: 'Engineering', basic: '$8,500.00', bonus: '+$500.00', deduct: '-$120.00', net: '$8,880.00', status: 'Paid' },
-  { id: '#PR-2024-002', name: 'Marcus Smith', init: 'MS', dept: 'Marketing', basic: '$6,200.00', bonus: '+$200.00', deduct: '-$85.00', net: '$6,315.00', status: 'Pending' },
-  { id: '#PR-2024-003', name: 'Elena Wong', init: 'EW', dept: 'Design', basic: '$7,800.00', bonus: '+$0.00', deduct: '-$210.00', net: '$7,590.00', status: 'Paid' },
-  { id: '#PR-2024-004', name: 'Robert Chen', init: 'RC', dept: 'Operations', basic: '$9,100.00', bonus: '+$1,200.00', deduct: '-$450.00', net: '$9,850.00', status: 'Pending' },
-]
-
 const statusStyle = {
-  Paid: 'bg-secondary-container/20 text-secondary',
+  Paid:    'bg-secondary-container/20 text-secondary',
   Pending: 'bg-tertiary-container/20 text-tertiary',
 }
 
+const initialRecords = [
+  { id: '#PR-2024-001', name: 'Jane Doe',     init: 'JD', dept: 'Engineering', basic: '$8,500.00', bonus: '+$500.00',   deduct: '-$120.00',  net: '$8,880.00', status: 'Paid' },
+  { id: '#PR-2024-002', name: 'Marcus Smith', init: 'MS', dept: 'Marketing',   basic: '$6,200.00', bonus: '+$200.00',   deduct: '-$85.00',   net: '$6,315.00', status: 'Pending' },
+  { id: '#PR-2024-003', name: 'Elena Wong',   init: 'EW', dept: 'Design',      basic: '$7,800.00', bonus: '+$0.00',     deduct: '-$210.00',  net: '$7,590.00', status: 'Paid' },
+  { id: '#PR-2024-004', name: 'Robert Chen',  init: 'RC', dept: 'Operations',  basic: '$9,100.00', bonus: '+$1,200.00', deduct: '-$450.00',  net: '$9,850.00', status: 'Pending' },
+]
+
+const emptyForm = { name: '', dept: '', basic: '', bonus: '', deduct: '' }
+
+const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+
 export default function PayrollManagement() {
+  const [records, setRecords]     = useState(initialRecords)
+  const [activeTab, setActiveTab] = useState('all')
+  const [showModal, setShowModal] = useState(false)
+  const [form, setForm]           = useState(emptyForm)
+  const [toast, setToast]         = useState(null)
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const filtered = records.filter(r =>
+    activeTab === 'paid'    ? r.status === 'Paid' :
+    activeTab === 'pending' ? r.status === 'Pending' :
+    true
+  )
+
+  const handleRunPayroll = () => {
+    if (!form.name.trim()) return
+    const basic  = parseFloat(form.basic)  || 0
+    const bonus  = parseFloat(form.bonus)  || 0
+    const deduct = parseFloat(form.deduct) || 0
+    const net    = basic + bonus - deduct
+    const nextId = `#PR-2024-${String(records.length + 1).padStart(3, '0')}`
+    const init   = form.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+    setRecords(prev => [...prev, {
+      id: nextId, name: form.name, init, dept: form.dept || '—',
+      basic: fmt(basic), bonus: `+${fmt(bonus)}`, deduct: `-${fmt(deduct)}`,
+      net: fmt(net), status: 'Pending',
+    }])
+    setShowModal(false)
+    setForm(emptyForm)
+    showToast(`Payroll for ${form.name} created.`)
+  }
+
+  const handleApproveAll = () => {
+    const count = records.filter(r => r.status === 'Pending').length
+    if (count === 0) { showToast('No pending records to approve.'); return }
+    setRecords(prev => prev.map(r => ({ ...r, status: 'Paid' })))
+    showToast(`${count} pending record${count !== 1 ? 's' : ''} approved.`)
+  }
+
+  const handleApproveOne = (id) => {
+    setRecords(prev => prev.map(r => r.id === id ? { ...r, status: 'Paid' } : r))
+    showToast(`${id} marked as Paid.`)
+  }
+
+  const field = (key) => ({
+    value: form[key],
+    onChange: e => setForm(prev => ({ ...prev, [key]: e.target.value })),
+  })
+
   return (
     <div className="p-margin-mobile md:p-margin-desktop">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-20 right-6 z-50 flex items-center gap-md px-lg py-md rounded-xl shadow-lg border text-label-md font-bold transition-all ${
+          toast.type === 'error'
+            ? 'bg-error-container text-on-error-container border-error/30'
+            : 'bg-secondary-container text-on-secondary-container border-secondary/30'
+        }`}>
+          <span className="material-symbols-outlined text-[20px]">check_circle</span>
+          {toast.message}
+        </div>
+      )}
+
+      {/* Run Payroll Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-margin-mobile">
+          <div className="absolute inset-0 bg-on-background/40 backdrop-blur-sm" onClick={() => setShowModal(false)}></div>
+          <div className="relative bg-surface-container-lowest w-full max-w-lg p-xl rounded-xl shadow-2xl border border-outline-variant space-y-lg">
+            <div className="flex items-center justify-between">
+              <h3 className="text-headline-md font-bold">Run Payroll</h3>
+              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-surface-container rounded-full">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="space-y-md">
+              <div className="grid grid-cols-2 gap-md">
+                <div className="space-y-xs col-span-2">
+                  <label className="text-label-md text-on-surface">Employee Name</label>
+                  <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="e.g. Jane Doe" type="text" {...field('name')} />
+                </div>
+                <div className="space-y-xs">
+                  <label className="text-label-md text-on-surface">Department</label>
+                  <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="e.g. Engineering" type="text" {...field('dept')} />
+                </div>
+                <div className="space-y-xs">
+                  <label className="text-label-md text-on-surface">Basic Salary ($)</label>
+                  <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0.00" type="number" min="0" {...field('basic')} />
+                </div>
+                <div className="space-y-xs">
+                  <label className="text-label-md text-on-surface">Bonus ($)</label>
+                  <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0.00" type="number" min="0" {...field('bonus')} />
+                </div>
+                <div className="space-y-xs">
+                  <label className="text-label-md text-on-surface">Deduction ($)</label>
+                  <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0.00" type="number" min="0" {...field('deduct')} />
+                </div>
+              </div>
+              {(form.basic || form.bonus || form.deduct) && (
+                <div className="flex items-center justify-between bg-surface-container rounded-lg px-md py-sm text-body-md">
+                  <span className="text-on-surface-variant">Net Salary Preview</span>
+                  <span className="font-bold text-primary">
+                    {fmt((parseFloat(form.basic) || 0) + (parseFloat(form.bonus) || 0) - (parseFloat(form.deduct) || 0))}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-md pt-sm">
+              <button onClick={() => setShowModal(false)} className="px-lg py-md text-on-surface-variant hover:bg-surface-container rounded-lg text-label-md">Cancel</button>
+              <button
+                onClick={handleRunPayroll}
+                disabled={!form.name.trim()}
+                className="px-xl py-md bg-primary text-on-primary text-label-md rounded-lg shadow-md hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Create Record
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-xl gap-md">
         <div>
           <h2 className="text-headline-lg text-on-surface">Payroll Management</h2>
           <p className="text-body-md text-on-surface-variant">Process salaries, manage payslips, and track payroll cycles</p>
         </div>
         <div className="flex gap-sm">
-          <button className="flex items-center gap-xs px-md py-sm border border-outline-variant rounded-lg text-label-md hover:bg-surface-container transition-all">
+          <button
+            onClick={() => showToast('Exporting records as Excel…')}
+            className="flex items-center gap-xs px-md py-sm border border-outline-variant rounded-lg text-label-md hover:bg-surface-container transition-all"
+          >
             <span className="material-symbols-outlined text-[18px]">download</span>
             Export Excel
           </button>
-          <button className="flex items-center gap-xs px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md hover:brightness-110 active:scale-95 transition-all shadow-md">
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-xs px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md hover:brightness-110 active:scale-95 transition-all shadow-md"
+          >
             <span className="material-symbols-outlined text-[18px]">add</span>
             Run Payroll
           </button>
@@ -84,12 +216,25 @@ export default function PayrollManagement() {
           <div className="flex items-center space-x-md">
             <h4 className="text-headline-md text-on-surface">Payroll Records</h4>
             <div className="flex bg-surface-container rounded-lg p-1">
-              <button className="px-md py-xs bg-surface-container-lowest shadow-sm rounded-md text-label-md text-on-surface">All Records</button>
-              <button className="px-md py-xs text-label-md text-on-surface-variant hover:text-on-surface">Paid Only</button>
-              <button className="px-md py-xs text-label-md text-on-surface-variant hover:text-on-surface">Pending</button>
+              {[['all', 'All Records'], ['paid', 'Paid Only'], ['pending', 'Pending']].map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => setActiveTab(val)}
+                  className={`px-md py-xs rounded-md text-label-md transition-all ${
+                    activeTab === val
+                      ? 'bg-surface-container-lowest shadow-sm text-on-surface'
+                      : 'text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
-          <button className="text-primary text-label-md flex items-center hover:underline">
+          <button
+            onClick={() => showToast('History view coming soon.')}
+            className="text-primary text-label-md flex items-center hover:underline"
+          >
             View History <span className="material-symbols-outlined ml-xs text-[16px]">history</span>
           </button>
         </div>
@@ -109,7 +254,13 @@ export default function PayrollManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant text-body-md">
-              {payrollRecords.map(rec => (
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-lg py-xl text-center text-on-surface-variant text-body-md">
+                    No {activeTab === 'all' ? '' : activeTab} records found.
+                  </td>
+                </tr>
+              ) : filtered.map(rec => (
                 <tr key={rec.id} className="hover:bg-surface-container-low transition-colors">
                   <td className="px-lg py-md font-medium">{rec.id}</td>
                   <td className="px-lg py-md">
@@ -130,9 +281,20 @@ export default function PayrollManagement() {
                     </span>
                   </td>
                   <td className="px-lg py-md text-center">
-                    <Link to="/payroll/payslip" className="text-primary hover:text-primary-container p-2 rounded-full hover:bg-primary/10 transition-all inline-block">
-                      <span className="material-symbols-outlined">visibility</span>
-                    </Link>
+                    <div className="flex items-center justify-center gap-xs">
+                      {rec.status === 'Pending' && (
+                        <button
+                          onClick={() => handleApproveOne(rec.id)}
+                          title="Approve"
+                          className="p-2 rounded-full hover:bg-secondary/10 text-secondary transition-all"
+                        >
+                          <span className="material-symbols-outlined text-[20px]">check_circle</span>
+                        </button>
+                      )}
+                      <Link to="/payroll/payslip" className="text-primary p-2 rounded-full hover:bg-primary/10 transition-all inline-block">
+                        <span className="material-symbols-outlined">visibility</span>
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -140,7 +302,9 @@ export default function PayrollManagement() {
           </table>
         </div>
         <div className="p-md bg-surface-container-low flex items-center justify-between border-t border-outline-variant">
-          <p className="text-label-sm text-on-surface-variant">Showing 4 of 124 employees</p>
+          <p className="text-label-sm text-on-surface-variant">
+            Showing {filtered.length} of {records.length} records
+          </p>
           <div className="flex space-x-sm">
             <button className="p-1 rounded hover:bg-surface-container opacity-30" disabled>
               <span className="material-symbols-outlined">chevron_left</span>
@@ -182,7 +346,10 @@ export default function PayrollManagement() {
             <span className="material-symbols-outlined opacity-60">bolt</span>
           </div>
           <p className="text-body-md opacity-80 mb-lg">Acknowledge all pending March payslips to notify employees via email automatically.</p>
-          <button className="w-full py-md bg-inverse-primary text-primary font-bold rounded-lg hover:opacity-90 active:scale-95 transition-all">
+          <button
+            onClick={handleApproveAll}
+            className="w-full py-md bg-inverse-primary text-primary font-bold rounded-lg hover:opacity-90 active:scale-95 transition-all"
+          >
             Approve All Pending
           </button>
           <div className="mt-xl pt-lg border-t border-on-surface-variant/20">
