@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 const emptyForm = {
   name: '', gender: '', dob: '', phone: '', email: '', address: '',
   empId: '', dept: '', pos: '', hireDate: '', employment: 'Full-time', salary: '',
-  username: '', workEmail: '', password: 'password123', role: 'Employee', accountActive: true,
+  username: '', workEmail: '', password: '', role: 'Employee', accountActive: true,
 }
 
 export default function AddEmployee() {
@@ -107,8 +107,8 @@ export default function AddEmployee() {
                 </div>
                 <div className="space-y-xs">
                   <label className="text-label-md text-on-surface-variant ml-xs">Gender</label>
-                  <select className="w-full border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded-lg py-md px-md text-body-md bg-surface-container-lowest" {...f('gender')}>
-                    <option value="">Select Gender</option>
+                  <select className="w-full border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded-lg py-md px-md text-body-md bg-surface-container-lowest" {...f('gender')} defaultValue="">
+                    <option value="" disabled hidden>Select Gender</option>
                     <option>Male</option>
                     <option>Female</option>
                     <option>Other</option>
@@ -151,8 +151,8 @@ export default function AddEmployee() {
               </div>
               <div className="space-y-xs">
                 <label className="text-label-md text-on-surface-variant ml-xs">Department <span className="text-error">*</span></label>
-                <select className="w-full border border-outline-variant focus:border-primary rounded-lg py-md px-md text-body-md" {...f('dept')}>
-                  <option value="">Select Department</option>
+                <select className="w-full border border-outline-variant focus:border-primary rounded-lg py-md px-md text-body-md" {...f('dept')} defaultValue="">
+                  <option value="" disabled hidden>Select Department</option>
                   <option>Engineering</option>
                   <option>Product Design</option>
                   <option>Human Resources</option>
@@ -162,17 +162,17 @@ export default function AddEmployee() {
               </div>
               <div className="space-y-xs">
                 <label className="text-label-md text-on-surface-variant ml-xs">Position</label>
-                <select className="w-full border border-outline-variant focus:border-primary rounded-lg py-md px-md text-body-md" {...f('pos')}>
-                  <option value="">Select Position</option>
-                  <option>Senior Developer</option>
-                  <option>UI/UX Designer</option>
-                  <option>HR Specialist</option>
-                  <option>Data Analyst</option>
-                </select>
+              <select className="w-full border border-outline-variant focus:border-primary rounded-lg py-md px-md text-body-md" {...f('pos')} defaultValue="">
+                <option value="" disabled hidden>Select Position</option>
+                <option value="Senior Developer">Senior Developer</option>
+                <option value="UI/UX Designer">UI/UX Designer</option>
+                <option value="HR Specialist">HR Specialist</option>
+                <option value="Data Analyst">Data Analyst</option>
+              </select>
               </div>
               <div className="space-y-xs">
                 <label className="text-label-md text-on-surface-variant ml-xs">Hire Date</label>
-                <input className="w-full border border-outline-variant focus:border-primary rounded-lg py-md px-md text-body-md outline-none" type="date" {...f('hireDate')} />
+                <input className="w-full border border-outline-variant focus:border-primary rounded-lg py-md px-md text-body-md outline-none" type="date" defaultValue={new Date().toISOString().split('T')[0]} {...f('hireDate')}/>
               </div>
               <div className="space-y-xs">
                 <label className="text-label-md text-on-surface-variant ml-xs">Employment Status</label>

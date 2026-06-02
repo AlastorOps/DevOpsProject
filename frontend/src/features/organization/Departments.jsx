@@ -161,22 +161,6 @@ export default function Departments() {
         </button>
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-sm bg-surface-container-lowest border border-outline-variant rounded-xl px-md py-sm mb-lg shadow-sm focus-within:border-primary transition-all">
-        <span className="material-symbols-outlined text-on-surface-variant text-[20px]">search</span>
-        <input
-          className="flex-1 bg-transparent outline-none text-body-md placeholder:text-on-surface-variant"
-          placeholder="Search by name or department head…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        {search && (
-          <button onClick={() => setSearch('')} className="text-on-surface-variant hover:text-on-surface transition-colors">
-            <span className="material-symbols-outlined text-[18px]">close</span>
-          </button>
-        )}
-      </div>
-
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter mb-lg">
         <div className="bg-surface-container-lowest border border-outline-variant p-lg rounded-xl flex items-center gap-lg shadow-sm">
@@ -207,6 +191,23 @@ export default function Departments() {
           </div>
         </div>
       </div>
+
+      {/* Search */}
+      <div className="flex items-center gap-sm bg-surface-container-lowest border border-outline-variant rounded-xl px-md py-sm shadow-sm focus-within:border-primary transition-all">
+        <span className="material-symbols-outlined text-on-surface-variant text-[20px]">search</span>
+        <input
+          className="flex-1 bg-transparent outline-none text-body-md placeholder:text-on-surface-variant"
+          placeholder="Search by name or department head…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        {search && (
+          <button onClick={() => setSearch('')} className="text-on-surface-variant hover:text-on-surface transition-colors">
+            <span className="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        )}
+      </div>
+        <br />
 
       {/* Table */}
       <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">

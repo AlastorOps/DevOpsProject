@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 
 const initialEmployees = [
   { id: '#EMP-001', name: 'John Doe',      email: 'john.doe@example.com',  gender: 'Male',   dept: 'Human Resources', pos: 'HR Manager',       phone: '+1 (555) 010-2345', status: 'Active' },
@@ -17,8 +17,14 @@ const statusStyle = {
 const emptyForm = { name: '', email: '', gender: 'Male', dept: 'Human Resources', pos: '', phone: '', status: 'Active' }
 
 export default function EmployeeList() {
+  const [searchParams] = useSearchParams()
   const [employees, setEmployees]       = useState(initialEmployees)
-  const [search, setSearch]             = useState('')
+  const [search, setSearch]             = useState(() => searchParams.get('q') ?? '')
+
+  useEffect(() => {
+    const q = searchParams.get('q')
+    if (q !== null) setSearch(q)
+  }, [searchParams])
   const [filterDept, setFilterDept]     = useState('All Departments')
   const [filterPos, setFilterPos]       = useState('All Positions')
   const [filterStatus, setFilterStatus] = useState('All Status')
@@ -151,7 +157,17 @@ export default function EmployeeList() {
                 </div>
                 <div className="space-y-xs">
                   <label className="text-label-md text-on-surface">Position</label>
-                  <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" type="text" {...field('pos')} />
+                  <select className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary" {...field('pos')}>
+                    <option>HR Manager</option>
+                    <option>Senior Developer</option>
+                    <option>Junior Developer</option>
+                    <option>Head of Growth</option>
+                    <option>Marketing Specialist</option>
+                    <option>Accountant</option>
+                    <option>Finance Analyst</option>
+                    <option>Sales Executive</option>
+                    <option>Operations Manager</option>
+                  </select>
                 </div>
                 <div className="space-y-xs">
                   <label className="text-label-md text-on-surface">Status</label>
@@ -173,7 +189,7 @@ export default function EmployeeList() {
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-xl gap-md">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-md gap-md">
         <div>
           <h2 className="text-headline-lg text-on-surface">Employees</h2>
           <p className="text-body-md text-on-surface-variant">Manage organization directory and employee profiles</p>
@@ -194,25 +210,49 @@ export default function EmployeeList() {
         </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md mb-lg shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-md">
-          <div className="md:col-span-1 lg:col-span-2">
-            <label className="text-label-sm text-on-surface-variant block mb-1">Search Directory</label>
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
-              <input
-                className="w-full bg-background border border-outline-variant rounded-lg py-2 pl-10 pr-4 text-body-md focus:ring-2 focus:ring-primary outline-none"
-                placeholder="Name, ID or Email..."
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-gutter mb-lg">
+        {[
+          { label: 'Total Headcount', val: employees.length,  icon: 'group',        color: 'text-primary bg-primary/10' },
+          { label: 'Active',          val: counts.active,     icon: 'person_check', color: 'text-secondary bg-secondary/10' },
+          { label: 'On Leave',        val: counts.onLeave,    icon: 'event_busy',   color: 'text-tertiary bg-tertiary/10' },
+          { label: 'Inactive',        val: counts.inactive,   icon: 'person_off',   color: 'text-error bg-error/10' },
+        ].map(s => (
+          <div key={s.label} className="bg-surface-container-lowest border border-outline-variant p-lg rounded-xl flex items-center gap-md shadow-sm">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${s.color}`}>
+              <span className="material-symbols-outlined">{s.icon}</span>
+            </div>
+            <div>
+              <p className="text-label-sm text-on-surface-variant uppercase tracking-wider">{s.label}</p>
+              <p className="text-headline-md font-bold mt-xs">{s.val}</p>
             </div>
           </div>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="flex items-center gap-sm bg-surface-container-lowest border border-outline-variant rounded-xl px-md py-sm shadow-sm focus-within:border-primary transition-all mb-lg">
+        <span className="material-symbols-outlined text-on-surface-variant text-[20px]">search</span>
+        <input
+          className="flex-1 bg-transparent outline-none text-body-md placeholder:text-on-surface-variant"
+          placeholder="Search by name, ID or email…"
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        {search && (
+          <button onClick={() => setSearch('')} className="text-on-surface-variant hover:text-on-surface transition-colors">
+            <span className="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        )}
+      </div>
+
+      {/* Filter Toolbar */}
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md mb-lg shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
           <div>
             <label className="text-label-sm text-on-surface-variant block mb-1">Department</label>
-            <select className="w-full bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md focus:ring-2 focus:ring-primary" value={filterDept} onChange={e => setFilterDept(e.target.value)}>
+            <select className="w-full bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md focus:ring-2 focus:ring-primary" value={filterDept} onChange={e => setFilterDept(e.target.value)} defaultValue="">
               <option>All Departments</option>
               <option>Human Resources</option>
               <option>Engineering</option>
@@ -224,7 +264,7 @@ export default function EmployeeList() {
           </div>
           <div>
             <label className="text-label-sm text-on-surface-variant block mb-1">Position</label>
-            <select className="w-full bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md focus:ring-2 focus:ring-primary" value={filterPos} onChange={e => setFilterPos(e.target.value)}>
+            <select className="w-full bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md focus:ring-2 focus:ring-primary" value={filterPos} onChange={e => setFilterPos(e.target.value)} defaultValue="">
               <option>All Positions</option>
               <option>HR Manager</option>
               <option>Senior Developer</option>
@@ -234,7 +274,7 @@ export default function EmployeeList() {
           </div>
           <div>
             <label className="text-label-sm text-on-surface-variant block mb-1">Status</label>
-            <select className="w-full bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md focus:ring-2 focus:ring-primary" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+            <select className="w-full bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md focus:ring-2 focus:ring-primary" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} defaultValue="">
               <option>All Status</option>
               <option>Active</option>
               <option>Inactive</option>
@@ -330,25 +370,6 @@ export default function EmployeeList() {
         </div>
       </div>
 
-      {/* Bottom Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-gutter mt-lg">
-        {[
-          { label: 'Total Headcount', val: employees.length,  icon: 'group',        color: 'text-primary bg-primary/10' },
-          { label: 'Active',          val: counts.active,     icon: 'person_check', color: 'text-secondary bg-secondary/10' },
-          { label: 'On Leave',        val: counts.onLeave,    icon: 'event_busy',   color: 'text-tertiary bg-tertiary/10' },
-          { label: 'Inactive',        val: counts.inactive,   icon: 'person_off',   color: 'text-error bg-error/10' },
-        ].map(s => (
-          <div key={s.label} className="bg-surface-container-lowest border border-outline-variant p-lg rounded-xl flex items-center gap-md shadow-sm">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${s.color}`}>
-              <span className="material-symbols-outlined">{s.icon}</span>
-            </div>
-            <div>
-              <p className="text-label-sm text-on-surface-variant uppercase tracking-wider">{s.label}</p>
-              <p className="text-headline-md font-bold mt-xs">{s.val}</p>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }

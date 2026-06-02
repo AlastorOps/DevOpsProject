@@ -30,6 +30,7 @@ const emptyForm = { name: '', email: '', role: 'Employee', status: 'Active' }
 
 export default function UserManagement() {
   const [users, setUsers]                 = useState(initialUsers)
+  const [search, setSearch]               = useState('')
   const [roleFilter, setRoleFilter]       = useState('All Roles')
   const [statusFilter, setStatusFilter]   = useState('All Status')
   const [toast, setToast]                 = useState(null)
@@ -45,9 +46,11 @@ export default function UserManagement() {
   }
 
   const filtered = users.filter(u => {
+    const q           = search.toLowerCase()
+    const matchSearch = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
     const matchRole   = roleFilter === 'All Roles' || u.role === roleFilter
     const matchStatus = statusFilter === 'All Status' || u.status === statusFilter
-    return matchRole && matchStatus
+    return matchSearch && matchRole && matchStatus
   })
 
   const openAdd = () => {
@@ -75,7 +78,7 @@ export default function UserManagement() {
     const errs = {}
     if (!form.name.trim())  errs.name  = 'Name is required.'
     if (!form.email.trim()) errs.email = 'Email is required.'
-    else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Enter a valid email.'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Enter a valid email.'
     return errs
   }
 
@@ -257,6 +260,23 @@ export default function UserManagement() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="flex items-center gap-sm bg-surface-container-lowest border border-outline-variant rounded-xl px-md py-sm shadow-sm focus-within:border-primary transition-all">
+        <span className="material-symbols-outlined text-on-surface-variant text-[20px]">search</span>
+        <input
+          className="flex-1 bg-transparent outline-none text-body-md placeholder:text-on-surface-variant"
+          placeholder="Search by name or email…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        {search && (
+          <button onClick={() => setSearch('')} className="text-on-surface-variant hover:text-on-surface transition-colors">
+            <span className="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        )}
+      </div>
+      <br />
+
       {/* Stats & Filters */}
       <div className="grid grid-cols-12 gap-gutter mb-xl">
         <div className="col-span-12 lg:col-span-8 bg-surface-container-lowest rounded-xl border border-outline-variant p-md shadow-sm">
@@ -272,8 +292,7 @@ export default function UserManagement() {
                       roleFilter === r
                         ? 'bg-primary/10 text-primary border border-primary/20'
                         : 'bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 text-on-surface-variant'
-                    }`}
-                  >
+                    }`}>
                     {r}
                   </button>
                 ))}
@@ -282,12 +301,11 @@ export default function UserManagement() {
             <div className="h-10 w-px bg-outline-variant mx-xs hidden md:block" />
             <div className="w-full md:w-48">
               <label className="block text-label-sm text-on-surface-variant mb-xs ml-1">Status</label>
-              <select
-                className="w-full bg-surface-container border-none rounded-lg text-body-md py-1.5 focus:ring-primary/20"
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
-              >
-                {['All Status', 'Active', 'Inactive', 'Pending'].map(s => <option key={s}>{s}</option>)}
+              <select className="w-full bg-surface-container border-none rounded-lg text-body-md py-1.5 focus:ring-primary/20" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                <option value="All Status">All Status</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+                <option value="Pending">Pending</option>
               </select>
             </div>
           </div>

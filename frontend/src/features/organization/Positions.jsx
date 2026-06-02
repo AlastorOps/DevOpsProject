@@ -15,6 +15,13 @@ export default function Positions() {
   const [editPos, setEditPos] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [search, setSearch] = useState('')
+  const [toast, setToast] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
+  }
 
   const filtered = positions.filter(p =>
     `${p.title} ${p.dept} ${p.level}`.toLowerCase().includes(search.toLowerCase())
@@ -32,7 +39,11 @@ export default function Positions() {
     setShowModal(true)
   }
 
-  const closeModal = () => setShowModal(false)
+  const closeModal = () => {
+    setShowModal(false)
+    setForm(emptyForm)
+    setEditPos(null)
+  }
 
   const handleSave = () => {
     if (!form.title.trim()) return
@@ -41,14 +52,23 @@ export default function Positions() {
         ? { ...p, ...form, headcount: Number(form.headcount), openings: Number(form.openings) }
         : p
       ))
+      showToast(`"${form.title}" has been updated.`)
     } else {
       const newId = Math.max(0, ...positions.map(p => p.id)) + 1
       setPositions(prev => [...prev, { id: newId, ...form, headcount: Number(form.headcount), openings: Number(form.openings) }])
+      showToast(`"${form.title}" position created.`)
     }
     closeModal()
   }
 
-  const handleDelete = (id) => setPositions(prev => prev.filter(p => p.id !== id))
+  const confirmDelete = (id) => setDeleteTarget(id)
+
+  const handleDelete = () => {
+    const pos = positions.find(p => p.id === deleteTarget)
+    setPositions(prev => prev.filter(p => p.id !== deleteTarget))
+    setDeleteTarget(null)
+    showToast(`"${pos?.title}" has been removed.`, 'error')
+  }
 
   const field = (key) => ({
     value: form[key],
@@ -57,6 +77,44 @@ export default function Positions() {
 
   return (
     <div className="p-margin-mobile md:p-margin-desktop">
+
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-20 right-6 z-50 flex items-center gap-md px-lg py-md rounded-xl shadow-lg border text-label-md font-bold transition-all ${
+          toast.type === 'error'
+            ? 'bg-error-container text-on-error-container border-error/30'
+            : 'bg-secondary-container text-on-secondary-container border-secondary/30'
+        }`}>
+          <span className="material-symbols-outlined text-[20px]">{toast.type === 'error' ? 'error' : 'check_circle'}</span>
+          {toast.message}
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 bg-on-background/40 backdrop-blur-sm flex items-center justify-center p-margin-mobile">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-xl shadow-2xl w-full max-w-sm">
+            <div className="flex items-center gap-md mb-md">
+              <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-error">delete</span>
+              </div>
+              <h3 className="text-headline-md text-on-surface">Remove Position?</h3>
+            </div>
+            <p className="text-body-md text-on-surface-variant mb-xl">
+              This will permanently remove <strong>{positions.find(p => p.id === deleteTarget)?.title}</strong> from the system.
+            </p>
+            <div className="flex gap-sm justify-end">
+              <button onClick={() => setDeleteTarget(null)} className="px-lg py-sm bg-surface-container border border-outline-variant text-on-surface rounded-lg text-label-md hover:bg-surface-container-high transition-all">
+                Cancel
+              </button>
+              <button onClick={handleDelete} className="px-lg py-sm bg-error text-on-error rounded-lg text-label-md hover:opacity-90 active:scale-95 transition-all">
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-xl gap-md">
         <div>
           <h2 className="text-headline-lg text-on-surface">Positions</h2>
@@ -71,27 +129,11 @@ export default function Positions() {
         </button>
       </div>
 
-      {/* Search Bar */}
-      <div className="flex items-center gap-sm bg-surface-container-lowest border border-outline-variant rounded-xl px-md py-sm mb-lg shadow-sm focus-within:border-primary transition-all">
-        <span className="material-symbols-outlined text-on-surface-variant text-[20px]">search</span>
-        <input
-          className="flex-1 bg-transparent outline-none text-body-md placeholder:text-on-surface-variant"
-          placeholder="Search by title, department, or level…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        {search && (
-          <button onClick={() => setSearch('')} className="text-on-surface-variant hover:text-on-surface transition-colors">
-            <span className="material-symbols-outlined text-[18px]">close</span>
-          </button>
-        )}
-      </div>
-
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-gutter mb-lg">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-gutter mt-md mb-lg">
         {[
-          { label: 'Total Positions', val: '48', icon: 'work_outline', color: 'bg-primary/10 text-primary' },
-          { label: 'Open Vacancies', val: '12', icon: 'person_add', color: 'bg-secondary/10 text-secondary' },
+          { label: 'Total Positions', val: positions.length, icon: 'work_outline', color: 'bg-primary/10 text-primary' },
+          { label: 'Open Vacancies', val: positions.reduce((s, p) => s + p.openings, 0), icon: 'person_add', color: 'bg-secondary/10 text-secondary' },
           { label: 'Avg. Salary', val: '$7,200', icon: 'payments', color: 'bg-tertiary/10 text-tertiary' },
           { label: 'Departments', val: '12', icon: 'domain', color: 'bg-outline-variant text-on-surface-variant' },
         ].map(s => (
@@ -107,6 +149,23 @@ export default function Positions() {
         ))}
       </div>
 
+      {/* Search Bar */}
+      <div className="flex items-center gap-sm bg-surface-container-lowest border border-outline-variant rounded-xl px-md py-sm shadow-sm focus-within:border-primary transition-all">
+        <span className="material-symbols-outlined text-on-surface-variant text-[20px]">search</span>
+        <input
+          className="flex-1 bg-transparent outline-none text-body-md placeholder:text-on-surface-variant"
+          placeholder="Search by title, department, or level…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        {search && (
+          <button onClick={() => setSearch('')} className="text-on-surface-variant hover:text-on-surface transition-colors">
+            <span className="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        )}
+      </div>
+        <br/>
+        
       {/* Table */}
       <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm mb-lg">
         <div className="overflow-x-auto">
@@ -162,7 +221,7 @@ export default function Positions() {
                         <span className="material-symbols-outlined text-[20px]">edit</span>
                       </button>
                       <button
-                        onClick={() => handleDelete(pos.id)}
+                        onClick={() => confirmDelete(pos.id)}
                         className="p-1 hover:bg-error-container/20 rounded-lg text-error transition-all"
                       >
                         <span className="material-symbols-outlined text-[20px]">delete</span>
@@ -176,7 +235,7 @@ export default function Positions() {
         </div>
         <div className="p-md bg-surface-container-low flex flex-col gap-md sm:flex-row sm:items-center sm:justify-between border-t border-outline-variant">
           <p className="text-label-sm text-on-surface-variant">
-            {search ? `${filtered.length} result${filtered.length !== 1 ? 's' : ''} for "${search}"` : `Showing ${positions.length} of 48 positions`}
+            {search ? `${filtered.length} result${filtered.length !== 1 ? 's' : ''} for "${search}"` : `Showing ${positions.length} position${positions.length !== 1 ? 's' : ''}`}
           </p>
           <div className="flex space-x-sm">
             <button className="p-1 rounded hover:bg-surface-container transition-colors opacity-30" disabled>

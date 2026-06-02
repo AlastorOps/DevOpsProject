@@ -36,37 +36,61 @@ export default function AttendanceManagement() {
   const [attendance, setAttendance]   = useState(initialData)
   const [showModal, setShowModal]     = useState(false)
   const [form, setForm]               = useState(emptyForm)
+  const [formErrors, setFormErrors]   = useState({})
   const [toast, setToast]             = useState(null)
   const [search, setSearch]           = useState('')
   const [filterDept, setFilterDept]   = useState('All Departments')
   const [filterStatus, setFilterStatus] = useState('All Status')
-  const [date, setDate]               = useState('2024-10-24')
+  const [date, setDate]               = useState(new Date().toISOString().split('T')[0])
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type })
     setTimeout(() => setToast(null), 3000)
   }
 
+  const closeModal = () => {
+    setShowModal(false)
+    setForm(emptyForm)
+    setFormErrors({})
+  }
+
+  const validate = () => {
+    const errs = {}
+    if (!form.empId) errs.empId = 'Please select an employee.'
+    const isTimedStatus = form.status === 'Present' || form.status === 'Late'
+    if (isTimedStatus) {
+      if (!form.checkIn) errs.checkIn = 'Check-in time is required.'
+      if (!form.checkOut) errs.checkOut = 'Check-out time is required.'
+      else if (form.checkIn && form.checkOut) {
+        const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+        if (toMin(form.checkOut) <= toMin(form.checkIn)) errs.checkOut = 'Check-out must be after check-in.'
+      }
+    }
+    return errs
+  }
+
+  const searchHasSpecialChars = search.length > 0 && /[^a-zA-Z0-9\s\-#.]/.test(search)
+
   const filtered = attendance.filter(emp => {
-    const matchSearch  = `${emp.name} ${emp.id}`.toLowerCase().includes(search.toLowerCase())
+    const matchSearch  = !search || searchHasSpecialChars || `${emp.name} ${emp.id}`.toLowerCase().includes(search.toLowerCase())
     const matchDept    = filterDept   === 'All Departments' || emp.dept   === filterDept
     const matchStatus  = filterStatus === 'All Status'      || emp.status === filterStatus
     return matchSearch && matchDept && matchStatus
   })
 
   const handleMarkAttendance = () => {
-    if (!form.empId) return
+    const errs = validate()
+    if (Object.keys(errs).length) { setFormErrors(errs); return }
     const needsTimes = form.status === 'Present' || form.status === 'Late'
     const checkIn  = needsTimes && form.checkIn  ? fmtTime(form.checkIn)  : '—'
     const checkOut = needsTimes && form.checkOut ? fmtTime(form.checkOut) : '—'
     const hours    = needsTimes && form.checkIn && form.checkOut ? calcHours(form.checkIn, form.checkOut) : '—'
 
-    setAttendance(prev => prev.map(emp =>
-      emp.id === form.empId ? { ...emp, status: form.status, checkIn, checkOut, hours } : emp
-    ))
-    setShowModal(false)
-    setForm(emptyForm)
     const emp = attendance.find(e => e.id === form.empId)
+    setAttendance(prev => prev.map(e =>
+      e.id === form.empId ? { ...e, status: form.status, checkIn, checkOut, hours } : e
+    ))
+    closeModal()
     showToast(`Attendance marked for ${emp?.name}.`)
   }
 
@@ -88,7 +112,7 @@ export default function AttendanceManagement() {
             ? 'bg-error-container text-on-error-container border-error/30'
             : 'bg-secondary-container text-on-secondary-container border-secondary/30'
         }`}>
-          <span className="material-symbols-outlined text-[20px]">check_circle</span>
+          <span className="material-symbols-outlined text-[20px]">{toast.type === 'error' ? 'error' : 'check_circle'}</span>
           {toast.message}
         </div>
       )}
@@ -96,27 +120,28 @@ export default function AttendanceManagement() {
       {/* Mark Attendance Modal */}
       {showModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-margin-mobile">
-          <div className="absolute inset-0 bg-on-background/40 backdrop-blur-sm" onClick={() => setShowModal(false)}></div>
+          <div className="absolute inset-0 bg-on-background/40 backdrop-blur-sm" onClick={closeModal}></div>
           <div className="relative bg-surface-container-lowest w-full max-w-md p-xl rounded-xl shadow-2xl border border-outline-variant space-y-lg">
             <div className="flex items-center justify-between">
               <h3 className="text-headline-md font-bold">Mark Attendance</h3>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-surface-container rounded-full">
+              <button onClick={closeModal} className="p-2 hover:bg-surface-container rounded-full">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
             <div className="space-y-md">
               <div className="space-y-xs">
-                <label className="text-label-md text-on-surface">Employee</label>
+                <label className="text-label-md text-on-surface">Employee <span className="text-error">*</span></label>
                 <select
-                  className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none"
+                  className={`w-full border rounded-lg py-md px-md text-body-md focus:ring-1 outline-none ${formErrors.empId ? 'border-error focus:ring-error' : 'border-outline-variant focus:ring-primary'}`}
                   value={form.empId}
-                  onChange={e => setForm(prev => ({ ...prev, empId: e.target.value }))}
+                  onChange={e => { setForm(prev => ({ ...prev, empId: e.target.value })); setFormErrors(prev => ({ ...prev, empId: '' })) }}
                 >
                   <option value="">Select employee…</option>
                   {attendance.map(emp => (
                     <option key={emp.id} value={emp.id}>{emp.name} ({emp.id})</option>
                   ))}
                 </select>
+                {formErrors.empId && <p className="text-label-sm text-error">{formErrors.empId}</p>}
               </div>
               <div className="space-y-xs">
                 <label className="text-label-md text-on-surface">Status</label>
@@ -134,22 +159,24 @@ export default function AttendanceManagement() {
               {needsTimes && (
                 <div className="grid grid-cols-2 gap-md">
                   <div className="space-y-xs">
-                    <label className="text-label-md text-on-surface">Check In</label>
+                    <label className="text-label-md text-on-surface">Check In <span className="text-error">*</span></label>
                     <input
                       type="time"
-                      className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none"
+                      className={`w-full border rounded-lg py-md px-md text-body-md focus:ring-1 outline-none ${formErrors.checkIn ? 'border-error focus:ring-error' : 'border-outline-variant focus:ring-primary'}`}
                       value={form.checkIn}
-                      onChange={e => setForm(prev => ({ ...prev, checkIn: e.target.value }))}
+                      onChange={e => { setForm(prev => ({ ...prev, checkIn: e.target.value })); setFormErrors(prev => ({ ...prev, checkIn: '' })) }}
                     />
+                    {formErrors.checkIn && <p className="text-label-sm text-error">{formErrors.checkIn}</p>}
                   </div>
                   <div className="space-y-xs">
-                    <label className="text-label-md text-on-surface">Check Out</label>
+                    <label className="text-label-md text-on-surface">Check Out <span className="text-error">*</span></label>
                     <input
                       type="time"
-                      className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none"
+                      className={`w-full border rounded-lg py-md px-md text-body-md focus:ring-1 outline-none ${formErrors.checkOut ? 'border-error focus:ring-error' : 'border-outline-variant focus:ring-primary'}`}
                       value={form.checkOut}
-                      onChange={e => setForm(prev => ({ ...prev, checkOut: e.target.value }))}
+                      onChange={e => { setForm(prev => ({ ...prev, checkOut: e.target.value })); setFormErrors(prev => ({ ...prev, checkOut: '' })) }}
                     />
+                    {formErrors.checkOut && <p className="text-label-sm text-error">{formErrors.checkOut}</p>}
                   </div>
                 </div>
               )}
@@ -160,11 +187,10 @@ export default function AttendanceManagement() {
               )}
             </div>
             <div className="flex justify-end gap-md pt-sm">
-              <button onClick={() => setShowModal(false)} className="px-lg py-md text-on-surface-variant hover:bg-surface-container rounded-lg text-label-md">Cancel</button>
+              <button onClick={closeModal} className="px-lg py-md text-on-surface-variant hover:bg-surface-container rounded-lg text-label-md">Cancel</button>
               <button
                 onClick={handleMarkAttendance}
-                disabled={!form.empId}
-                className="px-xl py-md bg-primary text-on-primary text-label-md rounded-lg shadow-md hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-xl py-md bg-primary text-on-primary text-label-md rounded-lg shadow-md hover:opacity-90"
               >
                 Save
               </button>
@@ -173,7 +199,7 @@ export default function AttendanceManagement() {
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-xl gap-md">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-md gap-md">
         <div>
           <h2 className="text-headline-lg text-on-surface">Attendance Management</h2>
           <p className="text-body-md text-on-surface-variant">Track daily check-ins, exceptions, and attendance trends</p>
@@ -199,24 +225,37 @@ export default function AttendanceManagement() {
       {/* Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-gutter mb-lg">
         {[
-          { label: 'Present',  val: counts['Present'],   icon: 'person_check', color: 'bg-secondary/10 text-secondary' },
-          { label: 'Late',     val: counts['Late'],      icon: 'schedule',     color: 'bg-tertiary/10 text-tertiary' },
-          { label: 'Absent',   val: counts['Absent'],    icon: 'person_off',   color: 'bg-error/10 text-error' },
-          { label: 'On Leave', val: counts['On Leave'],  icon: 'event_busy',   color: 'bg-outline-variant text-on-surface-variant' },
-        ].map(s => (
-          <div key={s.label} className="bg-surface-container-lowest border border-outline-variant p-lg rounded-xl shadow-sm">
-            <div className="flex items-center justify-between mb-md">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${s.color}`}>
-                <span className="material-symbols-outlined">{s.icon}</span>
+          { label: 'Present',  val: counts['Present'],  icon: 'person_check', accent: 'bg-secondary',  soft: 'bg-secondary/10',          text: 'text-secondary' },
+          { label: 'Late',     val: counts['Late'],     icon: 'schedule',     accent: 'bg-tertiary',   soft: 'bg-tertiary/10',           text: 'text-tertiary' },
+          { label: 'Absent',   val: counts['Absent'],   icon: 'person_off',   accent: 'bg-error',      soft: 'bg-error/10',              text: 'text-error' },
+          { label: 'On Leave', val: counts['On Leave'], icon: 'event_busy',   accent: 'bg-outline',    soft: 'bg-surface-container-high', text: 'text-on-surface-variant' },
+        ].map(s => {
+          const pct = attendance.length > 0 ? Math.round((s.val / attendance.length) * 100) : 0
+          return (
+            <div key={s.label} className="bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+              {/* Top accent strip */}
+              <div className={`h-1 w-full ${s.accent}`} />
+              <div className="p-lg flex flex-col gap-md">
+                {/* Icon + percentage */}
+                <div className="flex items-start justify-between">
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${s.soft}`}>
+                    <span className={`material-symbols-outlined ${s.text}`} style={{ fontVariationSettings: "'FILL' 1" }}>{s.icon}</span>
+                  </div>
+                  <span className={`text-label-sm font-bold px-sm py-0.5 rounded-full ${s.soft} ${s.text}`}>{pct}%</span>
+                </div>
+                {/* Count + label */}
+                <div>
+                  <p className="text-display font-black text-on-surface leading-none">{s.val}</p>
+                  <p className="text-label-sm text-on-surface-variant uppercase tracking-widest mt-xs">{s.label}</p>
+                </div>
+                {/* Progress bar */}
+                <div className="h-1.5 bg-surface-container rounded-full overflow-hidden">
+                  <div className={`h-full ${s.accent} rounded-full transition-all duration-700`} style={{ width: `${pct}%` }} />
+                </div>
               </div>
-              <span className="text-label-sm font-bold text-on-surface-variant">
-                {attendance.length > 0 ? `${Math.round((s.val / attendance.length) * 100)}%` : '0%'}
-              </span>
             </div>
-            <p className="text-label-sm text-outline uppercase tracking-wider">{s.label}</p>
-            <h3 className="text-headline-lg mt-xs">{s.val}</h3>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Filter Bar */}
@@ -227,13 +266,17 @@ export default function AttendanceManagement() {
             <div className="relative">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
               <input
-                className="w-full bg-background border border-outline-variant rounded-lg py-2 pl-10 pr-4 text-body-md focus:ring-2 focus:ring-primary outline-none"
+                className={`w-full bg-background border rounded-lg py-2 pl-10 pr-4 text-body-md focus:ring-2 outline-none ${searchHasSpecialChars || search.length === 1 ? 'border-error focus:ring-error' : 'border-outline-variant focus:ring-primary'}`}
                 placeholder="Name or ID..."
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
+            {searchHasSpecialChars
+              ? <p className="text-label-sm text-error mt-xs">Special characters are not allowed.</p>
+              : search.length === 1 && <p className="text-label-sm text-error mt-xs">Please enter at least 2 characters to search.</p>
+            }
           </div>
           <div>
             <label className="text-label-sm text-on-surface-variant block mb-1">Date</label>
