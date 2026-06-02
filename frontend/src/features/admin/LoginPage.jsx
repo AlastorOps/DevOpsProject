@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTheme } from '../../hooks/useTheme'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
+  const { resolvedTheme, setTheme } = useTheme()
+  const nextTheme = resolvedTheme === 'dark' ? 'light' : 'dark'
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -51,8 +54,14 @@ export default function LoginPage() {
               <span className="material-symbols-outlined text-[18px]">expand_more</span>
             </button>
           </div>
-          <button className="p-xs bg-surface-container-lowest border border-outline-variant rounded-lg text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center">
-            <span className="material-symbols-outlined">light_mode</span>
+          <button
+            aria-label={`Switch to ${nextTheme} mode`}
+            className="p-xs bg-surface-container-lowest border border-outline-variant rounded-lg text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center"
+            onClick={() => setTheme(nextTheme)}
+            title={`Switch to ${nextTheme} mode`}
+            type="button"
+          >
+            <span className="material-symbols-outlined">{resolvedTheme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
           </button>
         </div>
 

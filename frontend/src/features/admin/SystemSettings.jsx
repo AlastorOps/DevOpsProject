@@ -1,18 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
-
-const navItems = [
-  { icon: 'domain',               label: 'Company Profile', id: 'company-profile' },
-  { icon: 'translate',            label: 'Language',        id: 'language' },
-  { icon: 'palette',              label: 'Theme',           id: 'theme' },
-  { icon: 'notifications_active', label: 'Notifications',   id: 'notifications' },
-  { icon: 'security',             label: 'Security',        id: 'security' },
-]
+import { useTheme } from '../../hooks/useTheme'
 
 export default function SystemSettings() {
-  const [activeNav, setActiveNav]           = useState('company-profile')
   const [toast, setToast]                   = useState(null)
   const [logoPreview, setLogoPreview]       = useState(null)
-  const [selectedTheme, setSelectedTheme]   = useState('dark')
+  const { theme: selectedTheme, setTheme }  = useTheme()
   const [twoFA, setTwoFA]                   = useState(true)
   const [backups, setBackups]               = useState(false)
   const [channels, setChannels]             = useState({ Email: true, SMS: true, Push: false })
@@ -31,11 +23,6 @@ export default function SystemSettings() {
   const handleLogoChange = (e) => {
     const file = e.target.files[0]
     if (file) setLogoPreview(URL.createObjectURL(file))
-  }
-
-  const handleNavClick = (id) => {
-    setActiveNav(id)
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   const toggleChannel = (label) => {
@@ -104,28 +91,8 @@ export default function SystemSettings() {
       </div>
 
       <div className="grid grid-cols-12 gap-gutter">
-        {/* Sidebar Nav */}
-        <div className="col-span-12 md:col-span-3">
-          <div className="flex flex-col gap-sm sticky top-20">
-            {navItems.map(item => (
-              <button
-                key={item.id}
-                onClick={() => handleNavClick(item.id)}
-                className={`flex items-center gap-md p-md rounded-xl text-left transition-all ${
-                  activeNav === item.id
-                    ? 'bg-primary-container text-on-primary font-bold shadow-sm'
-                    : 'hover:bg-surface-container text-on-surface-variant'
-                }`}
-              >
-                <span className="material-symbols-outlined">{item.icon}</span>
-                <span className="text-body-md">{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Main Content */}
-        <div className="col-span-12 md:col-span-9 space-y-gutter">
+        <div className="col-span-12 space-y-gutter">
 
           {/* Company Profile */}
           <section id="company-profile" className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm scroll-mt-20">
@@ -217,7 +184,7 @@ export default function SystemSettings() {
                 ].map(theme => (
                   <button
                     key={theme.value}
-                    onClick={() => setSelectedTheme(theme.value)}
+                    onClick={() => setTheme(theme.value)}
                     className={`flex flex-col items-center gap-sm p-md rounded-xl transition-all ${
                       selectedTheme === theme.value
                         ? 'border-2 border-primary bg-primary/5'

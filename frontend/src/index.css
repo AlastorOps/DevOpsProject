@@ -6,15 +6,122 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    color-scheme: light;
+    --color-surface: 249 249 255;
+    --color-surface-dim: 211 218 234;
+    --color-surface-bright: 249 249 255;
+    --color-surface-container-lowest: 255 255 255;
+    --color-surface-container-low: 240 243 255;
+    --color-surface-container: 231 238 254;
+    --color-surface-container-high: 226 232 248;
+    --color-surface-container-highest: 220 226 243;
+    --color-on-surface: 21 28 39;
+    --color-on-surface-variant: 70 69 85;
+    --color-inverse-surface: 42 49 61;
+    --color-inverse-on-surface: 235 241 255;
+    --color-outline: 119 117 135;
+    --color-outline-variant: 199 196 216;
+    --color-surface-tint: 77 68 227;
+    --color-primary: 53 37 205;
+    --color-on-primary: 255 255 255;
+    --color-primary-container: 79 70 229;
+    --color-on-primary-container: 218 215 255;
+    --color-inverse-primary: 195 192 255;
+    --color-secondary: 0 108 73;
+    --color-on-secondary: 255 255 255;
+    --color-secondary-container: 108 248 187;
+    --color-on-secondary-container: 0 113 77;
+    --color-tertiary: 126 48 0;
+    --color-on-tertiary: 255 255 255;
+    --color-tertiary-container: 164 65 0;
+    --color-on-tertiary-container: 255 210 190;
+    --color-error: 186 26 26;
+    --color-on-error: 255 255 255;
+    --color-error-container: 255 218 214;
+    --color-on-error-container: 147 0 10;
+    --color-primary-fixed: 226 223 255;
+    --color-primary-fixed-dim: 195 192 255;
+    --color-on-primary-fixed: 15 0 105;
+    --color-on-primary-fixed-variant: 51 35 204;
+    --color-secondary-fixed: 111 251 190;
+    --color-secondary-fixed-dim: 78 222 163;
+    --color-on-secondary-fixed: 0 33 19;
+    --color-on-secondary-fixed-variant: 0 82 54;
+    --color-tertiary-fixed: 255 219 204;
+    --color-tertiary-fixed-dim: 255 182 149;
+    --color-on-tertiary-fixed: 53 16 0;
+    --color-on-tertiary-fixed-variant: 123 47 0;
+    --color-background: 249 249 255;
+    --color-on-background: 21 28 39;
+    --color-surface-variant: 220 226 243;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --color-surface: 17 20 28;
+    --color-surface-dim: 17 20 28;
+    --color-surface-bright: 53 57 68;
+    --color-surface-container-lowest: 12 15 21;
+    --color-surface-container-low: 25 29 39;
+    --color-surface-container: 30 35 47;
+    --color-surface-container-high: 39 44 57;
+    --color-surface-container-highest: 48 54 68;
+    --color-on-surface: 232 238 250;
+    --color-on-surface-variant: 196 199 216;
+    --color-inverse-surface: 232 238 250;
+    --color-inverse-on-surface: 42 49 61;
+    --color-outline: 144 147 164;
+    --color-outline-variant: 66 70 86;
+    --color-surface-tint: 195 192 255;
+    --color-primary: 195 192 255;
+    --color-on-primary: 28 13 124;
+    --color-primary-container: 55 45 190;
+    --color-on-primary-container: 232 226 255;
+    --color-inverse-primary: 53 37 205;
+    --color-secondary: 88 226 172;
+    --color-on-secondary: 0 57 36;
+    --color-secondary-container: 0 82 54;
+    --color-on-secondary-container: 139 255 202;
+    --color-tertiary: 255 182 149;
+    --color-on-tertiary: 82 32 0;
+    --color-tertiary-container: 123 47 0;
+    --color-on-tertiary-container: 255 219 204;
+    --color-error: 255 180 171;
+    --color-on-error: 105 0 5;
+    --color-error-container: 147 0 10;
+    --color-on-error-container: 255 218 214;
+    --color-primary-fixed: 226 223 255;
+    --color-primary-fixed-dim: 195 192 255;
+    --color-on-primary-fixed: 15 0 105;
+    --color-on-primary-fixed-variant: 51 35 204;
+    --color-secondary-fixed: 111 251 190;
+    --color-secondary-fixed-dim: 78 222 163;
+    --color-on-secondary-fixed: 0 33 19;
+    --color-on-secondary-fixed-variant: 0 82 54;
+    --color-tertiary-fixed: 255 219 204;
+    --color-tertiary-fixed-dim: 255 182 149;
+    --color-on-tertiary-fixed: 53 16 0;
+    --color-on-tertiary-fixed-variant: 123 47 0;
+    --color-background: 17 20 28;
+    --color-on-background: 232 238 250;
+    --color-surface-variant: 48 54 68;
+  }
+
   * {
     box-sizing: border-box;
   }
   body {
     margin: 0;
     font-family: 'Inter', sans-serif;
-    background-color: #f9f9ff;
-    color: #151c27;
+    background-color: rgb(var(--color-background));
+    color: rgb(var(--color-on-background));
     -webkit-font-smoothing: antialiased;
+  }
+  input,
+  select,
+  textarea {
+    color: rgb(var(--color-on-surface));
   }
   #root {
     width: 100%;
@@ -23,6 +130,287 @@
 }
 
 @layer utilities {
+  .bg-primary {
+    background-color: rgb(var(--color-primary));
+  }
+  .bg-primary\/5 {
+    background-color: rgb(var(--color-primary) / 0.05);
+  }
+  .bg-primary\/10 {
+    background-color: rgb(var(--color-primary) / 0.1);
+  }
+  .bg-primary\/20 {
+    background-color: rgb(var(--color-primary) / 0.2);
+  }
+  .bg-primary-container {
+    background-color: rgb(var(--color-primary-container));
+  }
+  .bg-primary-fixed {
+    background-color: rgb(var(--color-primary-fixed));
+  }
+  .bg-primary-fixed-dim {
+    background-color: rgb(var(--color-primary-fixed-dim));
+  }
+  .bg-primary-fixed-dim\/10 {
+    background-color: rgb(var(--color-primary-fixed-dim) / 0.1);
+  }
+  .bg-secondary {
+    background-color: rgb(var(--color-secondary));
+  }
+  .bg-secondary\/10 {
+    background-color: rgb(var(--color-secondary) / 0.1);
+  }
+  .bg-secondary-container {
+    background-color: rgb(var(--color-secondary-container));
+  }
+  .bg-secondary-container\/30 {
+    background-color: rgb(var(--color-secondary-container) / 0.3);
+  }
+  .bg-tertiary {
+    background-color: rgb(var(--color-tertiary));
+  }
+  .bg-tertiary\/10 {
+    background-color: rgb(var(--color-tertiary) / 0.1);
+  }
+  .bg-tertiary-fixed {
+    background-color: rgb(var(--color-tertiary-fixed));
+  }
+  .bg-error {
+    background-color: rgb(var(--color-error));
+  }
+  .bg-error\/10 {
+    background-color: rgb(var(--color-error) / 0.1);
+  }
+  .bg-error-container {
+    background-color: rgb(var(--color-error-container));
+  }
+  .bg-error-container\/20 {
+    background-color: rgb(var(--color-error-container) / 0.2);
+  }
+  .bg-background {
+    background-color: rgb(var(--color-background));
+  }
+  .bg-on-background\/40 {
+    background-color: rgb(var(--color-on-background) / 0.4);
+  }
+  .bg-surface {
+    background-color: rgb(var(--color-surface));
+  }
+  .bg-surface-container-lowest {
+    background-color: rgb(var(--color-surface-container-lowest));
+  }
+  .bg-surface-container-low {
+    background-color: rgb(var(--color-surface-container-low));
+  }
+  .bg-surface-container {
+    background-color: rgb(var(--color-surface-container));
+  }
+  .bg-surface-container-high {
+    background-color: rgb(var(--color-surface-container-high));
+  }
+  .bg-surface-container-highest {
+    background-color: rgb(var(--color-surface-container-highest));
+  }
+  .bg-surface-variant {
+    background-color: rgb(var(--color-surface-variant));
+  }
+  .text-primary {
+    color: rgb(var(--color-primary));
+  }
+  .text-on-primary {
+    color: rgb(var(--color-on-primary));
+  }
+  .text-on-primary-container {
+    color: rgb(var(--color-on-primary-container));
+  }
+  .text-secondary {
+    color: rgb(var(--color-secondary));
+  }
+  .text-on-secondary-container {
+    color: rgb(var(--color-on-secondary-container));
+  }
+  .text-tertiary {
+    color: rgb(var(--color-tertiary));
+  }
+  .text-on-tertiary-fixed {
+    color: rgb(var(--color-on-tertiary-fixed));
+  }
+  .text-on-tertiary-fixed-variant {
+    color: rgb(var(--color-on-tertiary-fixed-variant));
+  }
+  .text-error {
+    color: rgb(var(--color-error));
+  }
+  .text-on-error {
+    color: rgb(var(--color-on-error));
+  }
+  .text-on-error-container {
+    color: rgb(var(--color-on-error-container));
+  }
+  .text-on-background {
+    color: rgb(var(--color-on-background));
+  }
+  .text-on-surface {
+    color: rgb(var(--color-on-surface));
+  }
+  .text-on-surface-variant {
+    color: rgb(var(--color-on-surface-variant));
+  }
+  .text-outline {
+    color: rgb(var(--color-outline));
+  }
+  .placeholder\:text-on-surface-variant::placeholder {
+    color: rgb(var(--color-on-surface-variant));
+  }
+  .placeholder\:text-outline\/60::placeholder {
+    color: rgb(var(--color-outline) / 0.6);
+  }
+  .border-primary {
+    border-color: rgb(var(--color-primary));
+  }
+  .border-primary\/20 {
+    border-color: rgb(var(--color-primary) / 0.2);
+  }
+  .border-primary\/30 {
+    border-color: rgb(var(--color-primary) / 0.3);
+  }
+  .border-primary\/40 {
+    border-color: rgb(var(--color-primary) / 0.4);
+  }
+  .border-primary-container {
+    border-color: rgb(var(--color-primary-container));
+  }
+  .border-secondary\/30 {
+    border-color: rgb(var(--color-secondary) / 0.3);
+  }
+  .border-tertiary\/20 {
+    border-color: rgb(var(--color-tertiary) / 0.2);
+  }
+  .border-error {
+    border-color: rgb(var(--color-error));
+  }
+  .border-error\/20 {
+    border-color: rgb(var(--color-error) / 0.2);
+  }
+  .border-error\/30 {
+    border-color: rgb(var(--color-error) / 0.3);
+  }
+  .border-outline {
+    border-color: rgb(var(--color-outline));
+  }
+  .border-outline-variant {
+    border-color: rgb(var(--color-outline-variant));
+  }
+  .divide-outline-variant > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgb(var(--color-outline-variant));
+  }
+  .hover\:bg-primary:hover {
+    background-color: rgb(var(--color-primary));
+  }
+  .hover\:bg-primary-container:hover {
+    background-color: rgb(var(--color-primary-container));
+  }
+  .hover\:bg-primary\/10:hover {
+    background-color: rgb(var(--color-primary) / 0.1);
+  }
+  .hover\:bg-secondary:hover {
+    background-color: rgb(var(--color-secondary));
+  }
+  .hover\:bg-secondary\/10:hover {
+    background-color: rgb(var(--color-secondary) / 0.1);
+  }
+  .hover\:bg-tertiary:hover {
+    background-color: rgb(var(--color-tertiary));
+  }
+  .hover\:bg-error:hover {
+    background-color: rgb(var(--color-error));
+  }
+  .hover\:bg-error\/10:hover {
+    background-color: rgb(var(--color-error) / 0.1);
+  }
+  .hover\:bg-error-container\/20:hover {
+    background-color: rgb(var(--color-error-container) / 0.2);
+  }
+  .hover\:bg-surface-container-lowest:hover {
+    background-color: rgb(var(--color-surface-container-lowest));
+  }
+  .hover\:bg-surface-container-low:hover {
+    background-color: rgb(var(--color-surface-container-low));
+  }
+  .hover\:bg-surface-container:hover {
+    background-color: rgb(var(--color-surface-container));
+  }
+  .hover\:bg-surface-container-high:hover {
+    background-color: rgb(var(--color-surface-container-high));
+  }
+  .hover\:text-primary:hover {
+    color: rgb(var(--color-primary));
+  }
+  .hover\:text-secondary:hover {
+    color: rgb(var(--color-secondary));
+  }
+  .hover\:text-error:hover {
+    color: rgb(var(--color-error));
+  }
+  .hover\:text-on-surface:hover {
+    color: rgb(var(--color-on-surface));
+  }
+  .hover\:text-on-primary:hover {
+    color: rgb(var(--color-on-primary));
+  }
+  .hover\:text-on-secondary:hover {
+    color: rgb(var(--color-on-secondary));
+  }
+  .hover\:text-on-tertiary:hover {
+    color: rgb(var(--color-on-tertiary));
+  }
+  .focus\:border-primary:focus,
+  .focus-within\:border-primary:focus-within {
+    border-color: rgb(var(--color-primary));
+  }
+  .focus\:border-error:focus {
+    border-color: rgb(var(--color-error));
+  }
+  .focus\:ring-primary:focus {
+    --tw-ring-color: rgb(var(--color-primary));
+  }
+  .focus\:ring-primary\/20:focus {
+    --tw-ring-color: rgb(var(--color-primary) / 0.2);
+  }
+  .focus\:ring-error:focus {
+    --tw-ring-color: rgb(var(--color-error));
+  }
+  .before\:bg-primary::before {
+    background-color: rgb(var(--color-primary));
+  }
+  .peer:checked ~ .peer-checked\:bg-primary {
+    background-color: rgb(var(--color-primary));
+  }
+  .group:hover .group-hover\:bg-primary {
+    background-color: rgb(var(--color-primary));
+  }
+  .group:hover .group-hover\:bg-secondary {
+    background-color: rgb(var(--color-secondary));
+  }
+  .group:hover .group-hover\:bg-tertiary {
+    background-color: rgb(var(--color-tertiary));
+  }
+  .group:hover .group-hover\:text-primary {
+    color: rgb(var(--color-primary));
+  }
+  .group:hover .group-hover\:text-on-surface {
+    color: rgb(var(--color-on-surface));
+  }
+  .group:hover .group-hover\:text-on-primary {
+    color: rgb(var(--color-on-primary));
+  }
+  .group:hover .group-hover\:text-on-secondary {
+    color: rgb(var(--color-on-secondary));
+  }
+  .group:hover .group-hover\:text-on-tertiary {
+    color: rgb(var(--color-on-tertiary));
+  }
+
   .material-symbols-outlined {
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   }

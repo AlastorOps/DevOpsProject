@@ -4,9 +4,20 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Kinetic HR</title>
+    <title>Employee Management System</title>
   </head>
   <body>
+    <script>
+      (() => {
+        const key = 'kinetic-theme'
+        const stored = localStorage.getItem(key)
+        const theme = ['light', 'dark', 'system'].includes(stored) ? stored : 'system'
+        const isDark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+
+        document.documentElement.classList.toggle('dark', isDark)
+        document.documentElement.dataset.theme = theme
+      })()
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

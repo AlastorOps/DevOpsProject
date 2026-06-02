@@ -1,6 +1,10 @@
 import { NavLink } from 'react-router-dom'
+import { useTheme } from '../../hooks/useTheme'
 
 export default function Header({ onMenuClick }) {
+  const { resolvedTheme, setTheme } = useTheme()
+  const nextTheme = resolvedTheme === 'dark' ? 'light' : 'dark'
+
   return (
     <header className="fixed top-0 right-0 left-0 lg:left-sidebar-width h-16 z-40 bg-surface/90 backdrop-blur-md border-b border-outline-variant flex items-center justify-between gap-md px-margin-mobile md:px-margin-desktop shadow-sm">
       <button
@@ -28,8 +32,14 @@ export default function Header({ onMenuClick }) {
         <button className="hidden md:flex hover:bg-surface-container rounded-full p-2 text-on-surface-variant transition-all">
           <span className="material-symbols-outlined">language</span>
         </button>
-        <button className="hidden md:flex hover:bg-surface-container rounded-full p-2 text-on-surface-variant transition-all">
-          <span className="material-symbols-outlined">dark_mode</span>
+        <button
+          aria-label={`Switch to ${nextTheme} mode`}
+          className="flex hover:bg-surface-container rounded-full p-2 text-on-surface-variant transition-all"
+          onClick={() => setTheme(nextTheme)}
+          title={`Switch to ${nextTheme} mode`}
+          type="button"
+        >
+          <span className="material-symbols-outlined">{resolvedTheme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
         </button>
         <div className="hidden sm:block h-8 w-px bg-outline-variant mx-xs"></div>
         <NavLink
