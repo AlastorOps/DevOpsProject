@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 const initialEmployees = [
@@ -20,11 +20,6 @@ export default function EmployeeList() {
   const [searchParams] = useSearchParams()
   const [employees, setEmployees]       = useState(initialEmployees)
   const [search, setSearch]             = useState(() => searchParams.get('q') ?? '')
-
-  useEffect(() => {
-    const q = searchParams.get('q')
-    if (q !== null) setSearch(q)
-  }, [searchParams])
   const [filterDept, setFilterDept]     = useState('All Departments')
   const [filterPos, setFilterPos]       = useState('All Positions')
   const [filterStatus, setFilterStatus] = useState('All Status')
