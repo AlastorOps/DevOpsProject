@@ -121,7 +121,16 @@ export default function AddEmployee() {
                 </div>
                 <div className="space-y-xs">
                   <label className="text-label-md text-on-surface-variant ml-xs">Phone Number</label>
-                  <input className="w-full border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded-lg py-md px-md text-body-md outline-none" placeholder="+1 (555) 000-0000" type="tel" {...f('phone')} />
+                  <input
+                    className="w-full border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded-lg py-md px-md text-body-md outline-none"
+                    placeholder="+855 000-0000"
+                    type="tel"
+                    {...f('phone')}
+                    onChange={e => {
+                      const val = e.target.value.replace(/[^\d+\-\s()]/g, '')
+                      setForm(prev => ({ ...prev, phone: val }))
+                    }}
+                  />
                 </div>
               </div>
             </div>
