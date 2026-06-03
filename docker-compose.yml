@@ -1,9 +1,57 @@
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: ems-db
+    environment:
+      POSTGRES_DB: emsops
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: ${DOCKER_USERNAME:-alastorops}/employee-management-backend:latest
+    container_name: ems-backend
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/emsops
+      SECRET_KEY: ${SECRET_KEY:-change-this-in-production}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
+      CORS_ORIGINS: http://localhost:8080,http://localhost:5173
+      UPLOAD_DIR: uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - upload_data:/app/uploads
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: employee-frontend
+    image: ${DOCKER_USERNAME:-alastorops}/employee-management-frontend:latest
+    container_name: ems-frontend
     ports:
       - "8080:80"
+    depends_on:
+      - backend
     restart: unless-stopped
+
+volumes:
+  postgres_data:
+  upload_data:
