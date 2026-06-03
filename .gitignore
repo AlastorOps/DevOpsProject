@@ -1,0 +1,53 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Docker
+docker-data/
+postgres-data/
+mysql-data/
+.docker/
+
+# Docker Compose local overrides
+docker-compose.override.yml
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+
+# Certificates and secrets
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.crt
+*.csr
+
+# Cloud credentials
+service-account*.json
+firebase-adminsdk*.json
+credentials*.json
+
+# Terraform (if you use it later)
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Kubernetes (if you use it later)
+kubeconfig
