@@ -1,0 +1,578 @@
+KINETIC HR BACKEND - HOW TO USE GUIDE
+=====================================
+
+This guide provides step-by-step instructions for setting up, testing, and deploying the Kinetic HR backend.
+
+TABLE OF CONTENTS
+=================
+1. Prerequisites
+2. Installation
+3. Configuration
+4. Startup
+5. API Testing Guide
+6. Authentication Testing
+7. Database Management
+8. Integration Testing
+9. Production Deployment
+
+SECTION 1: PREREQUISITES
+========================
+
+Required Software:
+- Go 1.22 or higher (https://golang.org/dl/)
+- PostgreSQL 12+ (https://www.postgresql.org/download/)
+- Git
+- curl or Postman (for API testing)
+
+Installation Steps:
+
+1.1 Install Go
+   Windows:
+   - Download installer from https://golang.org/dl/
+   - Run installer and follow prompts
+   - Add Go to PATH (usually done automatically)
+   - Verify: Open PowerShell and type 'go version'
+
+   Linux:
+   - Download binary: wget https://go.dev/dl/go1.22.linux-amd64.tar.gz
+   - Extract: tar -C /usr/local -xzf go1.22.linux-amd64.tar.gz
+   - Add to PATH: export PATH=$PATH:/usr/local/go/bin
+   - Verify: go version
+
+1.2 Install PostgreSQL
+   Windows:
+   - Download from https://www.postgresql.org/download/windows/
+   - Run installer, set password for postgres user
+   - Remember the password
+
+   Linux (Ubuntu):
+   - sudo apt update
+   - sudo apt install postgresql postgresql-contrib
+   - sudo systemctl start postgresql
+
+1.3 Clone Repository
+   git clone <repository-url>
+   cd DevOpsProject/backend
+
+1.4 Install Go Dependencies
+   go mod download
+   go mod tidy
+
+SECTION 2: CONFIGURATION
+========================
+
+2.1 Create Database
+
+   Windows (PowerShell):
+   - Open PostgreSQL Command Line (psql)
+   - Run: CREATE DATABASE kinetic_hr;
+   - Verify: \l
+
+   Linux (Terminal):
+   - sudo -u postgres psql
+   - Run: CREATE DATABASE kinetic_hr;
+   - Verify: \l
+
+2.2 Setup Environment Variables
+
+   Create .env file from template:
+   cp .env.example .env
+
+   Edit .env with your settings:
+   ```
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_USER=postgres
+   DB_PASSWORD=your_postgres_password
+   DB_NAME=kinetic_hr
+   PORT=8080
+   GIN_MODE=debug
+   JWT_SECRET=change-this-to-random-string-in-production
+   ```
+
+   Windows PowerShell Alternative (if .env not working):
+   $env:DB_HOST="localhost"
+   $env:DB_PORT="5432"
+   $env:DB_USER="postgres"
+   $env:DB_PASSWORD="your_password"
+   $env:DB_NAME="kinetic_hr"
+   $env:PORT="8080"
+   $env:GIN_MODE="debug"
+   $env:JWT_SECRET="your-secret"
+
+SECTION 3: STARTUP
+==================
+
+3.1 Start PostgreSQL Service
+
+   Windows:
+   - PostgreSQL starts automatically if installed with service
+   - Verify: Services → PostgreSQL
+
+   Linux:
+   - sudo systemctl start postgresql
+   - sudo systemctl status postgresql
+
+3.2 Run Database Migrations
+
+   The migrations run automatically on startup. To test connectivity first:
+   go run main.go
+
+   Expected output:
+   ```
+   Server starting on :8080
+   ```
+
+3.3 Stop Server
+
+   Press Ctrl+C in terminal
+
+SECTION 4: API TESTING GUIDE
+=============================
+
+Base URL: http://localhost:8080
+
+4.1 HEALTH CHECK ENDPOINT
+   Purpose: Verify server is running
+
+   Endpoint: GET /health
+   Command:
+   curl -X GET http://localhost:8080/health
+
+   Expected Response (200 OK):
+   {
+     "message": "Kinetic HR API is running",
+     "status": "healthy"
+   }
+
+4.2 AUTHENTICATION
+
+4.2.1 Login Endpoint
+   Purpose: Authenticate user and get JWT token
+
+   Endpoint: POST /api/v1/auth/login
+
+   Command:
+   ```
+   curl -X POST http://localhost:8080/api/v1/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{
+       "email": "admin@test.com",
+       "password": "password123"
+     }'
+   ```
+
+   Expected Response (200 OK):
+   {
+     "data": {
+       "token": "eyJhbGciOiJIUzI1NiIs...",
+       "user": {
+         "id": 1,
+         "email": "admin@test.com",
+         "username": "admin",
+         "first_name": "Admin",
+         "last_name": "",
+         "active": true
+       }
+     },
+     "message": "Login successful"
+   }
+
+   Save the token for subsequent requests.
+
+   Error Response (401 Unauthorized):
+   {
+     "error": "invalid credentials"
+   }
+
+4.3 EMPLOYEE MANAGEMENT
+
+4.3.1 Create Employee
+   Purpose: Register new employee
+
+   Endpoint: POST /api/v1/employees
+
+   Command:
+   ```
+   curl -X POST http://localhost:8080/api/v1/employees \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+     -d '{
+       "name": "John Doe",
+       "email": "john.doe@example.com",
+       "phone": "+1-555-0123",
+       "gender": "Male",
+       "dob": "1990-01-15",
+       "address": "123 Main St, City, State",
+       "employee_id": "EMP-001",
+       "hire_date": "2024-01-15",
+       "employment_type": "Full-time",
+       "salary": 75000,
+       "department_id": 1,
+       "position_id": 1,
+       "username": "john.doe",
+       "work_email": "john.doe@company.com",
+       "password": "SecurePass123!",
+       "role": "Employee",
+       "account_active": true
+     }'
+   ```
+
+   Required Fields:
+   - name (string): Full name
+   - email (string): Personal email
+   - department_id (integer): Department ID
+   - work_email (string): Company email
+   - password (string): Minimum 8 characters
+   - username (string): Unique username
+
+   Expected Response (201 Created):
+   {
+     "data": {
+       "id": 1,
+       "name": "John Doe",
+       "email": "john.doe@example.com",
+       ...
+     },
+     "message": "Employee created successfully"
+   }
+
+   Error Response (400 Bad Request):
+   {
+     "message": "name and email are required"
+   }
+
+   Error Response (409 Conflict):
+   {
+     "message": "email already exists"
+   }
+
+4.3.2 List Employees
+   Purpose: Retrieve all employees with pagination
+
+   Endpoint: GET /api/v1/employees?page=1&page_size=10&search=john
+
+   Command:
+   ```
+   curl -X GET "http://localhost:8080/api/v1/employees?page=1&page_size=10" \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE"
+   ```
+
+   Query Parameters:
+   - page (integer, default=1): Page number
+   - page_size (integer, default=10): Items per page
+   - search (string, optional): Search by name, email, or employee ID
+
+   Expected Response (200 OK):
+   {
+     "data": [
+       {
+         "id": 1,
+         "name": "John Doe",
+         "email": "john.doe@example.com",
+         ...
+       }
+     ],
+     "total": 50,
+     "page": 1,
+     "page_size": 10,
+     "total_pages": 5
+   }
+
+4.3.3 Get Employee Detail
+   Purpose: Retrieve specific employee information
+
+   Endpoint: GET /api/v1/employees/:id
+
+   Command:
+   ```
+   curl -X GET http://localhost:8080/api/v1/employees/1 \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE"
+   ```
+
+   Expected Response (200 OK):
+   {
+     "data": {
+       "id": 1,
+       "name": "John Doe",
+       "email": "john.doe@example.com",
+       "department": {...},
+       "position": {...}
+     }
+   }
+
+4.3.4 Update Employee
+   Purpose: Modify employee information
+
+   Endpoint: PUT /api/v1/employees/:id
+
+   Command:
+   ```
+   curl -X PUT http://localhost:8080/api/v1/employees/1 \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+     -d '{
+       "name": "Jane Doe",
+       "phone": "+1-555-0456",
+       "salary": 80000,
+       "status": "Active"
+     }'
+   ```
+
+   Expected Response (200 OK):
+   {
+     "data": {
+       "id": 1,
+       "name": "Jane Doe",
+       ...
+     },
+     "message": "Employee updated successfully"
+   }
+
+4.3.5 Delete Employee
+   Purpose: Remove employee from system
+
+   Endpoint: DELETE /api/v1/employees/:id
+
+   Command:
+   ```
+   curl -X DELETE http://localhost:8080/api/v1/employees/1 \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE"
+   ```
+
+   Expected Response (200 OK):
+   {
+     "message": "Employee deleted successfully"
+   }
+
+4.4 DEPARTMENTS
+
+4.4.1 Create Department
+   Endpoint: POST /api/v1/departments
+
+   Command:
+   ```
+   curl -X POST http://localhost:8080/api/v1/departments \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+     -d '{
+       "name": "Engineering",
+       "head": "Jane Smith",
+       "budget": "$500,000"
+     }'
+   ```
+
+4.4.2 List Departments
+   Endpoint: GET /api/v1/departments
+
+   Command:
+   ```
+   curl -X GET http://localhost:8080/api/v1/departments \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE"
+   ```
+
+4.5 POSITIONS
+
+4.5.1 Create Position
+   Endpoint: POST /api/v1/positions
+
+   Command:
+   ```
+   curl -X POST http://localhost:8080/api/v1/positions \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+     -d '{
+       "title": "Senior Developer",
+       "level": "Senior",
+       "headcount": 5,
+       "openings": 1,
+       "salary": "$100,000 - $120,000",
+       "department_id": 1
+     }'
+   ```
+
+4.6 ATTENDANCE
+
+4.6.1 Mark Attendance
+   Endpoint: POST /api/v1/attendance
+
+   Command:
+   ```
+   curl -X POST http://localhost:8080/api/v1/attendance \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+     -d '{
+       "employee_id": 1,
+       "date": "2024-01-15",
+       "check_in_time": "09:00",
+       "check_out_time": "17:30",
+       "status": "Present"
+     }'
+   ```
+
+   Status Values: Present, Late, Absent, On Leave
+
+4.6.2 Get Employee Attendance
+   Endpoint: GET /api/v1/attendance/employee/:id?page=1&page_size=10
+
+   Command:
+   ```
+   curl -X GET http://localhost:8080/api/v1/attendance/employee/1 \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE"
+   ```
+
+4.7 LEAVE MANAGEMENT
+
+4.7.1 Request Leave
+   Endpoint: POST /api/v1/leave/request/:employee_id
+
+   Command:
+   ```
+   curl -X POST http://localhost:8080/api/v1/leave/request/1 \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+     -d '{
+       "leave_type_id": 1,
+       "start_date": "2024-02-01",
+       "end_date": "2024-02-05",
+       "reason": "Planned vacation"
+     }'
+   ```
+
+4.7.2 Get Leave Balance
+   Endpoint: GET /api/v1/leave/balance/:employee_id
+
+   Command:
+   ```
+   curl -X GET http://localhost:8080/api/v1/leave/balance/1 \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE"
+   ```
+
+4.7.3 Get Pending Leave Requests
+   Endpoint: GET /api/v1/leave/pending?page=1&page_size=10
+
+   Command:
+   ```
+   curl -X GET http://localhost:8080/api/v1/leave/pending \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE"
+   ```
+
+4.7.4 Approve Leave
+   Endpoint: PUT /api/v1/leave/approve/:request_id
+
+   Command:
+   ```
+   curl -X PUT http://localhost:8080/api/v1/leave/approve/1 \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE"
+   ```
+
+4.8 PAYROLL
+
+4.8.1 Run Payroll
+   Endpoint: POST /api/v1/payroll
+
+   Command:
+   ```
+   curl -X POST http://localhost:8080/api/v1/payroll \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+     -d '{
+       "employee_id": 1,
+       "basic_salary": 5000,
+       "bonus": 500,
+       "deductions": 200,
+       "month": "January 2024"
+     }'
+   ```
+
+4.8.2 List Payroll
+   Endpoint: GET /api/v1/payroll?page=1&page_size=10
+
+   Command:
+   ```
+   curl -X GET http://localhost:8080/api/v1/payroll \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE"
+   ```
+
+4.8.3 Approve Payroll
+   Endpoint: PUT /api/v1/payroll/approve/:id
+
+   Command:
+   ```
+   curl -X PUT http://localhost:8080/api/v1/payroll/approve/1 \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE"
+   ```
+
+SECTION 5: COMMON ERRORS & SOLUTIONS
+====================================
+
+Error: "connection refused"
+- Solution: Ensure PostgreSQL is running and localhost:5432 is accessible
+
+Error: "invalid token"
+- Solution: Ensure token is in Authorization header with "Bearer " prefix
+
+Error: "email already exists"
+- Solution: Use unique email addresses for each employee
+
+Error: "insufficient leave balance"
+- Solution: Check leave balance before requesting more days
+
+Error: "password must be at least 8 characters"
+- Solution: Use password with minimum 8 characters
+
+SECTION 6: PRODUCTION DEPLOYMENT
+================================
+
+6.1 Build Backend
+   go build -o kinetic-hr-backend
+
+6.2 Set Production Environment Variables
+   Export variables or use .env file with production values
+
+6.3 Start Server
+   ./kinetic-hr-backend
+
+6.4 Verify Deployment
+   curl http://localhost:8080/health
+
+6.5 Enable HTTPS
+   Use reverse proxy (nginx) with SSL certificates
+
+SECTION 7: DATABASE BACKUP
+==========================
+
+Backup:
+pg_dump -U postgres kinetic_hr > backup.sql
+
+Restore:
+psql -U postgres kinetic_hr < backup.sql
+
+VERIFICATION CHECKLIST
+======================
+
+[ ] PostgreSQL installed and running
+[ ] Database 'kinetic_hr' created
+[ ] .env file configured with correct credentials
+[ ] Go dependencies installed (go mod download)
+[ ] Server starts without errors (go run main.go)
+[ ] Health check endpoint responds (curl /health)
+[ ] Authentication flow works (can login)
+[ ] Can create employees
+[ ] Can list employees
+[ ] Can mark attendance
+[ ] Can request leave
+[ ] Can run payroll
+[ ] All error responses are clear and helpful
+
+SUPPORT & TROUBLESHOOTING
+=========================
+
+For detailed logs, enable debug mode:
+GIN_MODE=debug go run main.go
+
+For database issues, verify connection:
+psql -h localhost -U postgres -d kinetic_hr
+
+For performance issues, check PostgreSQL logs:
+Linux: tail -f /var/log/postgresql/postgresql.log
