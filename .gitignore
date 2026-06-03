@@ -16,6 +16,10 @@ docker-compose.override.yml
 # Logs
 *.log
 logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # Temporary files
 tmp/
@@ -25,10 +29,15 @@ temp/
 .DS_Store
 Thumbs.db
 Desktop.ini
+.AppleDouble
+.LSOverride
 
 # IDE files
 .vscode/
 .idea/
+
+# Claude Code local settings
+.claude/
 
 # Certificates and secrets
 *.pem
@@ -43,11 +52,25 @@ Desktop.ini
 service-account*.json
 firebase-adminsdk*.json
 credentials*.json
+auth*.json
+token*.json
 
-# Terraform (if you use it later)
+# Frontend build artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.cache/
+frontend/.vite/
+frontend/coverage/
+
+# Terraform
 .terraform/
 *.tfstate
 *.tfstate.*
+.terraform.lock.hcl
 
-# Kubernetes (if you use it later)
+# Kubernetes secrets and local config
 kubeconfig
+kubeconfig.*
+*.kubeconfig
+.kube/

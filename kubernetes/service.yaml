@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: EMS-Ops-frontend-svc
+  namespace: EMS-Ops
+  labels:
+    app: EMS-Ops-frontend
+spec:
+  selector:
+    app: EMS-Ops-frontend
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
