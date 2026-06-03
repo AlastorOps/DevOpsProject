@@ -4,7 +4,7 @@ export const THEME_STORAGE_KEY = 'kinetic-theme'
 export const THEME_EVENT = 'kinetic-theme-change'
 export const themes = ['light', 'dark', 'system']
 
-const getStoredTheme = () => {
+export const getStoredTheme = () => {
   if (typeof window === 'undefined') return 'system'
 
   const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
@@ -16,7 +16,7 @@ const prefersDark = () => (
   window.matchMedia('(prefers-color-scheme: dark)').matches
 )
 
-const applyTheme = (theme) => {
+export const applyTheme = (theme) => {
   if (typeof document === 'undefined') return
 
   const isDark = theme === 'dark' || (theme === 'system' && prefersDark())
@@ -36,7 +36,9 @@ export function useTheme() {
 
   useEffect(() => {
     applyTheme(theme)
+  }, [theme])
 
+  useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     const handleMedia = () => {
       if (getStoredTheme() === 'system') applyTheme('system')
@@ -44,7 +46,6 @@ export function useTheme() {
     const handleTheme = (event) => {
       const nextTheme = themes.includes(event.detail) ? event.detail : getStoredTheme()
       setThemeState(nextTheme)
-      applyTheme(nextTheme)
     }
 
     media.addEventListener('change', handleMedia)
@@ -54,7 +55,7 @@ export function useTheme() {
       media.removeEventListener('change', handleMedia)
       window.removeEventListener(THEME_EVENT, handleTheme)
     }
-  }, [theme])
+  }, [])
 
   const setTheme = (nextTheme) => {
     setThemeState(nextTheme)
@@ -66,7 +67,3 @@ export function useTheme() {
   return { theme, resolvedTheme, setTheme }
 }
 
-export function ThemeSync() {
-  useTheme()
-  return null
-}

@@ -35,9 +35,14 @@ credentials*.json
 auth*.json
 token*.json
 
-node_modules
-dist
-dist-ssr
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+build/
+out/
 
 # Local caches and temporary output
 .cache/
@@ -47,19 +52,31 @@ dist-ssr
 .eslintcache
 .stylelintcache
 coverage/
+.nyc_output/
 playwright-report/
 test-results/
 tmp/
 temp/
 
-#claude
+# Docker
+.docker/
+
+# Claude
 .claude/
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
+
+# OS files
 .DS_Store
+Thumbs.db
+Desktop.ini
+.AppleDouble
+.LSOverride
+
+# Misc
 *.suo
 *.ntvs*
 *.njsproj

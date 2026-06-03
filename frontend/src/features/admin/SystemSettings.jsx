@@ -10,6 +10,9 @@ export default function SystemSettings() {
   const [channels, setChannels]             = useState({ Email: true, SMS: true, Push: false })
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [selectedLang, setSelectedLang]     = useState('en')
+  const [orgName, setOrgName]               = useState('Global Dynamics Corp')
+  const [regNumber, setRegNumber]           = useState('GD-882-9021')
+  const [headquarters, setHeadquarters]     = useState('1200 Innovation Drive, Silicon Valley, CA 94025')
 
   const fileInputRef = useRef(null)
 
@@ -18,7 +21,10 @@ export default function SystemSettings() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  const handleSave = () => showToast('Settings saved successfully.')
+  const handleSave = () => {
+    console.log('Saving:', { orgName, regNumber, headquarters })
+    showToast('Settings saved successfully.')
+  }
 
   const handleLogoChange = (e) => {
     const file = e.target.files[0]
@@ -108,15 +114,15 @@ export default function SystemSettings() {
             <div className="grid grid-cols-2 gap-lg">
               <div className="col-span-2 md:col-span-1 flex flex-col gap-xs">
                 <label className="text-label-md text-on-surface-variant px-xs">Organization Name</label>
-                <input className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none" type="text" defaultValue="Global Dynamics Corp" />
+                <input className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none" type="text" value={orgName} onChange={e => setOrgName(e.target.value)} />
               </div>
               <div className="col-span-2 md:col-span-1 flex flex-col gap-xs">
                 <label className="text-label-md text-on-surface-variant px-xs">Registration Number</label>
-                <input className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none" type="text" defaultValue="GD-882-9021" />
+                <input className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none" type="text" value={regNumber} onChange={e => setRegNumber(e.target.value)} />
               </div>
               <div className="col-span-2 flex flex-col gap-xs">
                 <label className="text-label-md text-on-surface-variant px-xs">Primary Headquarters</label>
-                <input className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none" type="text" defaultValue="1200 Innovation Drive, Silicon Valley, CA 94025" />
+                <input className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none" type="text" value={headquarters} onChange={e => setHeadquarters(e.target.value)} />
               </div>
             </div>
             <div className="mt-lg pt-lg border-t border-outline-variant flex flex-col sm:flex-row sm:items-center gap-lg">
