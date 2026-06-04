@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
+import { useAuth } from '../../context/AuthContext'
+
+function initials(name = '') {
+  return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+}
 
 const LANGUAGES = [
   { code: 'en', label: 'English',  flag: '🇺🇸' },
@@ -26,6 +31,13 @@ function useOutsideClick(ref, onClose) {
 export default function Header({ onMenuClick }) {
   const { resolvedTheme, setTheme } = useTheme()
   const nextTheme = resolvedTheme === 'dark' ? 'light' : 'dark'
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
   const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS)
   const [showNotif, setShowNotif] = useState(false)
   const notifRef = useRef(null)
@@ -169,13 +181,23 @@ export default function Header({ onMenuClick }) {
           className="flex items-center gap-sm cursor-pointer hover:bg-surface-container py-1 px-1 sm:px-2 rounded-full transition-all"
         >
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-sm">
-            JD
+            {initials(user?.name)}
           </div>
           <div className="hidden lg:flex flex-col">
-            <span className="text-label-md font-bold leading-tight">James Dalton</span>
-            <span className="text-[10px] text-outline uppercase tracking-wider">HR Director</span>
+            <span className="text-label-md font-bold leading-tight">{user?.name ?? ''}</span>
+            <span className="text-[10px] text-outline uppercase tracking-wider">{user?.role ?? ''}</span>
           </div>
         </NavLink>
+
+        <button
+          aria-label="Logout"
+          className="flex hover:bg-error/10 rounded-full p-2 text-on-surface-variant hover:text-error transition-all"
+          onClick={handleLogout}
+          title="Logout"
+          type="button"
+        >
+          <span className="material-symbols-outlined">logout</span>
+        </button>
       </div>
     </header>
   )

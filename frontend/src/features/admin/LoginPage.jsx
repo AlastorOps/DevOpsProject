@@ -1,16 +1,30 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
+import { useAuth } from '../../context/AuthContext'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const { resolvedTheme, setTheme } = useTheme()
   const nextTheme = resolvedTheme === 'dark' ? 'light' : 'dark'
+  const { login } = useAuth()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    navigate('/dashboard')
+    setError('')
+    setLoading(true)
+    const form = new FormData(e.target)
+    try {
+      const user = await login(form.get('email'), form.get('password'))
+      navigate(user.role === 'Employee' ? '/my-dashboard' : '/dashboard', { replace: true })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -76,6 +90,12 @@ export default function LoginPage() {
 
           <div className="bg-surface-container-lowest p-xl rounded-xl border border-outline-variant shadow-sm">
             <form className="space-y-lg" onSubmit={handleSubmit}>
+              {error && (
+                <div className="flex items-center gap-sm p-md bg-error/10 border border-error/30 rounded-lg text-body-sm text-error">
+                  <span className="material-symbols-outlined text-[18px] shrink-0">error</span>
+                  {error}
+                </div>
+              )}
               <div className="space-y-xs">
                 <label className="text-label-md text-on-surface ml-xs block" htmlFor="email">Email Address</label>
                 <div className="relative">
@@ -116,11 +136,12 @@ export default function LoginPage() {
               </div>
 
               <button
-                className="w-full py-md bg-primary text-white text-label-md rounded-lg shadow-sm hover:bg-primary-container active:scale-[0.98] transition-all flex items-center justify-center gap-sm"
+                className="w-full py-md bg-primary text-white text-label-md rounded-lg shadow-sm hover:bg-primary-container active:scale-[0.98] transition-all flex items-center justify-center gap-sm disabled:opacity-60 disabled:cursor-not-allowed"
                 type="submit"
+                disabled={loading}
               >
-                Login to Dashboard
-                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                {loading ? 'Signing in…' : 'Login to Dashboard'}
+                {!loading && <span className="material-symbols-outlined text-[18px]">arrow_forward</span>}
               </button>
             </form>
 
