@@ -41,6 +41,9 @@ def list_employees(
 ):
     q = db.query(Employee).options(joinedload(Employee.department), joinedload(Employee.position))
 
+    if current_user.role == "Employee" and current_user.employee_id:
+        q = q.filter(Employee.id == current_user.employee_id)
+
     if search:
         like = f"%{search}%"
         q = q.filter(or_(Employee.name.ilike(like), Employee.work_email.ilike(like), Employee.emp_id.ilike(like)))
@@ -60,6 +63,9 @@ def get_employee(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.role not in ("Admin", "HR Manager", "Manager") and current_user.employee_id != employee_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
     employee = (
         db.query(Employee)
         .options(joinedload(Employee.department), joinedload(Employee.position))

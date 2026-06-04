@@ -5,11 +5,11 @@ services:
     environment:
       POSTGRES_DB: emsops
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -24,8 +24,9 @@ services:
     image: ${DOCKER_USERNAME:-alastorops}/employee-management-backend:latest
     container_name: ems-backend
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/emsops
-      SECRET_KEY: ${SECRET_KEY:-change-this-in-production}
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/emsops
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
       REFRESH_TOKEN_EXPIRE_DAYS: 7

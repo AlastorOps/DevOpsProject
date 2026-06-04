@@ -43,7 +43,7 @@ def _seed(db):
             id=str(uuid.uuid4()),
             name="System Administrator",
             email="admin@company.com",
-            password_hash=auth_utils.hash_password("Admin@1234"),
+            password_hash=auth_utils.hash_password(settings.admin_password),
             role="Admin",
             status="Active",
         ))

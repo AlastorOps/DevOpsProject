@@ -202,6 +202,9 @@ def get_leave_balance(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.role not in ("Admin", "HR Manager", "Manager") and current_user.employee_id != employee_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
     balances = db.query(LeaveBalance).filter(LeaveBalance.employee_id == employee_id).all()
     return [
         LeaveBalanceResponse(
@@ -248,6 +251,9 @@ def employee_leave_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.role not in ("Admin", "HR Manager", "Manager") and current_user.employee_id != employee_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
     q = db.query(LeaveRequest).options(
         joinedload(LeaveRequest.employee).joinedload(Employee.department)
     ).filter(LeaveRequest.employee_id == employee_id)

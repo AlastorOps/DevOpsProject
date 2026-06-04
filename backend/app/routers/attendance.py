@@ -148,6 +148,9 @@ def employee_attendance(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.role not in ("Admin", "HR Manager", "Manager") and current_user.employee_id != employee_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
     q = db.query(Attendance).options(joinedload(Attendance.employee)).filter(Attendance.employee_id == employee_id)
     total = q.count()
     records = q.order_by(Attendance.date.desc()).offset((page - 1) * limit).limit(limit).all()

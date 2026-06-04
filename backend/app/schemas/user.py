@@ -1,13 +1,15 @@
 from pydantic import BaseModel, ConfigDict, EmailStr
-from typing import Optional
+from typing import Optional, Literal
 from datetime import datetime
+
+UserRole = Literal["Admin", "HR Manager", "Manager", "Employee"]
 
 
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
     password: str
-    role: str = "Employee"
+    role: UserRole = "Employee"
     status: str = "Active"
     employee_id: Optional[str] = None
 
@@ -15,7 +17,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
-    role: Optional[str] = None
+    role: Optional[UserRole] = None
     employee_id: Optional[str] = None
 
 

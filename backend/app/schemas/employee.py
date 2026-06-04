@@ -1,7 +1,9 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional
+from typing import Optional, Literal
 from datetime import date, datetime
 from decimal import Decimal
+
+UserRole = Literal["Admin", "HR Manager", "Manager", "Employee"]
 
 
 class EmployeeCreate(BaseModel):
@@ -19,7 +21,7 @@ class EmployeeCreate(BaseModel):
     salary: Optional[Decimal] = None
     work_email: Optional[str] = None
     user_password: Optional[str] = None
-    user_role: Optional[str] = "Employee"
+    user_role: Optional[UserRole] = "Employee"
     account_active: bool = True
 
 
