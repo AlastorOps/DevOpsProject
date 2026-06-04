@@ -46,6 +46,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://test:test@localhost:5432/test
       SECRET_KEY: ci-only-placeholder-secret-key-32chars
+      ADMIN_PASSWORD: ci-placeholder-admin-password
     steps:
       - uses: actions/checkout@v4
 
