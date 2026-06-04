@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
-export const THEME_STORAGE_KEY = 'kinetic-theme'
-export const THEME_EVENT = 'kinetic-theme-change'
+export const THEME_STORAGE_KEY = 'ems-ops-theme'
+export const THEME_EVENT = 'ems-ops-theme-change'
 export const themes = ['light', 'dark', 'system']
 
 export const getStoredTheme = () => {

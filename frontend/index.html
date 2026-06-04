@@ -9,7 +9,7 @@
   <body>
     <script>
       (() => {
-        const key = 'kinetic-theme'
+        const key = 'ems-ops-theme'
         const stored = localStorage.getItem(key)
         const theme = ['light', 'dark', 'system'].includes(stored) ? stored : 'system'
         const isDark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)

@@ -63,7 +63,7 @@ export default function Sidebar({ isOpen, onClose }) {
               <span className="material-symbols-outlined text-sm">corporate_fare</span>
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-body-md font-bold text-on-surface truncate">Kinetic Ent.</span>
+              <span className="text-body-md font-bold text-on-surface truncate">EMS-Ops</span>
               <span className="text-label-sm text-outline">Premium Plan</span>
             </div>
           </div>

@@ -201,6 +201,9 @@ def get_payslip(
     if not record:
         raise HTTPException(status_code=404, detail="Payroll record not found")
 
+    if current_user.role not in ("Admin", "HR Manager") and current_user.employee_id != record.employee_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
     earnings = [PayslipItemSchema.model_validate(i) for i in record.items if i.item_type == "earning"]
     deductions = [PayslipItemSchema.model_validate(i) for i in record.items if i.item_type == "deduction"]
 
@@ -227,6 +230,9 @@ def employee_payroll_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.role not in ("Admin", "HR Manager") and current_user.employee_id != employee_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
     q = db.query(Payroll).options(
         joinedload(Payroll.employee).joinedload(Employee.department),
         joinedload(Payroll.employee).joinedload(Employee.position),

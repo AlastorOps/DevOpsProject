@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 from app.database import get_db
@@ -29,6 +29,12 @@ def generate_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.role not in ("Admin", "HR Manager", "Manager"):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if report_type == "payroll" and current_user.role not in ("Admin", "HR Manager"):
+        raise HTTPException(status_code=403, detail="Payroll reports require HR Manager or Admin access")
+
     if report_type == "headcount":
         return _headcount_report(db, dept_filter)
     elif report_type == "payroll":
