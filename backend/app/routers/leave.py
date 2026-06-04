@@ -20,10 +20,19 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 def _generate_leave_id(db: Session) -> str:
     year = datetime.utcnow().year
-    count = db.query(LeaveRequest).filter(
-        LeaveRequest.leave_id.like(f"LV-{year}-%")
-    ).count()
-    return f"LV-{year}-{str(count + 1).zfill(4)}"
+    last = (
+        db.query(LeaveRequest.leave_id)
+        .filter(LeaveRequest.leave_id.like(f"LV-{year}-%"))
+        .order_by(LeaveRequest.leave_id.desc())
+        .first()
+    )
+    if not last:
+        return f"LV-{year}-0001"
+    try:
+        num = int(last[0].split("-")[2]) + 1
+    except (IndexError, ValueError):
+        num = db.query(LeaveRequest).filter(LeaveRequest.leave_id.like(f"LV-{year}-%")).count() + 1
+    return f"LV-{year}-{str(num).zfill(4)}"
 
 
 def _notify_user(db: Session, employee_id: str, title: str, body: str, icon: str = "notifications", color: str = "primary"):
