@@ -16,8 +16,19 @@ router = APIRouter(prefix="/payroll", tags=["payroll"])
 
 def _generate_payroll_id(db: Session) -> str:
     year = datetime.utcnow().year
-    count = db.query(Payroll).filter(Payroll.payroll_id.like(f"PR-{year}-%")).count()
-    return f"PR-{year}-{str(count + 1).zfill(3)}"
+    last = (
+        db.query(Payroll.payroll_id)
+        .filter(Payroll.payroll_id.like(f"PR-{year}-%"))
+        .order_by(Payroll.payroll_id.desc())
+        .first()
+    )
+    if not last:
+        return f"PR-{year}-001"
+    try:
+        num = int(last[0].split("-")[2]) + 1
+    except (IndexError, ValueError):
+        num = db.query(Payroll).filter(Payroll.payroll_id.like(f"PR-{year}-%")).count() + 1
+    return f"PR-{year}-{str(num).zfill(3)}"
 
 
 def _notify_user(db: Session, employee_id: str, title: str, body: str):
