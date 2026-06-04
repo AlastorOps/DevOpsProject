@@ -1,6 +1,6 @@
-# Kinetic HR Frontend
+# EMS-Ops Frontend
 
-React + Vite frontend for the Kinetic HR admin and employee management interface.
+React + Vite frontend for the EMS-Ops admin and employee management interface.
 
 ## Scripts
 

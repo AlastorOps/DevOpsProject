@@ -1,5 +1,5 @@
 {
-  "name": "kinetic-hr",
+  "name": "ems-ops",
   "private": true,
   "scripts": {
     "dev": "concurrently --names BACK,FRONT --prefix-colors cyan.bold,magenta.bold \"npm run dev:backend\" \"npm run dev:frontend\"",
