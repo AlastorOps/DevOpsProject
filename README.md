@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # EMS Operations — Employee Management System
 
 A full-stack HR platform for managing employees, departments, payroll, attendance, leave, and performance reviews.
@@ -27,7 +26,7 @@ A full-stack HR platform for managing employees, departments, payroll, attendanc
 
 ## Quick Start — Docker Compose
 
-```bash
+```
 # 1. Clone the repo
 git clone <repo-url>
 cd DevOpsProject
@@ -42,6 +41,7 @@ cp backend/.env.example backend/.env
 
 # 4. Start all services
 docker compose up --build
+
 ```
 
 | Service | URL |
