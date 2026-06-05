@@ -110,7 +110,7 @@ def list_payroll(
         q = q.filter(Payroll.employee.has(Employee.department.has(Department.name == dept)))
 
     total = q.count()
-    records = q.order_by(Payroll.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
+    records = q.order_by(Payroll.payroll_id.asc()).offset((page - 1) * limit).limit(limit).all()
     return PayrollListResponse(records=records, total=total, page=page, limit=limit)
 
 
@@ -238,5 +238,5 @@ def employee_payroll_history(
         joinedload(Payroll.employee).joinedload(Employee.position),
     ).filter(Payroll.employee_id == employee_id)
     total = q.count()
-    records = q.order_by(Payroll.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
+    records = q.order_by(Payroll.payroll_id.asc()).offset((page - 1) * limit).limit(limit).all()
     return PayrollListResponse(records=records, total=total, page=page, limit=limit)

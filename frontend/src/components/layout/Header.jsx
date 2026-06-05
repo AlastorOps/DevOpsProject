@@ -1,24 +1,27 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../context/AuthContext'
+import { api } from '../../lib/api.js'
 
 function initials(name = '') {
   return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
 }
 
 const LANGUAGES = [
-  { code: 'en', label: 'English',  flag: '🇺🇸' },
-  { code: 'kh', label: 'ខ្មែរ',     flag: '🇰🇭' },
+  { code: 'en', label: 'English',  flag: '🇺🇸', htmlLang: 'en' },
+  { code: 'kh', label: 'ខ្មែរ',     flag: '🇰🇭', htmlLang: 'km' },
 ]
 
-const INITIAL_NOTIFICATIONS = [
-  { id: 1, icon: 'person_add',   color: 'text-primary bg-primary/10',     title: 'New employee added',       body: 'Sarah Jenkins joined Engineering.',        time: '2m ago',    read: false },
-  { id: 2, icon: 'event_busy',   color: 'text-tertiary bg-tertiary/10',   title: 'Leave request pending',    body: 'Michael Ross requested 3 days off.',       time: '1h ago',    read: false },
-  { id: 3, icon: 'payments',     color: 'text-secondary bg-secondary/10', title: 'Payroll processed',        body: 'June payroll has been disbursed.',          time: '3h ago',    read: false },
-  { id: 4, icon: 'warning',      color: 'text-error bg-error/10',         title: 'Contract expiring soon',   body: "Alicia Lee's contract expires in 7 days.", time: 'Yesterday', read: true  },
-  { id: 5, icon: 'check_circle', color: 'text-secondary bg-secondary/10', title: 'Performance review done', body: 'Q2 reviews have been completed.',           time: '2d ago',    read: true  },
-]
+function applyLang(code) {
+  const lang = LANGUAGES.find(l => l.code === code)
+  if (code === 'kh') {
+    document.documentElement.classList.add('lang-kh')
+  } else {
+    document.documentElement.classList.remove('lang-kh')
+  }
+  document.documentElement.lang = lang?.htmlLang ?? 'en'
+}
 
 function useOutsideClick(ref, onClose) {
   useEffect(() => {
@@ -34,31 +37,81 @@ export default function Header({ onMenuClick }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login', { replace: true })
-  }
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS)
-  const [showNotif, setShowNotif] = useState(false)
+  const handleLogout = () => { logout(); navigate('/login', { replace: true }) }
+
+  /* ── Notifications ── */
+  const [notifications, setNotifications] = useState([])
+  const [unreadCount, setUnreadCount]     = useState(0)
+  const [showNotif, setShowNotif]         = useState(false)
+  const [notifLoading, setNotifLoading]   = useState(false)
   const notifRef = useRef(null)
   useOutsideClick(notifRef, () => setShowNotif(false))
 
-  const [lang, setLang] = useState(() => localStorage.getItem('app-lang') ?? 'en')
+  const fetchNotifications = useCallback(async () => {
+    setNotifLoading(true)
+    try {
+      const res = await api.get('/notifications')
+      if (res.ok) {
+        const data = await res.json()
+        setNotifications(data)
+        setUnreadCount(data.filter(n => !n.read).length)
+      }
+    } catch { /* ignore */ }
+    setNotifLoading(false)
+  }, [])
+
+  useEffect(() => {
+    fetchNotifications()
+    // poll every 60 s so the badge stays fresh without a page reload
+    const interval = setInterval(fetchNotifications, 60_000)
+    return () => clearInterval(interval)
+  }, [fetchNotifications])
+
+  const markRead = async (id) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+    setUnreadCount(prev => Math.max(0, prev - 1))
+    try { await api.put(`/notifications/${id}/read`, {}) } catch { /* ignore */ }
+  }
+
+  const markAllRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    setUnreadCount(0)
+    try { await api.put('/notifications/read-all', {}) } catch { /* ignore */ }
+  }
+
+  const iconColor = (n) => {
+    const map = { check_circle: 'text-secondary bg-secondary/10', cancel: 'text-error bg-error/10', payments: 'text-primary bg-primary/10', notifications: 'text-outline bg-surface-container' }
+    return map[n.icon] ?? 'text-primary bg-primary/10'
+  }
+
+  function relativeTime(iso) {
+    if (!iso) return ''
+    const diff = Date.now() - new Date(iso).getTime()
+    const m = Math.floor(diff / 60_000)
+    if (m < 1)  return 'just now'
+    if (m < 60) return `${m}m ago`
+    const h = Math.floor(m / 60)
+    if (h < 24) return `${h}h ago`
+    return `${Math.floor(h / 24)}d ago`
+  }
+
+  /* ── Language ── */
+  const [lang, setLang]     = useState(() => localStorage.getItem('app-lang') ?? 'en')
   const [showLang, setShowLang] = useState(false)
   const langRef = useRef(null)
   useOutsideClick(langRef, () => setShowLang(false))
 
-  const unread = notifications.filter(n => !n.read).length
-  const currentLang = LANGUAGES.find(l => l.code === lang)
-
-  const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-  const markRead = (id) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+  // Apply stored language on first render
+  useEffect(() => { applyLang(lang) }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectLang = (code) => {
     setLang(code)
     localStorage.setItem('app-lang', code)
+    applyLang(code)
     setShowLang(false)
   }
+
+  const currentLang = LANGUAGES.find(l => l.code === lang)
 
   return (
     <header className="fixed top-0 right-0 left-0 lg:left-sidebar-width h-16 z-40 bg-surface/90 backdrop-blur-md border-b border-outline-variant flex items-center justify-between gap-md px-margin-mobile md:px-margin-desktop shadow-sm">
@@ -86,9 +139,9 @@ export default function Header({ onMenuClick }) {
             className="relative hover:bg-surface-container rounded-full p-2 text-on-surface-variant transition-all"
           >
             <span className="material-symbols-outlined">notifications</span>
-            {unread > 0 && (
+            {unreadCount > 0 && (
               <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-error text-on-error text-[10px] font-bold flex items-center justify-center leading-none">
-                {unread}
+                {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
           </button>
@@ -97,33 +150,49 @@ export default function Header({ onMenuClick }) {
             <div className="absolute right-0 top-12 w-80 bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-2xl overflow-hidden">
               <div className="flex items-center justify-between px-lg py-md border-b border-outline-variant">
                 <span className="text-label-lg font-bold">Notifications</span>
-                {unread > 0 && (
+                {unreadCount > 0 && (
                   <button onClick={markAllRead} className="text-label-sm text-primary hover:underline">
                     Mark all read
                   </button>
                 )}
               </div>
-              <ul className="max-h-80 overflow-y-auto divide-y divide-outline-variant">
-                {notifications.map(n => (
-                  <li
-                    key={n.id}
-                    onClick={() => markRead(n.id)}
-                    className={`flex items-start gap-md px-lg py-md cursor-pointer transition-colors hover:bg-surface-container ${!n.read ? 'bg-primary/5' : ''}`}
-                  >
-                    <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${n.color}`}>
-                      <span className="material-symbols-outlined text-[16px]">{n.icon}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-label-md leading-snug ${!n.read ? 'font-bold' : ''}`}>{n.title}</p>
-                      <p className="text-body-sm text-on-surface-variant truncate">{n.body}</p>
-                      <p className="text-[11px] text-outline mt-0.5">{n.time}</p>
-                    </div>
-                    {!n.read && <span className="mt-2 w-2 h-2 rounded-full bg-primary shrink-0"></span>}
-                  </li>
-                ))}
-              </ul>
+
+              {notifLoading && notifications.length === 0 ? (
+                <div className="px-lg py-xl text-center text-on-surface-variant text-body-sm">Loading…</div>
+              ) : notifications.length === 0 ? (
+                <div className="px-lg py-xl text-center text-on-surface-variant text-body-sm">
+                  <span className="material-symbols-outlined text-[32px] block mb-sm opacity-30">notifications_none</span>
+                  No notifications yet
+                </div>
+              ) : (
+                <ul className="max-h-80 overflow-y-auto divide-y divide-outline-variant">
+                  {notifications.map(n => (
+                    <li
+                      key={n.id}
+                      onClick={() => !n.read && markRead(n.id)}
+                      className={`flex items-start gap-md px-lg py-md cursor-pointer transition-colors hover:bg-surface-container ${!n.read ? 'bg-primary/5' : ''}`}
+                    >
+                      <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${iconColor(n)}`}>
+                        <span className="material-symbols-outlined text-[16px]">{n.icon ?? 'notifications'}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-label-md leading-snug ${!n.read ? 'font-bold' : ''}`}>{n.title}</p>
+                        <p className="text-body-sm text-on-surface-variant truncate">{n.body}</p>
+                        <p className="text-[11px] text-outline mt-0.5">{relativeTime(n.time)}</p>
+                      </div>
+                      {!n.read && <span className="mt-2 w-2 h-2 rounded-full bg-primary shrink-0"></span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
               <div className="px-lg py-md border-t border-outline-variant text-center">
-                <button className="text-label-sm text-primary hover:underline">View all notifications</button>
+                <button
+                  onClick={() => { fetchNotifications(); setShowNotif(false) }}
+                  className="text-label-sm text-primary hover:underline"
+                >
+                  Refresh
+                </button>
               </div>
             </div>
           )}
@@ -141,7 +210,7 @@ export default function Header({ onMenuClick }) {
           </button>
 
           {showLang && (
-            <div className="absolute right-0 top-12 w-44 bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-2xl overflow-hidden">
+            <div className="absolute right-0 top-12 w-48 bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-2xl overflow-hidden">
               <div className="px-lg py-md border-b border-outline-variant">
                 <span className="text-label-lg font-bold">Language</span>
               </div>
@@ -150,15 +219,20 @@ export default function Header({ onMenuClick }) {
                   <li key={l.code}>
                     <button
                       onClick={() => selectLang(l.code)}
-                      className={`w-full flex items-center gap-md px-lg py-sm text-left text-body-md hover:bg-surface-container transition-colors ${lang === l.code ? 'text-primary font-bold' : ''}`}
+                      className={`w-full flex items-center gap-md px-lg py-sm text-left hover:bg-surface-container transition-colors ${lang === l.code ? 'text-primary font-bold' : 'text-body-md'}`}
                     >
                       <span className="text-lg">{l.flag}</span>
-                      {l.label}
+                      <span className={l.code === 'kh' ? 'font-khmer' : ''}>{l.label}</span>
                       {lang === l.code && <span className="material-symbols-outlined text-[16px] ml-auto">check</span>}
                     </button>
                   </li>
                 ))}
               </ul>
+              {lang === 'kh' && (
+                <div className="px-lg py-sm border-t border-outline-variant bg-primary/5">
+                  <p className="text-[11px] text-primary font-bold">ពុម្ពអក្សរ: Noto Sans Khmer</p>
+                </div>
+              )}
             </div>
           )}
         </div>

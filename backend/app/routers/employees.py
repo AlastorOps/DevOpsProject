@@ -32,7 +32,7 @@ def _generate_emp_id(db: Session) -> str:
 @router.get("", response_model=EmployeeListResponse)
 def list_employees(
     page: int = Query(1, ge=1),
-    limit: int = Query(10, ge=1, le=100),
+    limit: int = Query(10, ge=1, le=500),
     search: str = Query(""),
     dept: str = Query(""),
     status: str = Query(""),
@@ -53,7 +53,7 @@ def list_employees(
         q = q.filter(Employee.status == status)
 
     total = q.count()
-    employees = q.offset((page - 1) * limit).limit(limit).all()
+    employees = q.order_by(Employee.emp_id.asc()).offset((page - 1) * limit).limit(limit).all()
     return EmployeeListResponse(employees=employees, total=total, page=page, limit=limit)
 
 

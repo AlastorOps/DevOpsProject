@@ -3,12 +3,15 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 import os
 
 from app.config import settings
 from app.database import engine, SessionLocal
 from app.models import Base, User, Role, RolePermission, SystemSettings
 from app import auth as auth_utils
+from app.limiter import limiter
 
 from app.routers import auth, employees, departments, positions, attendance, leave, payroll, performance, users, roles, settings as settings_router, dashboard, reports
 
@@ -74,6 +77,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="EMS Operations API", version="1.0.0", lifespan=lifespan)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,

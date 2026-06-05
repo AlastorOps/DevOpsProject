@@ -28,7 +28,7 @@ def list_positions(
         q = q.filter(Position.department.has(Department.name == dept))
 
     total = q.count()
-    positions = q.offset((page - 1) * limit).limit(limit).all()
+    positions = q.order_by(Position.title.asc()).offset((page - 1) * limit).limit(limit).all()
     return PositionListResponse(positions=positions, total=total, page=page, limit=limit)
 
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 
-const BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 function authFetch(path, options = {}) {
   const token = localStorage.getItem('access_token')
@@ -116,13 +116,14 @@ export default function PersonalProfile() {
     }
   }
 
-  const displayName = profile?.name ?? user?.name ?? '—'
+  const displayName  = profile?.name  ?? user?.name  ?? '—'
   const displayEmail = profile?.email ?? user?.email ?? '—'
-  const displayRole = profile?.role ?? user?.role ?? '—'
-  const joinDate = employee?.hire_date ?? null
+  const displayRole  = profile?.role  ?? user?.role  ?? '—'
+  const joinDate     = employee?.hire_date ?? null
 
   return (
     <div className="pt-8 px-margin-mobile md:px-margin-desktop max-w-6xl mx-auto pb-xl">
+
       {/* Hero */}
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-xl mb-lg relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-32 bg-primary/5"></div>
@@ -131,9 +132,6 @@ export default function PersonalProfile() {
             <div className="w-32 h-32 md:w-40 md:h-40 rounded-xl bg-primary/10 flex items-center justify-center text-primary border-4 border-surface-container-lowest shadow-md">
               <span className="material-symbols-outlined text-[80px]" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
             </div>
-            <button className="absolute bottom-2 right-2 bg-primary text-on-primary p-2 rounded-lg shadow-lg hover:opacity-90 transition-colors" type="button">
-              <span className="material-symbols-outlined text-[20px]">photo_camera</span>
-            </button>
           </div>
           <div className="flex-1 pb-xs">
             {loading ? (
@@ -167,7 +165,6 @@ export default function PersonalProfile() {
         </div>
       </div>
 
-      {/* Bento Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-lg">
         {/* Contact & Account */}
         <div className="md:col-span-1 space-y-lg">
@@ -180,7 +177,7 @@ export default function PersonalProfile() {
               {[
                 { label: 'Email Address', val: displayEmail },
                 { label: 'Phone Number', val: employee?.phone ?? '—' },
-                { label: 'Work Email', val: employee?.work_email ?? displayEmail },
+                { label: 'Work Email',   val: employee?.work_email ?? displayEmail },
               ].map(item => (
                 <div key={item.label}>
                   <label className="text-label-sm text-outline uppercase tracking-wider">{item.label}</label>
@@ -198,8 +195,8 @@ export default function PersonalProfile() {
             <div className="space-y-md">
               {[
                 { label: 'Account Status', val: profile?.status ?? '—' },
-                { label: 'Last Login', val: formatDate(profile?.last_login) },
-                { label: 'Member Since', val: formatDate(profile?.created_at) },
+                { label: 'Last Login',     val: formatDate(profile?.last_login) },
+                { label: 'Member Since',   val: formatDate(profile?.created_at) },
               ].map(item => (
                 <div key={item.label}>
                   <label className="text-label-sm text-outline uppercase tracking-wider">{item.label}</label>
@@ -210,7 +207,7 @@ export default function PersonalProfile() {
           </div>
         </div>
 
-        {/* Work Info */}
+        {/* Work Info + Security */}
         <div className="md:col-span-2 space-y-lg">
           <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg hover:border-primary/30 transition-colors">
             <div className="flex items-center justify-between mb-lg">
@@ -246,15 +243,13 @@ export default function PersonalProfile() {
               )}
             </div>
           </div>
-        </div>
 
-        {/* Security */}
-        <div className="md:col-span-3">
+          {/* Security */}
           <div className="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover:border-primary/30 transition-colors">
             <div className="p-lg border-b border-outline-variant flex items-center justify-between">
               <div>
                 <h3 className="text-headline-md text-on-surface">Security &amp; Password</h3>
-                <p className="text-body-md text-on-surface-variant">Protect your account and manage access credentials.</p>
+                <p className="text-body-md text-on-surface-variant">Manage your access credentials.</p>
               </div>
               <span className="material-symbols-outlined text-primary text-[32px]">security</span>
             </div>
@@ -266,7 +261,7 @@ export default function PersonalProfile() {
                   </div>
                   <div>
                     <p className="font-medium text-on-surface">Two-Factor Authentication</p>
-                    <p className="text-label-md text-on-surface-variant">Highly recommended for administrators to prevent unauthorized access.</p>
+                    <p className="text-label-md text-on-surface-variant">Recommended for admin accounts.</p>
                     <button className="mt-md text-primary font-bold text-label-md hover:underline" type="button">Enable 2FA Now</button>
                   </div>
                 </div>
@@ -279,7 +274,6 @@ export default function PersonalProfile() {
                     <p className="text-label-md text-on-surface-variant">
                       {profile?.last_login ? `Last login: ${formatDate(profile.last_login)}` : 'No session data available'}
                     </p>
-                    <button className="mt-md text-primary font-bold text-label-md hover:underline" type="button">View All Sessions</button>
                   </div>
                 </div>
               </div>
@@ -301,9 +295,9 @@ export default function PersonalProfile() {
                 )}
 
                 {[
-                  { key: 'current_password', label: 'Current Password', showKey: 'current', placeholder: '••••••••' },
-                  { key: 'new_password', label: 'New Password', showKey: 'new_', placeholder: 'Enter new password' },
-                  { key: 'confirm_password', label: 'Confirm New Password', showKey: 'confirm', placeholder: 'Repeat new password' },
+                  { key: 'current_password', label: 'Current Password', showKey: 'current',  placeholder: '••••••••' },
+                  { key: 'new_password',      label: 'New Password',     showKey: 'new_',     placeholder: 'Enter new password' },
+                  { key: 'confirm_password',  label: 'Confirm Password', showKey: 'confirm',  placeholder: 'Repeat new password' },
                 ].map(({ key, label, showKey, placeholder }) => (
                   <div key={key} className="space-y-xs">
                     <label className="text-label-sm text-on-surface-variant">{label}</label>
@@ -313,8 +307,8 @@ export default function PersonalProfile() {
                         placeholder={placeholder}
                         type={showPw[showKey] ? 'text' : 'password'}
                         value={pwForm[key]}
-                        onChange={e => setPwForm(f => ({ ...f, [key]: e.target.value }))}
                         required
+                        onChange={e => setPwForm(f => ({ ...f, [key]: e.target.value }))}
                       />
                       <button
                         type="button"
