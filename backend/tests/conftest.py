@@ -5,7 +5,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _TEST_DB = os.path.join(_HERE, "test_ems.db")
 
 os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_DB}"
-os.environ["SECRET_KEY"] = "test-secret-key-minimum-32-chars-padding-xxxxx"
+os.environ["SECRET_KEY"] = "CI0Pytest0Session0Auth0X7k2m9n4q8v3w5j6"
 os.environ["ADMIN_PASSWORD"] = "TestAdmin@123456"
 os.environ.setdefault("CORS_ORIGINS", '["http://localhost:5173"]')
 
