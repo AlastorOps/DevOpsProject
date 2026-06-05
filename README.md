@@ -186,7 +186,6 @@ npm install
 ```
 
 ### 2. Set up the backend
->>>>>>> 3a4016af3185dc214f873ba808f24b3185e9d7d6
 
 ```bash
 cd backend
@@ -216,7 +215,6 @@ ADMIN_PASSWORD=Admin@1234
 ```
 
 ### 3. Set up the frontend
->>>>>>> 3a4016af3185dc214f873ba808f24b3185e9d7d6
 
 ```bash
 cd frontend
