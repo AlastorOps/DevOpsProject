@@ -297,7 +297,6 @@ docker compose down          # stop containers
 docker compose down -v       # stop and remove volumes
 ```
 
->>>>>>> 3a4016af3185dc214f873ba808f24b3185e9d7d6
 ---
 
 ## Environment Variables
@@ -389,7 +388,6 @@ Roles and their module permissions are seeded automatically on first start and c
 
 ## CI/CD Pipeline
 
-<<<<<<< HEAD
 The GitHub Actions workflow (`.github/workflows/main.yml`) runs on every push and PR to `main`, `dev`, and `feature/**` branches:
 
 1. **Frontend CI** — `npm ci`, lint, build
@@ -413,12 +411,10 @@ push to any branch
 ```
 
 Images are tagged with both `:latest` and `:<git-sha>`.
->>>>>>> 3a4016af3185dc214f873ba808f24b3185e9d7d6
 
 ### Required GitHub Secrets
 
 | Secret | Description |
-<<<<<<< HEAD
 |--------|-------------|
 | `DOCKER_USERNAME` | Docker Hub username |
 | `DOCKER_PASSWORD` | Docker Hub password or access token |
@@ -430,7 +426,7 @@ Images are tagged with both `:latest` and `:<git-sha>`.
 
 > The `kubernetes/` directory contains basic manifests. Update the image placeholder before applying.
 
-```bash
+```
 # 1. Replace DOCKER_USERNAME in deployment.yaml with your Docker Hub username
 sed -i 's/DOCKER_USERNAME/yourusername/g' kubernetes/deployment.yaml
 
@@ -523,7 +519,7 @@ The following are tracked as open issues:
 
 Manifests are in the [`kubernetes/`](kubernetes/) directory.
 
-```bash
+```
 # Create namespace
 kubectl apply -f kubernetes/namespace.yaml
 
@@ -549,4 +545,3 @@ Prometheus and Grafana configs are in [`monitoring/`](monitoring/).
 - `localhost:9090` — Prometheus self-monitoring
 
 A pre-built **Grafana dashboard** for backend metrics is at `monitoring/grafana/dashboards/backend.json`. Import it via Grafana UI → Dashboards → Import.
->>>>>>> 3a4016af3185dc214f873ba808f24b3185e9d7d6
