@@ -1,9 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@300;400;500;600;700&family=Battambang:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Khmer language font — applied when html.lang-kh is set */
+html.lang-kh,
+html.lang-kh body {
+  font-family: 'Noto Sans Khmer', 'Battambang', sans-serif;
+}
+
+html.lang-kh *:not(.material-symbols-outlined) {
+  font-family: 'Noto Sans Khmer', 'Battambang', sans-serif;
+}
+
+html.lang-kh .material-symbols-outlined {
+  font-family: 'Material Symbols Outlined' !important;
+}
+
+/* Utility class for inline Khmer text */
+.font-khmer {
+  font-family: 'Noto Sans Khmer', 'Battambang', sans-serif;
+}
 
 @layer base {
   :root {
