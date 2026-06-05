@@ -83,8 +83,18 @@ jobs:
         id: tag
         run: |
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo "fe_tags=${{ secrets.DOCKER_USERNAME }}/employee-management-frontend:latest\n${{ secrets.DOCKER_USERNAME }}/employee-management-frontend:${{ github.sha }}" >> $GITHUB_OUTPUT
-            echo "be_tags=${{ secrets.DOCKER_USERNAME }}/employee-management-backend:latest\n${{ secrets.DOCKER_USERNAME }}/employee-management-backend:${{ github.sha }}" >> $GITHUB_OUTPUT
+            {
+              echo "fe_tags<<EOF"
+              echo "${{ secrets.DOCKER_USERNAME }}/employee-management-frontend:latest"
+              echo "${{ secrets.DOCKER_USERNAME }}/employee-management-frontend:${{ github.sha }}"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+            {
+              echo "be_tags<<EOF"
+              echo "${{ secrets.DOCKER_USERNAME }}/employee-management-backend:latest"
+              echo "${{ secrets.DOCKER_USERNAME }}/employee-management-backend:${{ github.sha }}"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
           else
             echo "fe_tags=${{ secrets.DOCKER_USERNAME }}/employee-management-frontend:dev" >> $GITHUB_OUTPUT
             echo "be_tags=${{ secrets.DOCKER_USERNAME }}/employee-management-backend:dev" >> $GITHUB_OUTPUT
