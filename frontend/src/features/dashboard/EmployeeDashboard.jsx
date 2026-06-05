@@ -73,8 +73,6 @@ export default function EmployeeDashboard() {
   const totalDays = att.total_days || 1
   const presentPct = Math.round(((att.present + att.late) / totalDays) * 100)
 
-  const annualBalance = data.leave_balance?.find(b => b.leave_type === 'Annual Leave')
-  const sickBalance   = data.leave_balance?.find(b => b.leave_type === 'Sick Leave')
   const recentPayroll = data.recent_payroll
 
   const firstName = emp.name?.split(' ')[0] ?? 'there'

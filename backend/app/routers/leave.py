@@ -67,7 +67,7 @@ def list_leave(
         q = q.filter(LeaveRequest.leave_type == leave_type)
 
     total = q.count()
-    requests = q.order_by(LeaveRequest.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
+    requests = q.order_by(LeaveRequest.leave_id.asc()).offset((page - 1) * limit).limit(limit).all()
     return LeaveListResponse(requests=requests, total=total, page=page, limit=limit)
 
 
@@ -142,14 +142,20 @@ def approve_leave(
     if leave.status != "Pending":
         raise HTTPException(status_code=409, detail="Leave request is not pending")
 
-    leave.status = "Approved"
-
     balance = db.query(LeaveBalance).filter(
         LeaveBalance.employee_id == leave.employee_id,
         LeaveBalance.leave_type == leave.leave_type,
     ).first()
+    if balance and (balance.total - balance.used) < leave.days:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Insufficient leave balance: {balance.total - balance.used} day(s) remaining, {leave.days} requested"
+        )
+
+    leave.status = "Approved"
+
     if balance:
-        balance.used = min(balance.used + leave.days, balance.total)
+        balance.used = balance.used + leave.days
 
     _notify_user(
         db, leave.employee_id,
@@ -231,6 +237,11 @@ def update_leave_balance(
     ).first()
     if not balance:
         raise HTTPException(status_code=404, detail="Leave balance not found")
+    if payload.total < balance.used:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Total ({payload.total}) cannot be less than already used ({balance.used})"
+        )
 
     balance.total = payload.total
     db.commit()
@@ -258,5 +269,5 @@ def employee_leave_history(
         joinedload(LeaveRequest.employee).joinedload(Employee.department)
     ).filter(LeaveRequest.employee_id == employee_id)
     total = q.count()
-    requests = q.order_by(LeaveRequest.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
+    requests = q.order_by(LeaveRequest.leave_id.asc()).offset((page - 1) * limit).limit(limit).all()
     return LeaveListResponse(requests=requests, total=total, page=page, limit=limit)

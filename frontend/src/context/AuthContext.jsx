@@ -3,7 +3,7 @@ import { createContext, useContext, useState } from 'react'
 
 const AuthContext = createContext(null)
 
-const BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 function loadUser() {
   try {

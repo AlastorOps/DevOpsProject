@@ -69,9 +69,11 @@ CREATE TABLE IF NOT EXISTS users (
     role          VARCHAR(30)  NOT NULL DEFAULT 'Employee',
     status        VARCHAR(20)  NOT NULL DEFAULT 'Active',
     employee_id   VARCHAR(36)  REFERENCES employees(id) ON DELETE SET NULL,
-    last_login    TIMESTAMP,
-    created_at    TIMESTAMP    NOT NULL DEFAULT NOW(),
-    updated_at    TIMESTAMP    NOT NULL DEFAULT NOW()
+    last_login          TIMESTAMP,
+    reset_token         VARCHAR(255),
+    reset_token_expires TIMESTAMP,
+    created_at          TIMESTAMP    NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMP    NOT NULL DEFAULT NOW()
 );
 
 -- ── attendance ────────────────────────────────────────────────

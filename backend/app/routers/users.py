@@ -57,7 +57,7 @@ def list_users(
     if status:
         q = q.filter(User.status == status)
     total = q.count()
-    users = q.order_by(User.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
+    users = q.order_by(User.created_at.asc()).offset((page - 1) * limit).limit(limit).all()
     return UserListResponse(users=users, total=total, page=page, limit=limit)
 
 

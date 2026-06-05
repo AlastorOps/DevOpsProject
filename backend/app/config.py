@@ -1,9 +1,11 @@
+import re
 import json
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
 from typing import List
 
 _PLACEHOLDER = "change-this-to-a-random-string-of-at-least-32-characters"
+_WEAK_PATTERN = re.compile(r"dev[-_]|test[-_]|change[-_]|placeholder|example|sample|demo|secret[-_]key", re.IGNORECASE)
 
 
 class Settings(BaseSettings):
@@ -20,7 +22,9 @@ class Settings(BaseSettings):
     @classmethod
     def validate_secret_key(cls, v: str) -> str:
         if v == _PLACEHOLDER or len(v) < 32:
-            raise ValueError("SECRET_KEY must be set to a random string of at least 32 characters")
+            raise ValueError("SECRET_KEY must be at least 32 characters — generate one with: python -c \"import secrets; print(secrets.token_hex(32))\"")
+        if _WEAK_PATTERN.search(v):
+            raise ValueError("SECRET_KEY looks like a dev/placeholder value — set a cryptographically random key")
         return v
 
     @field_validator("cors_origins", mode="before")

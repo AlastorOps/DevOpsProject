@@ -106,7 +106,23 @@ export default function UserManagement() {
     } catch { showToast('Network error.', 'error') }
   }
 
-  const handleExport = () => { window.open('/users/export', '_blank') }
+  const handleExport = async () => {
+    try {
+      const token = localStorage.getItem('access_token')
+      const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
+      const res = await fetch(`${BASE}/users/export`, { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) { showToast('Export failed.', 'error'); return }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'users.csv'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch { showToast('Export failed.', 'error') }
+  }
 
   const totalPages = Math.max(1, Math.ceil(total / limit))
   const activeCount = users.filter(u => u.status === 'Active').length

@@ -72,7 +72,7 @@ export default function RolesPermissions() {
     setLoading(false)
   }, [activeRole])
 
-  useEffect(() => { fetchRoles() }, [])
+  useEffect(() => { fetchRoles() }, [fetchRoles])
 
   const loadRolePerms = async (roleName) => {
     if (permissions[roleName]) return

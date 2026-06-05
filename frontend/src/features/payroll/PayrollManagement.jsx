@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../lib/api.js'
+import EmployeeCombobox from '../../components/ui/EmployeeCombobox.jsx'
 
 const statusStyle = {
   Paid:    'bg-secondary-container/20 text-secondary',
@@ -13,6 +14,7 @@ export default function PayrollManagement() {
   const [records, setRecords]   = useState([])
   const [stats, setStats]       = useState(null)
   const [employees, setEmployees] = useState([])
+  const [empLoading, setEmpLoading] = useState(false)
   const [total, setTotal]       = useState(0)
   const [loading, setLoading]   = useState(true)
   const [activeTab, setActiveTab] = useState('all')
@@ -42,14 +44,29 @@ export default function PayrollManagement() {
   }, [page, activeTab])
 
   const fetchEmployees = useCallback(async () => {
+    setEmpLoading(true)
     try {
-      const res = await api.get('/employees?limit=200&status=Active')
-      if (res.ok) { const d = await res.json(); setEmployees(d.employees || []) }
-    } catch { /* ignore */ }
+      const res = await api.get('/employees?limit=500&status=Active')
+      if (res.ok) {
+        const d = await res.json()
+        setEmployees(d.employees || [])
+      } else {
+        showToast('Failed to load employee list.', 'error')
+      }
+    } catch {
+      showToast('Could not reach the server.', 'error')
+    } finally {
+      setEmpLoading(false)
+    }
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
   useEffect(() => { fetchEmployees() }, [fetchEmployees])
+
+  // Re-fetch employees when modal opens in case the initial fetch failed
+  useEffect(() => {
+    if (showModal && employees.length === 0) fetchEmployees()
+  }, [showModal]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const closeModal = () => { setShowModal(false); setForm({ employee_id: '', month: '', basic: '', bonus: '0', deductions: '0' }); setFormErrors({}) }
 
@@ -110,10 +127,13 @@ export default function PayrollManagement() {
             <div className="space-y-md">
               <div className="flex flex-col gap-xs">
                 <label className="text-label-md text-on-surface-variant">Employee <span className="text-error">*</span></label>
-                <select className={`bg-surface border rounded-lg p-md text-body-md focus:ring-1 outline-none ${formErrors.employee_id ? 'border-error focus:ring-error' : 'border-outline-variant focus:ring-primary'}`} {...ff('employee_id')}>
-                  <option value="">Select employee…</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.emp_id})</option>)}
-                </select>
+                <EmployeeCombobox
+                  employees={employees}
+                  value={form.employee_id}
+                  onChange={id => { setForm(p => ({ ...p, employee_id: id })); setFormErrors(p => ({ ...p, employee_id: '' })) }}
+                  error={formErrors.employee_id}
+                  loading={empLoading}
+                />
                 {formErrors.employee_id && <p className="text-label-sm text-error">{formErrors.employee_id}</p>}
               </div>
               <div className="flex flex-col gap-xs">

@@ -15,6 +15,8 @@ router = APIRouter(tags=["dashboard"])
 
 @router.get("/dashboard/stats")
 def admin_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.role not in ("Admin", "HR Manager", "Manager"):
+        raise HTTPException(status_code=403, detail="Access denied")
     today = date.today()
     total_employees = db.query(func.count(Employee.id)).scalar()
     total_departments = db.query(func.count(Department.id)).scalar()
@@ -52,6 +54,8 @@ def dashboard_charts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.role not in ("Admin", "HR Manager", "Manager"):
+        raise HTTPException(status_code=403, detail="Access denied")
     today = date.today()
 
     if period == "Weekly":

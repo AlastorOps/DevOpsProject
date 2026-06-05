@@ -35,7 +35,7 @@ def list_departments(
     if search:
         q = q.filter(Department.name.ilike(f"%{search}%"))
     total = q.count()
-    departments = q.offset((page - 1) * limit).limit(limit).all()
+    departments = q.order_by(Department.name.asc()).offset((page - 1) * limit).limit(limit).all()
     return DepartmentListResponse(
         departments=[_enrich(d, db) for d in departments],
         total=total,

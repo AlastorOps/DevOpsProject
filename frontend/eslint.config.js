@@ -17,5 +17,13 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      // react-hooks v7 introduced these two rules for the React Compiler.
+      // They flag correct data-fetching patterns (calling async setState functions
+      // from useEffect) and normal helper functions (Date.now in relativeTime).
+      // We are not using the React Compiler, so these rules produce false positives.
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/purity': 'off',
+    },
   },
 ])

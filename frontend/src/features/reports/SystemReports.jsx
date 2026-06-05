@@ -49,7 +49,6 @@ export default function SystemReports() {
 
   const renderReport = () => {
     if (!reportData) return null
-    const type = reportData.type
     const summary = reportData.summary
 
     return (

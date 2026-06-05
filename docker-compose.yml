@@ -48,6 +48,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
     image: ${DOCKER_USERNAME:-alastorops}/employee-management-frontend:latest
     container_name: ems-frontend
     ports:

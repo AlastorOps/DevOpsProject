@@ -62,7 +62,7 @@ def list_reviews(
         q = q.filter(PerformanceReview.employee.has(Employee.department.has(Department.name == dept)))
 
     total = q.count()
-    reviews = q.order_by(PerformanceReview.review_date.desc()).offset((page - 1) * limit).limit(limit).all()
+    reviews = q.order_by(PerformanceReview.created_at.asc()).offset((page - 1) * limit).limit(limit).all()
     return PerformanceListResponse(reviews=reviews, total=total, page=page, limit=limit)
 
 
@@ -113,5 +113,5 @@ def employee_reviews(
         joinedload(PerformanceReview.employee).joinedload(Employee.position),
     ).filter(PerformanceReview.employee_id == employee_id)
     total = q.count()
-    reviews = q.order_by(PerformanceReview.review_date.desc()).offset((page - 1) * limit).limit(limit).all()
+    reviews = q.order_by(PerformanceReview.created_at.asc()).offset((page - 1) * limit).limit(limit).all()
     return PerformanceListResponse(reviews=reviews, total=total, page=page, limit=limit)

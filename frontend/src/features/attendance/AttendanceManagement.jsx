@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../../lib/api.js'
+import EmployeeCombobox from '../../components/ui/EmployeeCombobox.jsx'
 
 const statusStyle = {
   Present:   'bg-secondary-container text-on-secondary-container',
@@ -12,6 +13,8 @@ export default function AttendanceManagement() {
   const [records, setRecords]         = useState([])
   const [stats, setStats]             = useState({ present: 0, late: 0, absent: 0, on_leave: 0, total: 0 })
   const [employees, setEmployees]     = useState([])
+  const [empLoading, setEmpLoading]   = useState(false)
+  const [markedIds, setMarkedIds]     = useState(new Set())
   const [loading, setLoading]         = useState(true)
   const [showModal, setShowModal]     = useState(false)
   const [form, setForm]               = useState({ employee_id: '', status: 'Present', check_in: '', check_out: '' })
@@ -47,15 +50,40 @@ export default function AttendanceManagement() {
   }, [page, date, filterDept, filterStatus])
 
   const fetchEmployees = useCallback(async () => {
+    setEmpLoading(true)
     try {
-      const [eRes, dRes] = await Promise.all([api.get('/employees?limit=200'), api.get('/departments?limit=100')])
+      const [eRes, dRes] = await Promise.all([api.get('/employees?limit=500'), api.get('/departments?limit=100')])
       if (eRes.ok) { const d = await eRes.json(); setEmployees(d.employees || []) }
+      else showToast('Failed to load employee list.', 'error')
       if (dRes.ok) { const d = await dRes.json(); setDepartments(d.departments || []) }
-    } catch { /* ignore */ }
+    } catch {
+      showToast('Could not reach the server.', 'error')
+    } finally {
+      setEmpLoading(false)
+    }
   }, [])
 
   useEffect(() => { fetchEmployees() }, [fetchEmployees])
   useEffect(() => { fetchStats(); fetchRecords() }, [fetchStats, fetchRecords])
+
+  // Clear marked IDs immediately when the date changes so stale data never bleeds into the new day
+  useEffect(() => { setMarkedIds(new Set()) }, [date])
+
+  // When modal opens: ensure employee list is loaded and build the set of already-marked IDs for the selected date
+  useEffect(() => {
+    if (!showModal) return
+    if (employees.length === 0) fetchEmployees()
+    const fetchMarked = async () => {
+      try {
+        const res = await api.get(`/attendance?target_date=${date}&limit=500&page=1`)
+        if (res.ok) {
+          const d = await res.json()
+          setMarkedIds(new Set((d.records || []).map(r => r.employee_id)))
+        }
+      } catch { /* ignore */ }
+    }
+    fetchMarked()
+  }, [showModal, date]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredRecords = records.filter(r => {
     if (!search) return true
@@ -97,6 +125,7 @@ export default function AttendanceManagement() {
 
   const needsTimes = form.status === 'Present' || form.status === 'Late'
   const totalPages = Math.max(1, Math.ceil(total / limit))
+  const availableEmployees = employees.filter(e => !markedIds.has(e.id))
 
   return (
     <div className="p-margin-mobile md:p-margin-desktop">
@@ -118,10 +147,13 @@ export default function AttendanceManagement() {
             <div className="space-y-md">
               <div className="space-y-xs">
                 <label className="text-label-md text-on-surface">Employee <span className="text-error">*</span></label>
-                <select className={`w-full border rounded-lg py-md px-md text-body-md focus:ring-1 outline-none ${formErrors.employee_id ? 'border-error focus:ring-error' : 'border-outline-variant focus:ring-primary'}`} value={form.employee_id} onChange={e => { setForm(p => ({ ...p, employee_id: e.target.value })); setFormErrors(p => ({ ...p, employee_id: '' })) }}>
-                  <option value="">Select employee…</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.emp_id})</option>)}
-                </select>
+                <EmployeeCombobox
+                  employees={availableEmployees}
+                  value={form.employee_id}
+                  onChange={id => { setForm(p => ({ ...p, employee_id: id })); setFormErrors(p => ({ ...p, employee_id: '' })) }}
+                  error={formErrors.employee_id}
+                  loading={empLoading}
+                />
                 {formErrors.employee_id && <p className="text-label-sm text-error">{formErrors.employee_id}</p>}
               </div>
               <div className="space-y-xs">

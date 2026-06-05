@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useTheme } from '../../hooks/useTheme.js'
 import { api } from '../../lib/api.js'
 
-const BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 export default function SystemSettings() {
   const [toast, setToast]               = useState(null)

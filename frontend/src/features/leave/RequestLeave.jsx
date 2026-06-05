@@ -71,7 +71,7 @@ export default function RequestLeave() {
       fd.append('reason', reason)
       if (file) fd.append('document', file)
 
-      const BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+      const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
       const token = localStorage.getItem('access_token')
       const res = await fetch(`${BASE}/leave`, {
         method: 'POST',

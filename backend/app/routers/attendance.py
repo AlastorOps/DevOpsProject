@@ -17,12 +17,13 @@ def _calc_hours(check_in: str, check_out: str) -> str | None:
     if not check_in or not check_out:
         return None
     try:
+        from datetime import timedelta
         fmt = "%H:%M"
         ci = datetime.strptime(check_in, fmt)
         co = datetime.strptime(check_out, fmt)
         diff = co - ci
         if diff.total_seconds() < 0:
-            return None
+            diff += timedelta(days=1)  # overnight shift (e.g. 22:00 → 06:00)
         h, rem = divmod(int(diff.total_seconds()), 3600)
         m = rem // 60
         return f"{h}h {m}m"
@@ -52,7 +53,7 @@ def get_stats(
 @router.get("", response_model=AttendanceListResponse)
 def list_attendance(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     target_date: date_type = Query(default=None),
     dept: str = Query(""),
     status: str = Query(""),
@@ -72,7 +73,7 @@ def list_attendance(
         q = q.filter(Attendance.employee.has(Employee.department.has(Department.name == dept)))
 
     total = q.count()
-    records = q.order_by(Attendance.date.desc()).offset((page - 1) * limit).limit(limit).all()
+    records = q.order_by(Attendance.created_at.asc()).offset((page - 1) * limit).limit(limit).all()
 
     enriched = []
     for r in records:

@@ -36,6 +36,8 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_API_BASE_URL: /api
 
   build-backend:
     name: Backend CI
@@ -43,13 +45,10 @@ jobs:
     defaults:
       run:
         working-directory: backend
-<<<<<<< HEAD
-=======
     env:
       DATABASE_URL: postgresql://test:test@localhost:5432/test
-      SECRET_KEY: ci-only-placeholder-secret-key-32chars
-      ADMIN_PASSWORD: ci-placeholder-admin-password
->>>>>>> 3a4016af3185dc214f873ba808f24b3185e9d7d6
+      SECRET_KEY: CI0GitHub0Actions0Backend0Test0A1B2C3
+      ADMIN_PASSWORD: CIactions0AdminPw
     steps:
       - uses: actions/checkout@v4
 
@@ -85,6 +84,8 @@ jobs:
         with:
           context: ./frontend
           push: true
+          build-args: |
+            VITE_API_BASE_URL=/api
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/employee-management-frontend:latest
             ${{ secrets.DOCKER_USERNAME }}/employee-management-frontend:${{ github.sha }}

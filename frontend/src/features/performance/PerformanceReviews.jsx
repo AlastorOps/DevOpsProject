@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../../lib/api.js'
 import { useAuth } from '../../context/AuthContext.jsx'
+import EmployeeCombobox from '../../components/ui/EmployeeCombobox.jsx'
 
 const ratingStyle = {
   Excellent: 'bg-secondary-container text-on-secondary-container',
@@ -43,7 +44,7 @@ export default function PerformanceReviews() {
 
   const fetchMeta = useCallback(async () => {
     try {
-      const [eRes, dRes] = await Promise.all([api.get('/employees?limit=200'), api.get('/departments?limit=100')])
+      const [eRes, dRes] = await Promise.all([api.get('/employees?limit=500'), api.get('/departments?limit=100')])
       if (eRes.ok) { const d = await eRes.json(); setEmployees(d.employees || []) }
       if (dRes.ok) { const d = await dRes.json(); setDepartments(d.departments || []) }
     } catch { /* ignore */ }
@@ -94,10 +95,11 @@ export default function PerformanceReviews() {
             <div className="space-y-md">
               <div className="flex flex-col gap-xs">
                 <label className="text-label-md text-on-surface-variant">Employee <span className="text-error">*</span></label>
-                <select className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary" value={form.employee_id} onChange={e => setForm(p => ({ ...p, employee_id: e.target.value }))}>
-                  <option value="">Select employee…</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.emp_id})</option>)}
-                </select>
+                <EmployeeCombobox
+                  employees={employees}
+                  value={form.employee_id}
+                  onChange={id => setForm(p => ({ ...p, employee_id: id }))}
+                />
               </div>
               <div className="flex flex-col gap-xs">
                 <label className="text-label-md text-on-surface-variant">Review Cycle</label>
