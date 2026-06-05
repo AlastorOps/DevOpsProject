@@ -8,6 +8,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Init scripts run once on first boot (empty data volume).
+      # 01_schema.sql creates all tables; 02_seed.sql inserts roles and settings.
+      - ./database/init:/docker-entrypoint-initdb.d:ro
     ports:
       - "5433:5432"
     healthcheck:
@@ -30,7 +33,7 @@ services:
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
       REFRESH_TOKEN_EXPIRE_DAYS: 7
-      CORS_ORIGINS: http://localhost:8080,http://localhost:5173
+      CORS_ORIGINS: '["http://localhost:8080","http://localhost:5173"]'
       UPLOAD_DIR: uploads
     ports:
       - "8000:8000"

@@ -1,10 +1,5 @@
-import { useState } from 'react'
-
-const initialRequests = [
-  { id: 'LV-2024-0041', name: 'Alice Wang',  init: 'AW', dept: 'Engineering', type: 'Annual Leave',   from: 'Oct 28', to: 'Oct 31', days: 4, reason: 'Family vacation',     status: 'Pending' },
-  { id: 'LV-2024-0040', name: 'Brad Kim',    init: 'BK', dept: 'Marketing',   type: 'Sick Leave',     from: 'Oct 25', to: 'Oct 26', days: 2, reason: 'Medical appointment', status: 'Approved' },
-  { id: 'LV-2024-0039', name: 'Carla Osei',  init: 'CO', dept: 'Sales',       type: 'Personal Leave', from: 'Nov 1',  to: 'Nov 1',  days: 1, reason: 'Personal errand',    status: 'Rejected' },
-]
+import { useState, useEffect, useCallback } from 'react'
+import { api } from '../../lib/api.js'
 
 const statusStyle = {
   Pending:  'bg-tertiary-fixed text-on-tertiary-fixed-variant',
@@ -13,28 +8,53 @@ const statusStyle = {
 }
 
 export default function LeaveManagement() {
-  const [requests, setRequests]       = useState(initialRequests)
+  const [requests, setRequests]       = useState([])
+  const [total, setTotal]             = useState(0)
+  const [loading, setLoading]         = useState(true)
   const [toast, setToast]             = useState(null)
   const [search, setSearch]           = useState('')
-  const [filterType, setFilterType]   = useState('All Leave Types')
-  const [filterStatus, setFilterStatus] = useState('All Status')
+  const [filterType, setFilterType]   = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
+  const [page, setPage]               = useState(1)
+  const limit = 20
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 3000)
+  const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3000) }
+
+  const fetchRequests = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({ page, limit, ...(filterType && { leave_type: filterType }), ...(filterStatus && { status: filterStatus }) })
+      const res = await api.get(`/leave?${params}`)
+      if (res.ok) { const d = await res.json(); setRequests(d.requests || []); setTotal(d.total || 0) }
+    } catch { /* ignore */ }
+    setLoading(false)
+  }, [page, filterType, filterStatus])
+
+  useEffect(() => { fetchRequests() }, [fetchRequests])
+
+  const handleAction = async (req, action) => {
+    try {
+      const res = await api.put(`/leave/${req.id}/${action}`, {})
+      if (res.ok) {
+        const newStatus = action === 'approve' ? 'Approved' : 'Rejected'
+        showToast(`Leave for ${req.employee?.name} ${newStatus.toLowerCase()}.`, action === 'reject' ? 'error' : 'success')
+        fetchRequests()
+      } else {
+        const err = await res.json().catch(() => ({}))
+        showToast(err.detail || 'Action failed.', 'error')
+      }
+    } catch { showToast('Network error.', 'error') }
   }
 
-  const handleAction = (newStatus, req) => {
-    setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: newStatus } : r))
-    showToast(`Leave request for ${req.name} ${newStatus.toLowerCase()}.`, newStatus === 'Rejected' ? 'error' : 'success')
-  }
+  const filtered = requests.filter(r => !search || `${r.employee?.name ?? ''} ${r.employee?.emp_id ?? ''}`.toLowerCase().includes(search.toLowerCase()))
 
-  const filtered = requests.filter(r => {
-    const matchSearch = `${r.name} ${r.dept}`.toLowerCase().includes(search.toLowerCase())
-    const matchType   = filterType   === 'All Leave Types' || r.type   === filterType
-    const matchStatus = filterStatus === 'All Status'      || r.status === filterStatus
-    return matchSearch && matchType && matchStatus
-  })
+  const counts = {
+    total: total,
+    approved: requests.filter(r => r.status === 'Approved').length,
+    pending: requests.filter(r => r.status === 'Pending').length,
+    rejected: requests.filter(r => r.status === 'Rejected').length,
+  }
+  const totalPages = Math.max(1, Math.ceil(total / limit))
 
   return (
     <div className="p-margin-mobile md:p-margin-desktop">
@@ -43,28 +63,18 @@ export default function LeaveManagement() {
           <h2 className="text-headline-lg text-on-surface">Leave Management</h2>
           <p className="text-body-md text-on-surface-variant">Review, approve, or reject employee leave requests</p>
         </div>
-        <button
-          onClick={() => showToast('Exporting leave report…')}
-          className="flex items-center gap-xs px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md hover:brightness-110 active:scale-95 transition-all shadow-md"
-        >
-          <span className="material-symbols-outlined text-[18px]">download</span>
-          Export Report
-        </button>
       </div>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-gutter mb-lg">
         {[
-          { label: 'Total Requests', val: requests.length,                                        icon: 'event_note',     style: 'bg-primary text-on-primary',       trend: '+8 this week' },
-          { label: 'Approved',       val: requests.filter(r => r.status === 'Approved').length,   icon: 'event_available', style: 'bg-secondary-container/30',        trend: '' },
-          { label: 'Pending',        val: requests.filter(r => r.status === 'Pending').length,    icon: 'pending_actions', style: 'bg-tertiary-fixed/30',             trend: 'Needs action' },
-          { label: 'Rejected',       val: requests.filter(r => r.status === 'Rejected').length,   icon: 'event_busy',      style: 'bg-error-container/30',            trend: '' },
+          { label: 'Total Requests', val: total,            icon: 'event_note',     style: 'bg-primary text-on-primary' },
+          { label: 'Approved',       val: counts.approved,  icon: 'event_available', style: 'bg-secondary-container/30' },
+          { label: 'Pending',        val: counts.pending,   icon: 'pending_actions', style: 'bg-tertiary-fixed/30' },
+          { label: 'Rejected',       val: counts.rejected,  icon: 'event_busy',      style: 'bg-error-container/30' },
         ].map(s => (
           <div key={s.label} className={`p-lg rounded-xl border border-outline-variant shadow-sm ${s.style}`}>
-            <div className="flex items-center justify-between mb-md">
-              <span className="material-symbols-outlined">{s.icon}</span>
-              <span className="text-label-sm opacity-70">{s.trend}</span>
-            </div>
+            <div className="flex items-center justify-between mb-md"><span className="material-symbols-outlined">{s.icon}</span></div>
             <p className="text-label-sm uppercase tracking-wider opacity-70">{s.label}</p>
             <h3 className="text-headline-lg font-bold mt-xs">{s.val}</h3>
           </div>
@@ -75,104 +85,54 @@ export default function LeaveManagement() {
       <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md mb-lg flex flex-wrap gap-md shadow-sm">
         <div className="flex-1 min-w-[200px] relative">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
-          <input
-            className="w-full bg-background border border-outline-variant rounded-lg py-2 pl-10 pr-4 text-body-md focus:ring-2 focus:ring-primary outline-none"
-            placeholder="Search employee..."
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+          <input className="w-full bg-background border border-outline-variant rounded-lg py-2 pl-10 pr-4 text-body-md focus:ring-2 focus:ring-primary outline-none" placeholder="Search employee..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select
-          className="bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md"
-          value={filterType}
-          onChange={e => setFilterType(e.target.value)}
-        >
-          <option>All Leave Types</option>
-          <option>Annual Leave</option>
-          <option>Sick Leave</option>
-          <option>Personal Leave</option>
+        <select className="bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md" value={filterType} onChange={e => { setFilterType(e.target.value); setPage(1) }}>
+          <option value="">All Leave Types</option>
+          <option>Annual Leave</option><option>Sick Leave</option><option>Personal Leave</option>
+          <option>Maternity / Paternity Leave</option><option>Emergency Leave</option>
         </select>
-        <select
-          className="bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md"
-          value={filterStatus}
-          onChange={e => setFilterStatus(e.target.value)}
-        >
-          <option>All Status</option>
-          <option>Pending</option>
-          <option>Approved</option>
-          <option>Rejected</option>
+        <select className="bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md" value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1) }}>
+          <option value="">All Status</option>
+          <option>Pending</option><option>Approved</option><option>Rejected</option>
         </select>
       </div>
 
-      {/* Leave Requests Table */}
+      {/* Table */}
       <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-surface-container-low text-on-surface-variant text-label-md uppercase tracking-wider">
-                <th className="px-lg py-md font-bold">Employee</th>
-                <th className="px-lg py-md font-bold">Leave Type</th>
-                <th className="px-lg py-md font-bold">Duration</th>
-                <th className="px-lg py-md font-bold">Days</th>
-                <th className="px-lg py-md font-bold">Reason</th>
-                <th className="px-lg py-md font-bold">Status</th>
-                <th className="px-lg py-md font-bold text-center">Actions</th>
+                {['Employee', 'Leave Type', 'Duration', 'Days', 'Reason', 'Status', 'Actions'].map(h => <th key={h} className="px-lg py-md font-bold">{h}</th>)}
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant text-body-md">
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-lg py-xl text-center text-on-surface-variant text-body-md">
-                    No leave requests match the current filters.
-                  </td>
-                </tr>
+              {loading ? (
+                <tr><td colSpan={7} className="px-lg py-xl text-center text-on-surface-variant">Loading…</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={7} className="px-lg py-xl text-center text-on-surface-variant">No leave requests found.</td></tr>
               ) : filtered.map(req => (
                 <tr key={req.id} className="hover:bg-surface-container-low transition-colors">
                   <td className="px-lg py-md">
                     <div className="flex items-center gap-sm">
-                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{req.init}</div>
-                      <div>
-                        <p className="font-bold">{req.name}</p>
-                        <p className="text-label-sm text-on-surface-variant">{req.dept}</p>
-                      </div>
+                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{(req.employee?.name ?? '?').split(' ').map(n => n[0]).join('')}</div>
+                      <div><p className="font-bold">{req.employee?.name ?? '—'}</p><p className="text-label-sm text-on-surface-variant">{req.employee?.department?.name ?? '—'}</p></div>
                     </div>
                   </td>
-                  <td className="px-lg py-md">{req.type}</td>
-                  <td className="px-lg py-md text-on-surface-variant">{req.from} – {req.to}</td>
+                  <td className="px-lg py-md">{req.leave_type}</td>
+                  <td className="px-lg py-md text-on-surface-variant">{req.from_date} – {req.to_date}</td>
                   <td className="px-lg py-md font-bold">{req.days}</td>
                   <td className="px-lg py-md text-on-surface-variant">{req.reason}</td>
-                  <td className="px-lg py-md">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-label-sm font-bold ${statusStyle[req.status]}`}>
-                      {req.status}
-                    </span>
-                  </td>
+                  <td className="px-lg py-md"><span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-label-sm font-bold ${statusStyle[req.status] ?? ''}`}>{req.status}</span></td>
                   <td className="px-lg py-md">
                     {req.status === 'Pending' ? (
                       <div className="flex items-center justify-center gap-sm">
-                        <button
-                          onClick={() => handleAction('Approved', req)}
-                          className="px-md py-xs bg-secondary-container text-on-secondary-container rounded-lg text-label-md font-bold hover:opacity-90"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleAction('Rejected', req)}
-                          className="px-md py-xs bg-error-container text-on-error-container rounded-lg text-label-md font-bold hover:opacity-90"
-                        >
-                          Reject
-                        </button>
+                        <button onClick={() => handleAction(req, 'approve')} className="px-md py-xs bg-secondary-container text-on-secondary-container rounded-lg text-label-md font-bold hover:opacity-90">Approve</button>
+                        <button onClick={() => handleAction(req, 'reject')} className="px-md py-xs bg-error-container text-on-error-container rounded-lg text-label-md font-bold hover:opacity-90">Reject</button>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center gap-xs">
-                        <button
-                          onClick={() => handleAction('Pending', req)}
-                          title="Reset to Pending"
-                          className="p-1 hover:bg-surface-container rounded-lg text-outline transition-all"
-                        >
-                          <span className="material-symbols-outlined text-[20px]">restart_alt</span>
-                        </button>
-                      </div>
+                      <span className="text-label-sm text-on-surface-variant pl-4">{req.status}</span>
                     )}
                   </td>
                 </tr>
@@ -181,38 +141,22 @@ export default function LeaveManagement() {
           </table>
         </div>
         <div className="p-md bg-surface-container-low flex flex-col gap-md sm:flex-row sm:items-center sm:justify-between border-t border-outline-variant">
-          <p className="text-label-sm text-on-surface-variant">
-            {search || filterType !== 'All Leave Types' || filterStatus !== 'All Status'
-              ? `${filtered.length} result${filtered.length !== 1 ? 's' : ''} found`
-              : `Showing ${requests.length} of ${requests.length} requests`}
-          </p>
+          <p className="text-label-sm text-on-surface-variant">Showing {filtered.length} of {total} requests</p>
           <div className="flex space-x-sm">
-            <button className="p-1 rounded hover:bg-surface-container opacity-30" disabled>
-              <span className="material-symbols-outlined">chevron_left</span>
-            </button>
-            <button className="px-3 py-1 rounded bg-primary text-on-primary text-label-sm">1</button>
-            <button className="px-3 py-1 rounded hover:bg-surface-container text-label-sm">2</button>
-            <button className="p-1 rounded hover:bg-surface-container">
-              <span className="material-symbols-outlined">chevron_right</span>
-            </button>
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded hover:bg-surface-container disabled:opacity-30"><span className="material-symbols-outlined">chevron_left</span></button>
+            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
+              <button key={p} onClick={() => setPage(p)} className={`px-3 py-1 rounded text-label-sm ${p === page ? 'bg-primary text-on-primary' : 'hover:bg-surface-container'}`}>{p}</button>
+            ))}
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="p-1 rounded hover:bg-surface-container disabled:opacity-30"><span className="material-symbols-outlined">chevron_right</span></button>
           </div>
         </div>
       </div>
 
-      {/* Toast */}
       {toast && (
-        <div className={`fixed bottom-lg right-lg px-lg py-md rounded-xl shadow-xl flex items-center gap-md z-50 ${
-          toast.type === 'error'
-            ? 'bg-error-container text-on-error-container'
-            : 'bg-inverse-surface text-inverse-on-surface'
-        }`}>
-          <span className="material-symbols-outlined text-[18px]">
-            {toast.type === 'error' ? 'cancel' : 'check_circle'}
-          </span>
+        <div className={`fixed bottom-lg right-lg px-lg py-md rounded-xl shadow-xl flex items-center gap-md z-50 ${toast.type === 'error' ? 'bg-error-container text-on-error-container' : 'bg-inverse-surface text-inverse-on-surface'}`}>
+          <span className="material-symbols-outlined text-[18px]">{toast.type === 'error' ? 'cancel' : 'check_circle'}</span>
           <span className="text-body-md">{toast.message}</span>
-          <button onClick={() => setToast(null)} className="ml-md opacity-60 hover:opacity-100">
-            <span className="material-symbols-outlined text-[18px]">close</span>
-          </button>
+          <button onClick={() => setToast(null)} className="ml-md opacity-60 hover:opacity-100"><span className="material-symbols-outlined text-[18px]">close</span></button>
         </div>
       )}
     </div>

@@ -1,141 +1,151 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { api } from '../../lib/api.js'
 
 const statusStyle = {
   Paid:    'bg-secondary-container/20 text-secondary',
   Pending: 'bg-tertiary-container/20 text-tertiary',
 }
 
-const initialRecords = [
-  { id: '#PR-2024-001', name: 'Jane Doe',     init: 'JD', dept: 'Engineering', basic: '$8,500.00', bonus: '+$500.00',   deduct: '-$120.00',  net: '$8,880.00', status: 'Paid' },
-  { id: '#PR-2024-002', name: 'Marcus Smith', init: 'MS', dept: 'Marketing',   basic: '$6,200.00', bonus: '+$200.00',   deduct: '-$85.00',   net: '$6,315.00', status: 'Pending' },
-  { id: '#PR-2024-003', name: 'Elena Wong',   init: 'EW', dept: 'Design',      basic: '$7,800.00', bonus: '+$0.00',     deduct: '-$210.00',  net: '$7,590.00', status: 'Paid' },
-  { id: '#PR-2024-004', name: 'Robert Chen',  init: 'RC', dept: 'Operations',  basic: '$9,100.00', bonus: '+$1,200.00', deduct: '-$450.00',  net: '$9,850.00', status: 'Pending' },
-]
-
-const emptyForm = { name: '', dept: '', basic: '', bonus: '', deduct: '' }
-
-const fmt = (n) => '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+const fmt = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })
 
 export default function PayrollManagement() {
-  const [records, setRecords]     = useState(initialRecords)
+  const [records, setRecords]   = useState([])
+  const [stats, setStats]       = useState(null)
+  const [employees, setEmployees] = useState([])
+  const [total, setTotal]       = useState(0)
+  const [loading, setLoading]   = useState(true)
   const [activeTab, setActiveTab] = useState('all')
   const [showModal, setShowModal] = useState(false)
-  const [form, setForm]           = useState(emptyForm)
-  const [toast, setToast]         = useState(null)
+  const [form, setForm]         = useState({ employee_id: '', month: '', basic: '', bonus: '0', deductions: '0' })
+  const [formErrors, setFormErrors] = useState({})
+  const [toast, setToast]       = useState(null)
+  const [saving, setSaving]     = useState(false)
+  const [page, setPage]         = useState(1)
+  const limit = 20
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 3000)
+  const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3000) }
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const status = activeTab === 'paid' ? 'Paid' : activeTab === 'pending' ? 'Pending' : ''
+      const params = new URLSearchParams({ page, limit, ...(status && { status }) })
+      const [rRes, sRes] = await Promise.all([
+        api.get(`/payroll?${params}`),
+        api.get('/payroll/stats'),
+      ])
+      if (rRes.ok) { const d = await rRes.json(); setRecords(d.records || []); setTotal(d.total || 0) }
+      if (sRes.ok) setStats(await sRes.json())
+    } catch { /* ignore */ }
+    setLoading(false)
+  }, [page, activeTab])
+
+  const fetchEmployees = useCallback(async () => {
+    try {
+      const res = await api.get('/employees?limit=200&status=Active')
+      if (res.ok) { const d = await res.json(); setEmployees(d.employees || []) }
+    } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { fetchEmployees() }, [fetchEmployees])
+
+  const closeModal = () => { setShowModal(false); setForm({ employee_id: '', month: '', basic: '', bonus: '0', deductions: '0' }); setFormErrors({}) }
+
+  const handleRunPayroll = async () => {
+    const errs = {}
+    if (!form.employee_id) errs.employee_id = 'Select an employee.'
+    if (!form.month) errs.month = 'Month is required.'
+    if (!form.basic || Number(form.basic) <= 0) errs.basic = 'Basic salary is required.'
+    if (Object.keys(errs).length) { setFormErrors(errs); return }
+
+    setSaving(true)
+    try {
+      const payload = {
+        employee_id: form.employee_id,
+        month: form.month,
+        basic: Number(form.basic),
+        bonus: Number(form.bonus) || 0,
+        deductions: Number(form.deductions) || 0,
+      }
+      const res = await api.post('/payroll', payload)
+      if (res.ok || res.status === 201) {
+        showToast('Payroll record created.')
+        closeModal(); fetchData()
+      } else {
+        const err = await res.json().catch(() => ({}))
+        showToast(err.detail || 'Failed to create payroll.', 'error')
+      }
+    } catch { showToast('Network error.', 'error') }
+    setSaving(false)
   }
 
-  const filtered = records.filter(r =>
-    activeTab === 'paid'    ? r.status === 'Paid' :
-    activeTab === 'pending' ? r.status === 'Pending' :
-    true
-  )
-
-  const handleRunPayroll = () => {
-    if (!form.name.trim()) return
-    const basic  = parseFloat(form.basic)  || 0
-    const bonus  = parseFloat(form.bonus)  || 0
-    const deduct = parseFloat(form.deduct) || 0
-    const net    = basic + bonus - deduct
-    const nextId = `#PR-2024-${String(records.length + 1).padStart(3, '0')}`
-    const init   = form.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-    setRecords(prev => [...prev, {
-      id: nextId, name: form.name, init, dept: form.dept || '—',
-      basic: fmt(basic), bonus: `+${fmt(bonus)}`, deduct: `-${fmt(deduct)}`,
-      net: fmt(net), status: 'Pending',
-    }])
-    setShowModal(false)
-    setForm(emptyForm)
-    showToast(`Payroll for ${form.name} created.`)
+  const handleApprove = async (record) => {
+    try {
+      const res = await api.put(`/payroll/${record.id}/approve`, {})
+      if (res.ok) { showToast(`Payroll for ${record.employee?.name} marked as paid.`); fetchData() }
+      else { const err = await res.json().catch(() => ({})); showToast(err.detail || 'Failed.', 'error') }
+    } catch { showToast('Network error.', 'error') }
   }
 
-  const handleApproveAll = () => {
-    const count = records.filter(r => r.status === 'Pending').length
-    if (count === 0) { showToast('No pending records to approve.'); return }
-    setRecords(prev => prev.map(r => ({ ...r, status: 'Paid' })))
-    showToast(`${count} pending record${count !== 1 ? 's' : ''} approved.`)
-  }
+  const ff = (key) => ({ value: form[key], onChange: e => { setForm(p => ({ ...p, [key]: e.target.value })); setFormErrors(p => ({ ...p, [key]: '' })) } })
+  const totalPages = Math.max(1, Math.ceil(total / limit))
 
-  const handleApproveOne = (id) => {
-    setRecords(prev => prev.map(r => r.id === id ? { ...r, status: 'Paid' } : r))
-    showToast(`${id} marked as Paid.`)
-  }
-
-  const field = (key) => ({
-    value: form[key],
-    onChange: e => setForm(prev => ({ ...prev, [key]: e.target.value })),
-  })
+  const net = (Number(form.basic) || 0) + (Number(form.bonus) || 0) - (Number(form.deductions) || 0)
 
   return (
     <div className="p-margin-mobile md:p-margin-desktop">
-      {/* Toast */}
       {toast && (
-        <div className={`fixed top-20 right-6 z-50 flex items-center gap-md px-lg py-md rounded-xl shadow-lg border text-label-md font-bold transition-all ${
-          toast.type === 'error'
-            ? 'bg-error-container text-on-error-container border-error/30'
-            : 'bg-secondary-container text-on-secondary-container border-secondary/30'
-        }`}>
-          <span className="material-symbols-outlined text-[20px]">check_circle</span>
+        <div className={`fixed top-20 right-6 z-50 flex items-center gap-md px-lg py-md rounded-xl shadow-lg border text-label-md font-bold transition-all ${toast.type === 'error' ? 'bg-error-container text-on-error-container border-error/30' : 'bg-secondary-container text-on-secondary-container border-secondary/30'}`}>
+          <span className="material-symbols-outlined text-[20px]">{toast.type === 'error' ? 'error' : 'check_circle'}</span>
           {toast.message}
         </div>
       )}
 
-      {/* Run Payroll Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-margin-mobile">
-          <div className="absolute inset-0 bg-on-background/40 backdrop-blur-sm" onClick={() => setShowModal(false)}></div>
-          <div className="relative bg-surface-container-lowest w-full max-w-lg p-xl rounded-xl shadow-2xl border border-outline-variant space-y-lg">
-            <div className="flex items-center justify-between">
-              <h3 className="text-headline-md font-bold">Run Payroll</h3>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-surface-container rounded-full">
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 bg-on-background/40 backdrop-blur-sm flex items-center justify-center p-margin-mobile">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-xl shadow-2xl w-full max-w-md">
+            <h3 className="text-headline-md mb-lg">Run Payroll</h3>
             <div className="space-y-md">
-              <div className="grid grid-cols-2 gap-md">
-                <div className="space-y-xs col-span-2">
-                  <label className="text-label-md text-on-surface">Employee Name</label>
-                  <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="e.g. Jane Doe" type="text" {...field('name')} />
+              <div className="flex flex-col gap-xs">
+                <label className="text-label-md text-on-surface-variant">Employee <span className="text-error">*</span></label>
+                <select className={`bg-surface border rounded-lg p-md text-body-md focus:ring-1 outline-none ${formErrors.employee_id ? 'border-error focus:ring-error' : 'border-outline-variant focus:ring-primary'}`} {...ff('employee_id')}>
+                  <option value="">Select employee…</option>
+                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.emp_id})</option>)}
+                </select>
+                {formErrors.employee_id && <p className="text-label-sm text-error">{formErrors.employee_id}</p>}
+              </div>
+              <div className="flex flex-col gap-xs">
+                <label className="text-label-md text-on-surface-variant">Month <span className="text-error">*</span></label>
+                <input type="month" className={`bg-surface border rounded-lg p-md text-body-md focus:ring-1 outline-none ${formErrors.month ? 'border-error focus:ring-error' : 'border-outline-variant focus:ring-primary'}`} {...ff('month')} />
+                {formErrors.month && <p className="text-label-sm text-error">{formErrors.month}</p>}
+              </div>
+              <div className="grid grid-cols-3 gap-md">
+                <div className="flex flex-col gap-xs">
+                  <label className="text-label-md text-on-surface-variant">Basic <span className="text-error">*</span></label>
+                  <input type="number" className={`bg-surface border rounded-lg p-md text-body-md focus:ring-1 outline-none ${formErrors.basic ? 'border-error' : 'border-outline-variant focus:ring-primary'}`} placeholder="0" {...ff('basic')} />
+                  {formErrors.basic && <p className="text-label-sm text-error">{formErrors.basic}</p>}
                 </div>
-                <div className="space-y-xs">
-                  <label className="text-label-md text-on-surface">Department</label>
-                  <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="e.g. Engineering" type="text" {...field('dept')} />
+                <div className="flex flex-col gap-xs">
+                  <label className="text-label-md text-on-surface-variant">Bonus</label>
+                  <input type="number" className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0" {...ff('bonus')} />
                 </div>
-                <div className="space-y-xs">
-                  <label className="text-label-md text-on-surface">Basic Salary ($)</label>
-                  <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0.00" type="number" min="0" {...field('basic')} />
-                </div>
-                <div className="space-y-xs">
-                  <label className="text-label-md text-on-surface">Bonus ($)</label>
-                  <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0.00" type="number" min="0" {...field('bonus')} />
-                </div>
-                <div className="space-y-xs">
-                  <label className="text-label-md text-on-surface">Deduction ($)</label>
-                  <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0.00" type="number" min="0" {...field('deduct')} />
+                <div className="flex flex-col gap-xs">
+                  <label className="text-label-md text-on-surface-variant">Deductions</label>
+                  <input type="number" className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0" {...ff('deductions')} />
                 </div>
               </div>
-              {(form.basic || form.bonus || form.deduct) && (
-                <div className="flex items-center justify-between bg-surface-container rounded-lg px-md py-sm text-body-md">
-                  <span className="text-on-surface-variant">Net Salary Preview</span>
-                  <span className="font-bold text-primary">
-                    {fmt((parseFloat(form.basic) || 0) + (parseFloat(form.bonus) || 0) - (parseFloat(form.deduct) || 0))}
-                  </span>
+              {(Number(form.basic) > 0) && (
+                <div className="bg-surface-container-low rounded-lg p-md flex justify-between items-center">
+                  <span className="text-label-md text-on-surface-variant">Net Pay</span>
+                  <span className="text-headline-md font-bold text-secondary">{fmt(net)}</span>
                 </div>
               )}
             </div>
-            <div className="flex justify-end gap-md pt-sm">
-              <button onClick={() => setShowModal(false)} className="px-lg py-md text-on-surface-variant hover:bg-surface-container rounded-lg text-label-md">Cancel</button>
-              <button
-                onClick={handleRunPayroll}
-                disabled={!form.name.trim()}
-                className="px-xl py-md bg-primary text-on-primary text-label-md rounded-lg shadow-md hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Create Record
-              </button>
+            <div className="flex gap-sm justify-end mt-xl">
+              <button onClick={closeModal} className="px-lg py-sm bg-surface-container border border-outline-variant text-on-surface rounded-lg text-label-md">Cancel</button>
+              <button onClick={handleRunPayroll} disabled={saving} className="px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md disabled:opacity-50">{saving ? 'Creating…' : 'Create Record'}</button>
             </div>
           </div>
         </div>
@@ -144,156 +154,79 @@ export default function PayrollManagement() {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-xl gap-md">
         <div>
           <h2 className="text-headline-lg text-on-surface">Payroll Management</h2>
-          <p className="text-body-md text-on-surface-variant">Process salaries, manage payslips, and track payroll cycles</p>
+          <p className="text-body-md text-on-surface-variant">Process and manage employee compensation</p>
         </div>
-        <div className="flex gap-sm">
-          <button
-            onClick={() => showToast('Exporting records as Excel…')}
-            className="flex items-center gap-xs px-md py-sm border border-outline-variant rounded-lg text-label-md hover:bg-surface-container transition-all"
-          >
-            <span className="material-symbols-outlined text-[18px]">download</span>
-            Export Excel
-          </button>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-xs px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md hover:brightness-110 active:scale-95 transition-all shadow-md"
-          >
-            <span className="material-symbols-outlined text-[18px]">add</span>
-            Run Payroll
-          </button>
-        </div>
+        <button onClick={() => setShowModal(true)} className="flex items-center gap-xs px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md hover:brightness-110 active:scale-95 transition-all shadow-md">
+          <span className="material-symbols-outlined text-[18px]">add</span>
+          Run Payroll
+        </button>
       </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-lg">
-        <div className="bg-inverse-surface text-inverse-on-surface p-lg rounded-xl shadow-sm">
-          <p className="text-label-sm opacity-60 uppercase tracking-wider">Total Payroll</p>
-          <h3 className="text-headline-lg font-bold mt-xs">$428,500</h3>
-          <div className="flex items-center gap-xs mt-sm text-secondary-fixed text-label-sm">
-            <span className="material-symbols-outlined text-[14px]">trending_up</span>
-            <span>+3.2% from last month</span>
-          </div>
-        </div>
-        <div className="bg-surface-container-lowest border border-outline-variant p-lg rounded-xl shadow-sm">
-          <p className="text-label-sm text-outline uppercase tracking-wider">Paid</p>
-          <h3 className="text-headline-lg font-bold mt-xs">$375,120</h3>
-          <div className="flex items-center gap-xs mt-sm text-secondary text-label-sm">
-            <span className="material-symbols-outlined text-[14px]">check_circle</span>
-            <span>87.5% complete</span>
-          </div>
-        </div>
-        <div className="bg-surface-container-lowest border border-outline-variant p-lg rounded-xl shadow-sm">
-          <p className="text-label-sm text-outline uppercase tracking-wider">Pending Payroll</p>
-          <h3 className="text-headline-lg font-bold mt-xs">$53,380</h3>
-          <div className="flex items-center gap-xs mt-sm text-error text-label-sm">
-            <span className="material-symbols-outlined text-[14px]">trending_down</span>
-            <span>-1.2%</span>
-          </div>
-        </div>
-        <div className="bg-surface-container-low border-none p-lg rounded-xl flex flex-col justify-between">
-          <div className="flex flex-col space-y-md">
-            <div className="flex items-center justify-between border-b border-outline-variant pb-sm">
-              <div>
-                <p className="text-label-sm text-on-surface-variant uppercase">Total Bonus</p>
-                <p className="text-body-lg font-bold text-secondary">$12,450</p>
-              </div>
-              <span className="material-symbols-outlined text-secondary">redeem</span>
+      {/* Stats */}
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-gutter mb-lg">
+          {[
+            { label: 'Total Payroll', val: fmt(stats.total_payroll), accent: 'text-primary' },
+            { label: 'Paid',          val: fmt(stats.paid),          accent: 'text-secondary' },
+            { label: 'Pending',       val: fmt(stats.pending),       accent: 'text-tertiary' },
+            { label: 'Total Bonus',   val: fmt(stats.total_bonus),   accent: 'text-on-surface' },
+            { label: 'Deductions',    val: fmt(stats.total_deductions), accent: 'text-error' },
+          ].map(s => (
+            <div key={s.label} className="bg-surface-container-lowest border border-outline-variant p-lg rounded-xl shadow-sm">
+              <p className="text-label-sm text-on-surface-variant uppercase tracking-wider">{s.label}</p>
+              <p className={`text-headline-md font-bold mt-xs ${s.accent}`}>{s.val}</p>
             </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-label-sm text-on-surface-variant uppercase">Total Deduction</p>
-                <p className="text-body-lg font-bold text-error">$8,920</p>
-              </div>
-              <span className="material-symbols-outlined text-error">money_off</span>
-            </div>
-          </div>
+          ))}
         </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex gap-sm mb-lg">
+        {[['all', 'All'], ['paid', 'Paid'], ['pending', 'Pending']].map(([v, l]) => (
+          <button key={v} onClick={() => { setActiveTab(v); setPage(1) }} className={`px-lg py-sm rounded-lg text-label-md transition-all ${activeTab === v ? 'bg-primary text-on-primary' : 'bg-surface-container-lowest border border-outline-variant text-on-surface hover:bg-surface-container-low'}`}>{l}</button>
+        ))}
       </div>
 
-      {/* Payroll Records Table */}
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm mb-lg">
-        <div className="p-lg border-b border-outline-variant flex items-center justify-between bg-surface-container-lowest">
-          <div className="flex items-center space-x-md">
-            <h4 className="text-headline-md text-on-surface">Payroll Records</h4>
-            <div className="flex bg-surface-container rounded-lg p-1">
-              {[['all', 'All Records'], ['paid', 'Paid Only'], ['pending', 'Pending']].map(([val, label]) => (
-                <button
-                  key={val}
-                  onClick={() => setActiveTab(val)}
-                  className={`px-md py-xs rounded-md text-label-md transition-all ${
-                    activeTab === val
-                      ? 'bg-surface-container-lowest shadow-sm text-on-surface'
-                      : 'text-on-surface-variant hover:text-on-surface'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <button
-            onClick={() => showToast('History view coming soon.')}
-            className="text-primary text-label-md flex items-center hover:underline"
-          >
-            View History <span className="material-symbols-outlined ml-xs text-[16px]">history</span>
-          </button>
-        </div>
+      {/* Table */}
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-surface-container-low text-on-surface-variant uppercase text-label-sm">
-                <th className="px-lg py-md font-medium tracking-wider">Payroll ID</th>
-                <th className="px-lg py-md font-medium tracking-wider">Employee</th>
-                <th className="px-lg py-md font-medium tracking-wider">Department</th>
-                <th className="px-lg py-md font-medium tracking-wider">Basic Salary</th>
-                <th className="px-lg py-md font-medium tracking-wider text-secondary">Bonus</th>
-                <th className="px-lg py-md font-medium tracking-wider text-error">Deduction</th>
-                <th className="px-lg py-md font-medium tracking-wider">Net Salary</th>
-                <th className="px-lg py-md font-medium tracking-wider">Status</th>
-                <th className="px-lg py-md font-medium tracking-wider text-center">Action</th>
+              <tr className="bg-surface-container text-on-surface-variant text-label-md uppercase tracking-wider">
+                {['Payroll ID', 'Employee', 'Department', 'Month', 'Basic', 'Bonus', 'Deductions', 'Net', 'Status', 'Actions'].map(h => <th key={h} className="px-lg py-md font-bold border-b border-outline-variant">{h}</th>)}
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant text-body-md">
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="px-lg py-xl text-center text-on-surface-variant text-body-md">
-                    No {activeTab === 'all' ? '' : activeTab} records found.
-                  </td>
-                </tr>
-              ) : filtered.map(rec => (
+              {loading ? (
+                <tr><td colSpan={10} className="px-lg py-xl text-center text-on-surface-variant">Loading…</td></tr>
+              ) : records.length === 0 ? (
+                <tr><td colSpan={10} className="px-lg py-xl text-center text-on-surface-variant">No payroll records found.</td></tr>
+              ) : records.map(rec => (
                 <tr key={rec.id} className="hover:bg-surface-container-low transition-colors">
-                  <td className="px-lg py-md font-medium">{rec.id}</td>
+                  <td className="px-lg py-md font-mono text-label-md">{rec.payroll_id}</td>
                   <td className="px-lg py-md">
-                    <div className="flex items-center space-x-sm">
-                      <div className="w-8 h-8 rounded-full bg-primary-container/20 text-primary flex items-center justify-center text-[12px] font-bold">{rec.init}</div>
-                      <span>{rec.name}</span>
+                    <div className="flex items-center gap-sm">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{(rec.employee?.name ?? '?').split(' ').map(n => n[0]).join('')}</div>
+                      <div><p className="font-bold">{rec.employee?.name ?? '—'}</p><p className="text-label-sm text-on-surface-variant">{rec.employee?.emp_id ?? '—'}</p></div>
                     </div>
                   </td>
-                  <td className="px-lg py-md text-on-surface-variant">{rec.dept}</td>
-                  <td className="px-lg py-md">{rec.basic}</td>
-                  <td className="px-lg py-md text-secondary">{rec.bonus}</td>
-                  <td className="px-lg py-md text-error">{rec.deduct}</td>
-                  <td className="px-lg py-md font-bold">{rec.net}</td>
+                  <td className="px-lg py-md">{rec.employee?.department?.name ?? '—'}</td>
+                  <td className="px-lg py-md">{rec.month}</td>
+                  <td className="px-lg py-md">{fmt(rec.basic)}</td>
+                  <td className="px-lg py-md text-secondary">+{fmt(rec.bonus)}</td>
+                  <td className="px-lg py-md text-error">-{fmt(rec.deductions)}</td>
+                  <td className="px-lg py-md font-bold text-secondary">{fmt(rec.net)}</td>
+                  <td className="px-lg py-md"><span className={`inline-flex px-2 py-0.5 rounded-full text-label-sm font-bold ${statusStyle[rec.status] ?? ''}`}>{rec.status}</span></td>
                   <td className="px-lg py-md">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-label-sm ${statusStyle[rec.status]}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${rec.status === 'Paid' ? 'bg-secondary' : 'bg-tertiary'} mr-2`}></span>
-                      {rec.status}
-                    </span>
-                  </td>
-                  <td className="px-lg py-md text-center">
-                    <div className="flex items-center justify-center gap-xs">
+                    <div className="flex items-center gap-2">
+                      <Link to={`/payroll/payslip?id=${rec.id}`} className="p-1 hover:bg-surface-container rounded-lg text-primary transition-all" title="View Payslip">
+                        <span className="material-symbols-outlined text-[20px]">receipt_long</span>
+                      </Link>
                       {rec.status === 'Pending' && (
-                        <button
-                          onClick={() => handleApproveOne(rec.id)}
-                          title="Approve"
-                          className="p-2 rounded-full hover:bg-secondary/10 text-secondary transition-all"
-                        >
+                        <button onClick={() => handleApprove(rec)} className="p-1 hover:bg-secondary/10 rounded-lg text-secondary transition-all" title="Mark as Paid">
                           <span className="material-symbols-outlined text-[20px]">check_circle</span>
                         </button>
                       )}
-                      <Link to="/payroll/payslip" className="text-primary p-2 rounded-full hover:bg-primary/10 transition-all inline-block">
-                        <span className="material-symbols-outlined">visibility</span>
-                      </Link>
                     </div>
                   </td>
                 </tr>
@@ -301,65 +234,14 @@ export default function PayrollManagement() {
             </tbody>
           </table>
         </div>
-        <div className="p-md bg-surface-container-low flex items-center justify-between border-t border-outline-variant">
-          <p className="text-label-sm text-on-surface-variant">
-            Showing {filtered.length} of {records.length} records
-          </p>
+        <div className="p-md bg-surface-container-low flex flex-col gap-md sm:flex-row sm:items-center sm:justify-between border-t border-outline-variant">
+          <p className="text-label-sm text-on-surface-variant">Showing {records.length} of {total} records</p>
           <div className="flex space-x-sm">
-            <button className="p-1 rounded hover:bg-surface-container opacity-30" disabled>
-              <span className="material-symbols-outlined">chevron_left</span>
-            </button>
-            <button className="px-3 py-1 rounded bg-primary text-on-primary text-label-sm">1</button>
-            <button className="px-3 py-1 rounded hover:bg-surface-container text-label-sm">2</button>
-            <button className="px-3 py-1 rounded hover:bg-surface-container text-label-sm">3</button>
-            <button className="p-1 rounded hover:bg-surface-container">
-              <span className="material-symbols-outlined">chevron_right</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Contextual Insights */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
-        <div className="lg:col-span-2 bg-surface-container-lowest border border-outline-variant p-lg rounded-xl shadow-sm">
-          <div className="flex items-center justify-between mb-lg">
-            <h4 className="text-headline-md text-on-surface">Payment Distribution</h4>
-            <div className="flex items-center space-x-sm">
-              <div className="flex items-center text-label-sm"><span className="w-3 h-3 rounded-full bg-primary mr-2"></span>Salary</div>
-              <div className="flex items-center text-label-sm"><span className="w-3 h-3 rounded-full bg-secondary mr-2"></span>Bonuses</div>
-              <div className="flex items-center text-label-sm"><span className="w-3 h-3 rounded-full bg-error mr-2"></span>Taxes</div>
-            </div>
-          </div>
-          <div className="relative h-48 w-full bg-surface-container-low rounded-lg overflow-hidden flex items-end px-md pb-md space-x-4">
-            <div className="flex-1 bg-primary rounded-t-sm" style={{ height: '80%' }}></div>
-            <div className="flex-1 bg-secondary rounded-t-sm" style={{ height: '15%' }}></div>
-            <div className="flex-1 bg-error rounded-t-sm" style={{ height: '25%' }}></div>
-            <div className="flex-1 bg-primary rounded-t-sm" style={{ height: '75%' }}></div>
-            <div className="flex-1 bg-secondary rounded-t-sm" style={{ height: '10%' }}></div>
-            <div className="flex-1 bg-error rounded-t-sm" style={{ height: '30%' }}></div>
-            <div className="flex-1 bg-primary rounded-t-sm" style={{ height: '85%' }}></div>
-          </div>
-        </div>
-        <div className="bg-inverse-surface text-inverse-on-surface p-lg rounded-xl shadow-sm">
-          <div className="flex items-center justify-between mb-md">
-            <h4 className="text-headline-md">Quick Action</h4>
-            <span className="material-symbols-outlined opacity-60">bolt</span>
-          </div>
-          <p className="text-body-md opacity-80 mb-lg">Acknowledge all pending March payslips to notify employees via email automatically.</p>
-          <button
-            onClick={handleApproveAll}
-            className="w-full py-md bg-inverse-primary text-primary font-bold rounded-lg hover:opacity-90 active:scale-95 transition-all"
-          >
-            Approve All Pending
-          </button>
-          <div className="mt-xl pt-lg border-t border-on-surface-variant/20">
-            <div className="flex justify-between items-center text-label-sm uppercase tracking-widest opacity-60">
-              <span>Cycle Progress</span>
-              <span>92%</span>
-            </div>
-            <div className="w-full h-1 bg-on-surface-variant/20 rounded-full mt-2 overflow-hidden">
-              <div className="w-[92%] h-full bg-secondary-fixed"></div>
-            </div>
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded hover:bg-surface-container disabled:opacity-30"><span className="material-symbols-outlined">chevron_left</span></button>
+            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
+              <button key={p} onClick={() => setPage(p)} className={`px-3 py-1 rounded text-label-sm ${p === page ? 'bg-primary text-on-primary' : 'hover:bg-surface-container'}`}>{p}</button>
+            ))}
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="p-1 rounded hover:bg-surface-container disabled:opacity-30"><span className="material-symbols-outlined">chevron_right</span></button>
           </div>
         </div>
       </div>

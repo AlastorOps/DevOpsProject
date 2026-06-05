@@ -1,115 +1,153 @@
-import { useState } from 'react'
-
-const initialPositions = [
-  { id: 1, title: 'Senior Software Engineer', dept: 'Engineering', level: 'Senior', headcount: 24, openings: 3, salary: '$9,000 – $12,000' },
-  { id: 2, title: 'HR Specialist', dept: 'Human Resources', level: 'Mid', headcount: 8, openings: 1, salary: '$5,500 – $7,000' },
-  { id: 3, title: 'Growth Marketing Manager', dept: 'Marketing', level: 'Manager', headcount: 5, openings: 0, salary: '$7,000 – $9,500' },
-  { id: 4, title: 'UI/UX Designer', dept: 'Product Design', level: 'Mid', headcount: 12, openings: 2, salary: '$6,500 – $8,500' },
-]
-
-const emptyForm = { title: '', dept: '', level: 'Mid', headcount: '', openings: '', salary: '' }
+import { useState, useEffect, useCallback } from 'react'
+import { api } from '../../lib/api.js'
 
 export default function Positions() {
-  const [positions, setPositions] = useState(initialPositions)
-  const [showModal, setShowModal] = useState(false)
-  const [editPos, setEditPos] = useState(null)
-  const [form, setForm] = useState(emptyForm)
-  const [search, setSearch] = useState('')
-  const [toast, setToast] = useState(null)
+  const [positions, setPositions]     = useState([])
+  const [total, setTotal]             = useState(0)
+  const [departments, setDepartments] = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [showModal, setShowModal]     = useState(false)
+  const [editPos, setEditPos]         = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [search, setSearch]           = useState('')
+  const [filterDept, setFilterDept]   = useState('')
+  const [filterLevel, setFilterLevel] = useState('')
+  const [form, setForm]               = useState({ title: '', department_id: '', level: '', salary_min: '', salary_max: '', headcount: '', openings: '' })
+  const [toast, setToast]             = useState(null)
+  const [saving, setSaving]           = useState(false)
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 3000)
-  }
+  const showToast = (msg, type = 'success') => { setToast({ message: msg, type }); setTimeout(() => setToast(null), 3000) }
 
-  const filtered = positions.filter(p =>
-    `${p.title} ${p.dept} ${p.level}`.toLowerCase().includes(search.toLowerCase())
-  )
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({ limit: 100, search, ...(filterDept && { dept: filterDept }), ...(filterLevel && { level: filterLevel }) })
+      const [pRes, dRes] = await Promise.all([api.get(`/positions?${params}`), api.get('/departments?limit=100')])
+      if (pRes.ok) { const d = await pRes.json(); setPositions(d.positions || []); setTotal(d.total || 0) }
+      if (dRes.ok) { const d = await dRes.json(); setDepartments(d.departments || []) }
+    } catch { /* ignore */ }
+    setLoading(false)
+  }, [search, filterDept, filterLevel])
 
-  const openAdd = () => {
-    setEditPos(null)
-    setForm(emptyForm)
-    setShowModal(true)
-  }
+  useEffect(() => { const t = setTimeout(fetchData, search ? 300 : 0); return () => clearTimeout(t) }, [fetchData, search])
 
+  const openAdd = () => { setEditPos(null); setForm({ title: '', department_id: '', level: '', salary_min: '', salary_max: '', headcount: '0', openings: '0' }); setShowModal(true) }
   const openEdit = (pos) => {
     setEditPos(pos)
-    setForm({ title: pos.title, dept: pos.dept, level: pos.level, headcount: pos.headcount, openings: pos.openings, salary: pos.salary })
+    setForm({ title: pos.title, department_id: pos.department_id ? String(pos.department_id) : '', level: pos.level ?? '', salary_min: pos.salary_min ? String(pos.salary_min) : '', salary_max: pos.salary_max ? String(pos.salary_max) : '', headcount: String(pos.headcount ?? 0), openings: String(pos.openings ?? 0) })
     setShowModal(true)
   }
+  const closeModal = () => { setShowModal(false); setEditPos(null) }
 
-  const closeModal = () => {
-    setShowModal(false)
-    setForm(emptyForm)
-    setEditPos(null)
-  }
-
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.title.trim()) return
-    if (editPos) {
-      setPositions(prev => prev.map(p => p.id === editPos.id
-        ? { ...p, ...form, headcount: Number(form.headcount), openings: Number(form.openings) }
-        : p
-      ))
-      showToast(`"${form.title}" has been updated.`)
-    } else {
-      const newId = Math.max(0, ...positions.map(p => p.id)) + 1
-      setPositions(prev => [...prev, { id: newId, ...form, headcount: Number(form.headcount), openings: Number(form.openings) }])
-      showToast(`"${form.title}" position created.`)
-    }
-    closeModal()
+    setSaving(true)
+    try {
+      const payload = {
+        title: form.title.trim(),
+        department_id: form.department_id ? Number(form.department_id) : null,
+        level: form.level || null,
+        salary_min: form.salary_min ? Number(form.salary_min) : null,
+        salary_max: form.salary_max ? Number(form.salary_max) : null,
+        headcount: Number(form.headcount) || 0,
+        openings: Number(form.openings) || 0,
+      }
+      const res = editPos ? await api.put(`/positions/${editPos.id}`, payload) : await api.post('/positions', payload)
+      if (res.ok || res.status === 201) {
+        showToast(editPos ? `${form.title} updated.` : `${form.title} created.`)
+        closeModal(); fetchData()
+      } else {
+        const err = await res.json().catch(() => ({}))
+        showToast(err.detail || 'Save failed.', 'error')
+      }
+    } catch { showToast('Network error.', 'error') }
+    setSaving(false)
   }
 
-  const confirmDelete = (id) => setDeleteTarget(id)
-
-  const handleDelete = () => {
-    const pos = positions.find(p => p.id === deleteTarget)
-    setPositions(prev => prev.filter(p => p.id !== deleteTarget))
-    setDeleteTarget(null)
-    showToast(`"${pos?.title}" has been removed.`, 'error')
+  const handleDelete = async () => {
+    try {
+      const res = await api.delete(`/positions/${deleteTarget.id}`)
+      if (res.ok || res.status === 204) {
+        showToast(`${deleteTarget.title} deleted.`, 'error'); setDeleteTarget(null); fetchData()
+      } else {
+        const err = await res.json().catch(() => ({}))
+        showToast(err.detail || 'Delete failed.', 'error')
+      }
+    } catch { showToast('Network error.', 'error') }
   }
 
-  const field = (key) => ({
-    value: form[key],
-    onChange: e => setForm(prev => ({ ...prev, [key]: e.target.value })),
-  })
+  const f = (key) => ({ value: form[key], onChange: e => setForm(prev => ({ ...prev, [key]: e.target.value })) })
+
+  const levels = ['Junior', 'Mid', 'Senior', 'Lead', 'Manager', 'Director']
 
   return (
     <div className="p-margin-mobile md:p-margin-desktop">
-
-      {/* Toast */}
       {toast && (
-        <div className={`fixed top-20 right-6 z-50 flex items-center gap-md px-lg py-md rounded-xl shadow-lg border text-label-md font-bold transition-all ${
-          toast.type === 'error'
-            ? 'bg-error-container text-on-error-container border-error/30'
-            : 'bg-secondary-container text-on-secondary-container border-secondary/30'
-        }`}>
+        <div className={`fixed top-20 right-6 z-50 flex items-center gap-md px-lg py-md rounded-xl shadow-lg border text-label-md font-bold transition-all ${toast.type === 'error' ? 'bg-error-container text-on-error-container border-error/30' : 'bg-secondary-container text-on-secondary-container border-secondary/30'}`}>
           <span className="material-symbols-outlined text-[20px]">{toast.type === 'error' ? 'error' : 'check_circle'}</span>
           {toast.message}
         </div>
       )}
 
-      {/* Delete Confirmation */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 bg-on-background/40 backdrop-blur-sm flex items-center justify-center p-margin-mobile">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-xl shadow-2xl w-full max-w-lg">
+            <h3 className="text-headline-md mb-lg">{editPos ? 'Edit Position' : 'New Position'}</h3>
+            <div className="grid grid-cols-2 gap-md">
+              <div className="col-span-2 flex flex-col gap-xs">
+                <label className="text-label-md text-on-surface-variant">Title <span className="text-error">*</span></label>
+                <input autoFocus className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="e.g. Senior Developer" {...f('title')} />
+              </div>
+              <div className="flex flex-col gap-xs">
+                <label className="text-label-md text-on-surface-variant">Department</label>
+                <select className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary" {...f('department_id')}>
+                  <option value="">None</option>
+                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-xs">
+                <label className="text-label-md text-on-surface-variant">Level</label>
+                <select className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary" {...f('level')}>
+                  <option value="">None</option>
+                  {levels.map(l => <option key={l}>{l}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-xs">
+                <label className="text-label-md text-on-surface-variant">Min Salary ($)</label>
+                <input type="number" className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0" {...f('salary_min')} />
+              </div>
+              <div className="flex flex-col gap-xs">
+                <label className="text-label-md text-on-surface-variant">Max Salary ($)</label>
+                <input type="number" className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0" {...f('salary_max')} />
+              </div>
+              <div className="flex flex-col gap-xs">
+                <label className="text-label-md text-on-surface-variant">Headcount</label>
+                <input type="number" className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0" {...f('headcount')} />
+              </div>
+              <div className="flex flex-col gap-xs">
+                <label className="text-label-md text-on-surface-variant">Open Positions</label>
+                <input type="number" className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0" {...f('openings')} />
+              </div>
+            </div>
+            <div className="flex gap-sm justify-end mt-xl">
+              <button onClick={closeModal} className="px-lg py-sm bg-surface-container border border-outline-variant text-on-surface rounded-lg text-label-md">Cancel</button>
+              <button onClick={handleSave} disabled={!form.title.trim() || saving} className="px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md disabled:opacity-50">{saving ? 'Saving…' : editPos ? 'Save Changes' : 'Create'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {deleteTarget && (
         <div className="fixed inset-0 z-50 bg-on-background/40 backdrop-blur-sm flex items-center justify-center p-margin-mobile">
-          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-xl shadow-2xl w-full max-w-sm">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-xl shadow-2xl max-w-md w-full">
             <div className="flex items-center gap-md mb-md">
-              <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-error">delete</span>
-              </div>
-              <h3 className="text-headline-md text-on-surface">Remove Position?</h3>
+              <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center shrink-0"><span className="material-symbols-outlined text-error">warning</span></div>
+              <h3 className="text-headline-md">Delete Position?</h3>
             </div>
-            <p className="text-body-md text-on-surface-variant mb-xl">
-              This will permanently remove <strong>{positions.find(p => p.id === deleteTarget)?.title}</strong> from the system.
-            </p>
+            <p className="text-body-md text-on-surface-variant mb-xl">Delete <strong>{deleteTarget.title}</strong>? This cannot be undone.</p>
             <div className="flex gap-sm justify-end">
-              <button onClick={() => setDeleteTarget(null)} className="px-lg py-sm bg-surface-container border border-outline-variant text-on-surface rounded-lg text-label-md hover:bg-surface-container-high transition-all">
-                Cancel
-              </button>
-              <button onClick={handleDelete} className="px-lg py-sm bg-error text-on-error rounded-lg text-label-md hover:opacity-90 active:scale-95 transition-all">
-                Remove
-              </button>
+              <button onClick={() => setDeleteTarget(null)} className="px-lg py-sm bg-surface-container border border-outline-variant text-on-surface rounded-lg text-label-md">Cancel</button>
+              <button onClick={handleDelete} className="px-lg py-sm bg-error text-on-error rounded-lg text-label-md hover:opacity-90">Delete</button>
             </div>
           </div>
         </div>
@@ -118,212 +156,68 @@ export default function Positions() {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-xl gap-md">
         <div>
           <h2 className="text-headline-lg text-on-surface">Positions</h2>
-          <p className="text-body-md text-on-surface-variant">Define and manage job positions across the organization</p>
+          <p className="text-body-md text-on-surface-variant">{total} position{total !== 1 ? 's' : ''} defined</p>
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-xs px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md hover:brightness-110 active:scale-95 transition-all shadow-md"
-        >
+        <button onClick={openAdd} className="flex items-center gap-xs px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md hover:brightness-110 active:scale-95 transition-all shadow-md">
           <span className="material-symbols-outlined text-[18px]">add</span>
-          Add Position
+          New Position
         </button>
       </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-gutter mt-md mb-lg">
-        {[
-          { label: 'Total Positions', val: positions.length, icon: 'work_outline', color: 'bg-primary/10 text-primary' },
-          { label: 'Open Vacancies', val: positions.reduce((s, p) => s + p.openings, 0), icon: 'person_add', color: 'bg-secondary/10 text-secondary' },
-          { label: 'Avg. Salary', val: '$7,200', icon: 'payments', color: 'bg-tertiary/10 text-tertiary' },
-          { label: 'Departments', val: '12', icon: 'domain', color: 'bg-outline-variant text-on-surface-variant' },
-        ].map(s => (
-          <div key={s.label} className="bg-surface-container-lowest border border-outline-variant p-lg rounded-xl flex items-center gap-md shadow-sm">
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${s.color}`}>
-              <span className="material-symbols-outlined">{s.icon}</span>
-            </div>
-            <div>
-              <p className="text-label-sm text-outline uppercase tracking-wider">{s.label}</p>
-              <h3 className="text-headline-md font-bold mt-xs">{s.val}</h3>
-            </div>
-          </div>
-        ))}
+      {/* Filters */}
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md mb-lg shadow-sm flex flex-wrap gap-md">
+        <div className="flex-1 min-w-[200px] relative">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+          <input className="w-full bg-background border border-outline-variant rounded-lg py-2 pl-10 pr-4 text-body-md focus:ring-2 focus:ring-primary outline-none" placeholder="Search positions…" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <select className="bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md" value={filterDept} onChange={e => setFilterDept(e.target.value)}>
+          <option value="">All Departments</option>
+          {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+        </select>
+        <select className="bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md" value={filterLevel} onChange={e => setFilterLevel(e.target.value)}>
+          <option value="">All Levels</option>
+          {['Junior', 'Mid', 'Senior', 'Lead', 'Manager', 'Director'].map(l => <option key={l}>{l}</option>)}
+        </select>
       </div>
 
-      {/* Search Bar */}
-      <div className="flex items-center gap-sm bg-surface-container-lowest border border-outline-variant rounded-xl px-md py-sm shadow-sm focus-within:border-primary transition-all">
-        <span className="material-symbols-outlined text-on-surface-variant text-[20px]">search</span>
-        <input
-          className="flex-1 bg-transparent outline-none text-body-md placeholder:text-on-surface-variant"
-          placeholder="Search by title, department, or level…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        {search && (
-          <button onClick={() => setSearch('')} className="text-on-surface-variant hover:text-on-surface transition-colors">
-            <span className="material-symbols-outlined text-[18px]">close</span>
-          </button>
-        )}
-      </div>
-        <br/>
-        
-      {/* Table */}
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm mb-lg">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-surface-container-low text-on-surface-variant text-label-md uppercase tracking-wider">
-                <th className="px-lg py-md font-bold">Position Title</th>
-                <th className="px-lg py-md font-bold">Department</th>
-                <th className="px-lg py-md font-bold">Level</th>
-                <th className="px-lg py-md font-bold">Headcount</th>
-                <th className="px-lg py-md font-bold">Open</th>
-                <th className="px-lg py-md font-bold">Salary Range</th>
-                <th className="px-lg py-md font-bold text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant text-body-md">
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-lg py-xl text-center text-on-surface-variant text-body-md">
-                    No positions match <strong>"{search}"</strong>.
-                  </td>
+      {loading ? (
+        <div className="flex items-center justify-center h-32"><span className="material-symbols-outlined text-primary text-[40px]" style={{ animation: 'spin 1s linear infinite' }}>progress_activity</span></div>
+      ) : (
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-surface-container text-on-surface-variant text-label-md uppercase tracking-wider">
+                  {['Title', 'Department', 'Level', 'Salary Range', 'Headcount', 'Openings', 'Actions'].map(h => <th key={h} className="px-lg py-md font-bold border-b border-outline-variant">{h}</th>)}
                 </tr>
-              ) : filtered.map(pos => (
-                <tr key={pos.id} className="hover:bg-surface-container-low transition-colors">
-                  <td className="px-lg py-md font-bold">{pos.title}</td>
-                  <td className="px-lg py-md">{pos.dept}</td>
-                  <td className="px-lg py-md">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-label-sm font-bold ${
-                      pos.level === 'Senior' ? 'bg-primary/10 text-primary' :
-                      pos.level === 'Manager' ? 'bg-tertiary-fixed text-on-tertiary-fixed-variant' :
-                      'bg-surface-container text-on-surface-variant'
-                    }`}>
-                      {pos.level}
-                    </span>
-                  </td>
-                  <td className="px-lg py-md">{pos.headcount}</td>
-                  <td className="px-lg py-md">
-                    {pos.openings > 0 ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-label-sm font-bold bg-secondary-container/30 text-secondary">
-                        {pos.openings} Open
-                      </span>
-                    ) : (
-                      <span className="text-label-sm text-on-surface-variant">Filled</span>
-                    )}
-                  </td>
-                  <td className="px-lg py-md text-on-surface-variant">{pos.salary}</td>
-                  <td className="px-lg py-md">
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => openEdit(pos)}
-                        className="p-1 hover:bg-surface-container rounded-lg text-primary transition-all"
-                      >
-                        <span className="material-symbols-outlined text-[20px]">edit</span>
-                      </button>
-                      <button
-                        onClick={() => confirmDelete(pos.id)}
-                        className="p-1 hover:bg-error-container/20 rounded-lg text-error transition-all"
-                      >
-                        <span className="material-symbols-outlined text-[20px]">delete</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="p-md bg-surface-container-low flex flex-col gap-md sm:flex-row sm:items-center sm:justify-between border-t border-outline-variant">
-          <p className="text-label-sm text-on-surface-variant">
-            {search ? `${filtered.length} result${filtered.length !== 1 ? 's' : ''} for "${search}"` : `Showing ${positions.length} position${positions.length !== 1 ? 's' : ''}`}
-          </p>
-          <div className="flex space-x-sm">
-            <button className="p-1 rounded hover:bg-surface-container transition-colors opacity-30" disabled>
-              <span className="material-symbols-outlined">chevron_left</span>
-            </button>
-            <button className="px-3 py-1 rounded bg-primary text-on-primary text-label-sm">1</button>
-            <button className="px-3 py-1 rounded hover:bg-surface-container text-label-sm">2</button>
-            <button className="p-1 rounded hover:bg-surface-container transition-colors">
-              <span className="material-symbols-outlined">chevron_right</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Contextual Help Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-gutter">
-        <div className="bg-surface-container-low p-lg rounded-xl border border-outline-variant flex items-start gap-md">
-          <div className="p-sm bg-primary/10 rounded-lg">
-            <span className="material-symbols-outlined text-primary">info</span>
-          </div>
-          <div>
-            <h4 className="font-bold text-body-lg">Position Levels</h4>
-            <p className="text-body-md text-on-surface-variant mt-1">Junior (0–2 yrs), Mid (2–5 yrs), Senior (5+ yrs), Manager. Levels affect salary bands and performance review cycles.</p>
-          </div>
-        </div>
-        <div className="bg-surface-container-low p-lg rounded-xl border border-outline-variant flex items-start gap-md">
-          <div className="p-sm bg-secondary/10 rounded-lg">
-            <span className="material-symbols-outlined text-secondary">trending_up</span>
-          </div>
-          <div>
-            <h4 className="font-bold text-body-lg">Open Vacancies</h4>
-            <p className="text-body-md text-on-surface-variant mt-1">You currently have 12 open positions. Post to job boards by linking positions to your recruitment module.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Add / Edit Position Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-margin-mobile">
-          <div className="absolute inset-0 bg-on-background/40 backdrop-blur-sm" onClick={closeModal}></div>
-          <div className="relative bg-surface-container-lowest w-full max-w-lg p-xl rounded-xl shadow-2xl border border-outline-variant">
-            <div className="flex items-center justify-between mb-lg">
-              <h3 className="text-headline-md font-bold">{editPos ? 'Edit Position' : 'Add New Position'}</h3>
-              <button className="p-2 hover:bg-surface-container rounded-full" onClick={closeModal}>
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            <div className="space-y-md">
-              <div className="space-y-xs">
-                <label className="text-label-md text-on-surface">Position Title</label>
-                <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="e.g. Senior Software Engineer" type="text" {...field('title')} />
-              </div>
-              <div className="space-y-xs">
-                <label className="text-label-md text-on-surface">Department</label>
-                <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="e.g. Engineering" type="text" {...field('dept')} />
-              </div>
-              <div className="grid grid-cols-2 gap-md">
-                <div className="space-y-xs">
-                  <label className="text-label-md text-on-surface">Level</label>
-                  <select className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary" {...field('level')}>
-                    <option value="Junior">Junior</option>
-                    <option value="Mid">Mid</option>
-                    <option value="Senior">Senior</option>
-                    <option value="Manager">Manager</option>
-                  </select>
-                </div>
-                <div className="space-y-xs">
-                  <label className="text-label-md text-on-surface">Openings</label>
-                  <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0" type="number" min="0" {...field('openings')} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-md">
-                <div className="space-y-xs">
-                  <label className="text-label-md text-on-surface">Headcount</label>
-                  <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0" type="number" min="0" {...field('headcount')} />
-                </div>
-                <div className="space-y-xs">
-                  <label className="text-label-md text-on-surface">Salary Range</label>
-                  <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="$0 – $0" type="text" {...field('salary')} />
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-md pt-lg">
-              <button className="px-lg py-md text-on-surface-variant hover:bg-surface-container rounded-lg text-label-md" onClick={closeModal}>Cancel</button>
-              <button className="px-xl py-md bg-primary text-on-primary text-label-md rounded-lg shadow-md hover:opacity-90" onClick={handleSave}>
-                {editPos ? 'Save Changes' : 'Create Position'}
-              </button>
-            </div>
+              </thead>
+              <tbody className="divide-y divide-outline-variant text-body-md">
+                {positions.length === 0 ? (
+                  <tr><td colSpan={7} className="px-lg py-xl text-center text-on-surface-variant">No positions found.</td></tr>
+                ) : positions.map(pos => (
+                  <tr key={pos.id} className="hover:bg-surface-container-low transition-colors">
+                    <td className="px-lg py-md font-bold">{pos.title}</td>
+                    <td className="px-lg py-md">{pos.department?.name ?? '—'}</td>
+                    <td className="px-lg py-md">
+                      {pos.level ? <span className="px-2 py-0.5 bg-surface-container text-on-surface-variant rounded-full text-label-sm">{pos.level}</span> : '—'}
+                    </td>
+                    <td className="px-lg py-md text-on-surface-variant">
+                      {pos.salary_min && pos.salary_max ? `$${Number(pos.salary_min).toLocaleString()} – $${Number(pos.salary_max).toLocaleString()}` : '—'}
+                    </td>
+                    <td className="px-lg py-md">{pos.headcount}</td>
+                    <td className="px-lg py-md">
+                      <span className={`font-bold ${pos.openings > 0 ? 'text-secondary' : 'text-on-surface-variant'}`}>{pos.openings}</span>
+                    </td>
+                    <td className="px-lg py-md">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => openEdit(pos)} className="p-1 hover:bg-surface-container rounded-lg text-outline transition-all"><span className="material-symbols-outlined text-[20px]">edit</span></button>
+                        <button onClick={() => setDeleteTarget(pos)} className="p-1 hover:bg-error-container/20 rounded-lg text-error transition-all"><span className="material-symbols-outlined text-[20px]">delete</span></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

@@ -1,378 +1,221 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { api } from '../../lib/api.js'
 
-const reportCards = [
-  {
-    icon: 'badge',
-    iconColor: 'bg-primary/10 text-primary',
-    badge: 'Monthly',
-    badgeStyle: 'bg-surface-container text-on-surface-variant',
-    title: 'Employee Distribution',
-    desc: 'Detailed breakdown of headcount by status, tenure, and demographics.',
-    hoverBtn: 'hover:bg-primary hover:text-on-primary group-hover:bg-primary group-hover:text-on-primary',
-    chart: (
-      <div className="h-32 bg-surface-container rounded-lg relative overflow-hidden flex items-end px-md gap-sm py-xs">
-        <div className="w-1/4 bg-primary rounded-t-sm h-12"></div>
-        <div className="w-1/4 bg-primary/60 rounded-t-sm h-24"></div>
-        <div className="w-1/4 bg-primary rounded-t-sm h-16"></div>
-        <div className="w-1/4 bg-primary/80 rounded-t-sm h-20"></div>
-        <div className="absolute top-md right-md">
-          <span className="text-label-sm text-primary font-bold">+12% growth</span>
-        </div>
-      </div>
-    ),
-  },
-  {
-    icon: 'event_available',
-    iconColor: 'bg-secondary/10 text-secondary',
-    badge: 'Real-time',
-    badgeStyle: 'bg-secondary-container text-on-secondary-container',
-    title: 'Attendance Metrics',
-    desc: 'Track punctuality trends, overtime logs, and absenteeism rates across units.',
-    hoverBtn: 'hover:bg-secondary hover:text-on-secondary group-hover:bg-secondary group-hover:text-on-secondary',
-    chart: (
-      <div className="h-32 bg-surface-container rounded-lg flex items-center justify-center relative">
-        <div className="absolute inset-0 bg-gradient-to-tr from-secondary/5 to-transparent rounded-lg"></div>
-        <div className="flex items-center justify-center space-x-md">
-          <div className="flex flex-col items-center">
-            <span className="text-headline-md font-bold text-secondary">94%</span>
-            <span className="text-label-sm text-on-surface-variant">On-time</span>
-          </div>
-          <div className="w-px h-12 bg-outline-variant"></div>
-          <div className="flex flex-col items-center">
-            <span className="text-headline-md font-bold text-on-surface-variant">0.8%</span>
-            <span className="text-label-sm text-on-surface-variant">Late Rate</span>
-          </div>
-        </div>
-      </div>
-    ),
-  },
-  {
-    icon: 'event_busy',
-    iconColor: 'bg-tertiary/10 text-tertiary',
-    badge: 'Quarterly',
-    badgeStyle: 'bg-tertiary-fixed text-on-tertiary-fixed',
-    title: 'Leave & Time-Off',
-    desc: 'Analysis of accrued balance, pending requests, and popular leave periods.',
-    hoverBtn: 'hover:bg-tertiary hover:text-on-tertiary group-hover:bg-tertiary group-hover:text-on-tertiary',
-    chart: (
-      <div className="h-32 bg-surface-container rounded-lg overflow-hidden flex items-center p-md">
-        <div className="w-full space-y-md">
-          {[{ label: 'Sick Leave', pct: 12 }, { label: 'Annual Vacation', pct: 65 }].map(item => (
-            <div key={item.label} className="space-y-xs">
-              <div className="flex justify-between text-label-sm"><span>{item.label}</span><span>{item.pct}%</span></div>
-              <div className="w-full bg-white h-1.5 rounded-full">
-                <div className="bg-tertiary/60 h-1.5 rounded-full" style={{ width: `${item.pct}%` }}></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    ),
-  },
-  {
-    icon: 'payments',
-    iconColor: 'bg-primary/10 text-primary',
-    badge: 'Confidential',
-    badgeStyle: 'bg-primary-fixed text-on-primary-fixed',
-    title: 'Payroll Summary',
-    desc: 'Gross to net calculations, tax deductions, and benefits disbursement reports.',
-    hoverBtn: 'hover:bg-primary hover:text-on-primary group-hover:bg-primary group-hover:text-on-primary',
-    chart: (
-      <div className="h-32 bg-surface-container rounded-lg p-md">
-        <div className="grid grid-cols-2 gap-sm h-full">
-          <div className="bg-white rounded-lg p-xs flex flex-col justify-center border border-outline-variant/30">
-            <span className="text-label-sm text-on-surface-variant">Avg. Payout</span>
-            <span className="font-bold text-body-lg text-primary">$4,520</span>
-          </div>
-          <div className="bg-white rounded-lg p-xs flex flex-col justify-center border border-outline-variant/30">
-            <span className="text-label-sm text-on-surface-variant">Tax Total</span>
-            <span className="font-bold text-body-lg text-primary">$1.2M</span>
-          </div>
-        </div>
-      </div>
-    ),
-  },
-  {
-    icon: 'domain',
-    iconColor: 'bg-secondary/10 text-secondary',
-    badge: null,
-    badgeStyle: '',
-    title: 'Departmental ROI',
-    desc: 'Comparative analysis of department budgets vs productivity outputs.',
-    hoverBtn: 'hover:bg-secondary hover:text-on-secondary group-hover:bg-secondary group-hover:text-on-secondary',
-    chart: (
-      <div className="h-32 bg-surface-container rounded-lg flex items-center px-lg">
-        <div className="w-full flex justify-around">
-          {[{ color: 'bg-secondary', label: 'Sales' }, { color: 'bg-primary', label: 'Eng' }, { color: 'bg-tertiary', label: 'Ops' }].map(d => (
-            <div key={d.label} className="flex flex-col items-center">
-              <div className={`w-3 h-3 rounded-full ${d.color} mb-xs`}></div>
-              <span className="text-label-sm">{d.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    ),
-  },
-  {
-    icon: 'speed',
-    iconColor: 'bg-tertiary/10 text-tertiary',
-    badge: null,
-    badgeStyle: '',
-    title: 'Performance Reviews',
-    desc: 'Aggregation of individual KPIs, peer reviews, and manager ratings.',
-    hoverBtn: 'hover:bg-tertiary hover:text-on-tertiary group-hover:bg-tertiary group-hover:text-on-tertiary',
-    chart: (
-      <div className="h-32 bg-surface-container rounded-lg flex items-center justify-center">
-        <div className="relative w-24 h-24">
-          <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#fff" strokeDasharray="100, 100" strokeWidth="3" />
-            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#7e3000" strokeDasharray="82, 100" strokeWidth="3" />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-body-lg font-bold">4.2</span>
-          </div>
-        </div>
-      </div>
-    ),
-  },
-]
-
-const initialRecentReports = [
-  { icon: 'description', title: 'Q3 Payroll Summary - Engineering', by: 'Alex Rivera', when: '2 hours ago' },
-  { icon: 'analytics',   title: 'Oct 2023 Attendance Heatmap',      by: 'System',      when: 'Today, 9:15 AM' },
-]
+const REPORT_ICONS = {
+  headcount:   'group',
+  payroll:     'payments',
+  leave:       'event_note',
+  attendance:  'how_to_reg',
+  performance: 'star',
+}
 
 export default function SystemReports() {
-  const [recentReports, setRecentReports] = useState(initialRecentReports)
-  const [toast, setToast]                 = useState(null)
-  const [filterDept, setFilterDept]       = useState('All Departments')
-  const [filterPeriod, setFilterPeriod]   = useState('Oct 01, 2023 - Oct 31, 2023')
-  const [viewReport, setViewReport]       = useState(null)
+  const [reportTypes, setReportTypes]   = useState([])
+  const [departments, setDepartments]   = useState([])
+  const [selectedType, setSelectedType] = useState(null)
+  const [deptFilter, setDeptFilter]     = useState('')
+  const [periodFilter, setPeriodFilter] = useState('')
+  const [reportData, setReportData]     = useState(null)
+  const [loading, setLoading]           = useState(false)
+  const [loadingTypes, setLoadingTypes] = useState(true)
+  const [toast, setToast]               = useState(null)
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 3000)
+  const showToast = (msg, type = 'success') => { setToast({ message: msg, type }); setTimeout(() => setToast(null), 3000) }
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [rRes, dRes] = await Promise.all([api.get('/reports'), api.get('/departments?limit=100')])
+        if (rRes.ok) setReportTypes(await rRes.json())
+        if (dRes.ok) { const d = await dRes.json(); setDepartments(d.departments || []) }
+      } catch { /* ignore */ }
+      setLoadingTypes(false)
+    }
+    load()
+  }, [])
+
+  const handleGenerate = async () => {
+    if (!selectedType) { showToast('Please select a report type.', 'error'); return }
+    setLoading(true)
+    setReportData(null)
+    try {
+      const params = new URLSearchParams({ report_type: selectedType.id, ...(deptFilter && { dept_filter: deptFilter }), ...(periodFilter && { period_filter: periodFilter }) })
+      const res = await api.post(`/reports/generate?${params}`, {})
+      if (res.ok) setReportData(await res.json())
+      else { const err = await res.json().catch(() => ({})); showToast(err.detail || 'Generation failed.', 'error') }
+    } catch { showToast('Network error.', 'error') }
+    setLoading(false)
   }
 
-  const handleGenerateReport = (card) => {
-    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    const deptLabel = filterDept === 'All Departments' ? 'All Depts' : filterDept
-    setRecentReports(prev => [
-      { icon: 'description', title: `${card.title} — ${deptLabel}`, by: 'System', when: `Today, ${timeStr}` },
-      ...prev,
-    ])
-    showToast(`"${card.title}" report generated.`)
-  }
+  const renderReport = () => {
+    if (!reportData) return null
+    const type = reportData.type
+    const summary = reportData.summary
 
-  const handleApplyFilters = () => {
-    showToast(`Filters applied: ${filterDept} · ${filterPeriod}`)
-  }
+    return (
+      <div className="space-y-lg">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-gutter">
+          {Object.entries(summary).map(([k, v]) => (
+            <div key={k} className="bg-surface-container-low rounded-xl p-lg border border-outline-variant">
+              <p className="text-label-sm text-outline uppercase tracking-wider">{k.replace(/_/g, ' ')}</p>
+              <p className="text-headline-md font-bold mt-xs">{typeof v === 'number' ? v.toLocaleString() : v}</p>
+            </div>
+          ))}
+        </div>
 
-  const handleExport = (type) => {
-    showToast(`Exporting all reports as ${type}…`)
-  }
+        {/* Table Data */}
+        {reportData.by_department && (
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
+            <div className="p-lg border-b border-outline-variant"><h4 className="text-headline-md">By Department</h4></div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-surface-container text-on-surface-variant text-label-sm uppercase tracking-wider">
+                    {Object.keys(reportData.by_department[0] || {}).map(h => <th key={h} className="px-lg py-md font-bold">{h.replace(/_/g, ' ')}</th>)}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant text-body-md">
+                  {reportData.by_department.map((row, i) => (
+                    <tr key={i} className="hover:bg-surface-container-low transition-colors">
+                      {Object.values(row).map((val, j) => <td key={j} className="px-lg py-md">{typeof val === 'number' ? val.toLocaleString() : String(val)}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
-  const handleDownload = (report) => {
-    const content = `Report: ${report.title}\nGenerated by: ${report.by}\nDate: ${report.when}\n\nThis is a simulated report export.`
-    const blob = new Blob([content], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${report.title.replace(/[^a-z0-9]/gi, '_')}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
-    showToast('Report downloaded.')
+        {reportData.by_type && (
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
+            <div className="p-lg border-b border-outline-variant"><h4 className="text-headline-md">By Type</h4></div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-surface-container text-on-surface-variant text-label-sm uppercase tracking-wider">
+                    {Object.keys(reportData.by_type[0] || {}).map(h => <th key={h} className="px-lg py-md font-bold">{h.replace(/_/g, ' ')}</th>)}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant text-body-md">
+                  {reportData.by_type.map((row, i) => (
+                    <tr key={i} className="hover:bg-surface-container-low transition-colors">
+                      {Object.values(row).map((val, j) => <td key={j} className="px-lg py-md">{typeof val === 'number' ? val.toLocaleString() : String(val)}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {reportData.by_rating && (
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
+            <div className="p-lg border-b border-outline-variant"><h4 className="text-headline-md">By Rating</h4></div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-surface-container text-on-surface-variant text-label-sm uppercase tracking-wider">
+                    {Object.keys(reportData.by_rating[0] || {}).map(h => <th key={h} className="px-lg py-md font-bold">{h.replace(/_/g, ' ')}</th>)}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant text-body-md">
+                  {reportData.by_rating.map((row, i) => (
+                    <tr key={i} className="hover:bg-surface-container-low transition-colors">
+                      {Object.values(row).map((val, j) => <td key={j} className="px-lg py-md">{typeof val === 'number' ? val.toLocaleString() : String(val)}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
     <div className="p-margin-mobile md:p-margin-desktop">
-      {/* Toast */}
       {toast && (
-        <div className={`fixed top-20 right-6 z-50 flex items-center gap-md px-lg py-md rounded-xl shadow-lg border text-label-md font-bold transition-all ${
-          toast.type === 'error'
-            ? 'bg-error-container text-on-error-container border-error/30'
-            : 'bg-secondary-container text-on-secondary-container border-secondary/30'
-        }`}>
-          <span className="material-symbols-outlined text-[20px]">check_circle</span>
+        <div className={`fixed top-20 right-6 z-50 flex items-center gap-md px-lg py-md rounded-xl shadow-lg border text-label-md font-bold transition-all ${toast.type === 'error' ? 'bg-error-container text-on-error-container border-error/30' : 'bg-secondary-container text-on-secondary-container border-secondary/30'}`}>
+          <span className="material-symbols-outlined text-[20px]">{toast.type === 'error' ? 'error' : 'check_circle'}</span>
           {toast.message}
         </div>
       )}
 
-      {/* View Report Modal */}
-      {viewReport && (
-        <div className="fixed inset-0 z-50 bg-on-background/40 backdrop-blur-sm flex items-center justify-center p-margin-mobile">
-          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-xl shadow-2xl max-w-md w-full">
-            <div className="flex items-center justify-between mb-lg">
-              <h3 className="text-headline-md text-on-surface">Report Preview</h3>
-              <button className="p-2 hover:bg-surface-container rounded-full" onClick={() => setViewReport(null)}>
-                <span className="material-symbols-outlined">close</span>
+      <div className="mb-xl">
+        <h2 className="text-headline-lg text-on-surface">System Reports</h2>
+        <p className="text-body-md text-on-surface-variant">Generate analytics and insights from your organization data</p>
+      </div>
+
+      {/* Report Type Selection */}
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm mb-lg">
+        <h3 className="text-headline-md mb-md">Select Report Type</h3>
+        {loadingTypes ? (
+          <p className="text-on-surface-variant">Loading report types…</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
+            {reportTypes.map(rt => (
+              <button key={rt.id} onClick={() => { setSelectedType(rt); setReportData(null) }} className={`flex items-start gap-md p-lg rounded-xl border text-left transition-all ${selectedType?.id === rt.id ? 'border-primary bg-primary/5' : 'border-outline-variant hover:bg-surface-container-low'}`}>
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${selectedType?.id === rt.id ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`}>
+                  <span className="material-symbols-outlined">{REPORT_ICONS[rt.id] ?? 'analytics'}</span>
+                </div>
+                <div>
+                  <p className={`font-bold text-body-md ${selectedType?.id === rt.id ? 'text-primary' : 'text-on-surface'}`}>{rt.name}</p>
+                  <p className="text-label-sm text-on-surface-variant mt-xs">{rt.description}</p>
+                </div>
               </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Filters */}
+      {selectedType && (
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm mb-lg">
+          <h3 className="text-headline-md mb-md">Report Filters</h3>
+          <div className="flex flex-wrap gap-md items-end">
+            <div>
+              <label className="text-label-sm text-on-surface-variant block mb-1">Department</label>
+              <select className="bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md" value={deptFilter} onChange={e => setDeptFilter(e.target.value)}>
+                <option value="">All Departments</option>
+                {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+              </select>
             </div>
-            <div className="space-y-sm mb-xl">
-              <div className="flex items-center gap-sm">
-                <span className="material-symbols-outlined text-primary">{viewReport.icon}</span>
-                <p className="text-body-md font-bold">{viewReport.title}</p>
+            {(selectedType.id === 'payroll' || selectedType.id === 'leave') && (
+              <div>
+                <label className="text-label-sm text-on-surface-variant block mb-1">Period / Month</label>
+                <input type="month" className="bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md" value={periodFilter} onChange={e => setPeriodFilter(e.target.value)} />
               </div>
-              <p className="text-label-sm text-on-surface-variant">Generated by {viewReport.by} · {viewReport.when}</p>
-              <div className="bg-surface-container rounded-lg p-md text-body-md text-on-surface-variant mt-md">
-                Full preview is not available in simulation mode. Download the file to view the complete report data.
-              </div>
-            </div>
-            <div className="flex justify-end gap-sm">
-              <button
-                onClick={() => setViewReport(null)}
-                className="px-lg py-sm bg-surface-container border border-outline-variant text-on-surface rounded-lg text-label-md hover:bg-surface-container-high transition-all"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => { handleDownload(viewReport); setViewReport(null) }}
-                className="px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md hover:opacity-90 transition-all flex items-center gap-xs"
-              >
-                <span className="material-symbols-outlined text-[18px]">download</span>
-                Download
-              </button>
-            </div>
+            )}
+            <button onClick={handleGenerate} disabled={loading} className="flex items-center gap-xs px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md hover:brightness-110 active:scale-95 transition-all shadow-md disabled:opacity-50">
+              <span className="material-symbols-outlined text-[18px]">{loading ? 'progress_activity' : 'analytics'}</span>
+              {loading ? 'Generating…' : 'Generate Report'}
+            </button>
           </div>
         </div>
       )}
 
-      <div className="mb-xl flex flex-col md:flex-row md:items-end justify-between gap-md">
-        <div>
-          <h2 className="text-display text-on-surface mb-xs">Reporting Hub</h2>
-          <p className="text-body-lg text-on-surface-variant max-w-2xl">Access deep-dive analytics and compliance exports across all organizational domains.</p>
-        </div>
-        <div className="flex items-center space-x-sm">
-          <button
-            onClick={() => handleExport('Excel')}
-            className="bg-surface-container-lowest border border-outline-variant px-md py-sm rounded-lg flex items-center space-x-xs hover:bg-surface-container transition-colors text-body-md"
-          >
-            <span className="material-symbols-outlined text-[20px]">file_download</span>
-            <span>Export Excel</span>
-          </button>
-          <button
-            onClick={() => handleExport('PDF')}
-            className="bg-surface-container-lowest border border-outline-variant px-md py-sm rounded-lg flex items-center space-x-xs hover:bg-surface-container transition-colors text-body-md"
-          >
-            <span className="material-symbols-outlined text-[20px]">picture_as_pdf</span>
-            <span>Export PDF</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Global Filters */}
-      <div className="bg-surface-container-lowest border border-outline-variant p-md rounded-xl mb-xl flex flex-wrap items-center gap-lg shadow-sm">
-        <div className="flex flex-col gap-xs">
-          <label className="text-label-sm text-on-surface-variant">Reporting Period</label>
-          <div className="flex items-center bg-surface-container rounded-lg px-md py-sm border border-transparent focus-within:border-primary transition-all">
-            <span className="material-symbols-outlined text-primary text-[20px] mr-sm">calendar_today</span>
-            <input
-              className="bg-transparent border-none p-0 text-body-md focus:ring-0 outline-none w-48"
-              type="text"
-              value={filterPeriod}
-              onChange={e => setFilterPeriod(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="flex flex-col gap-xs">
-          <label className="text-label-sm text-on-surface-variant">Department Filter</label>
-          <select
-            className="bg-surface-container border-none rounded-lg px-md py-sm text-body-md focus:ring-2 focus:ring-primary min-w-[200px]"
-            value={filterDept}
-            onChange={e => setFilterDept(e.target.value)}
-          >
-            <option>All Departments</option>
-            <option>Engineering</option>
-            <option>Marketing</option>
-            <option>Human Resources</option>
-            <option>Sales</option>
-          </select>
-        </div>
-        <div className="flex-grow flex justify-end items-end h-full pt-md md:pt-0">
-          <button
-            onClick={handleApplyFilters}
-            className="bg-primary text-on-primary px-xl py-sm rounded-lg font-bold hover:opacity-90 active:scale-95 transition-all flex items-center"
-          >
-            <span className="material-symbols-outlined mr-sm">filter_list</span>
-            Apply Filters
-          </button>
-        </div>
-      </div>
-
-      {/* Reports Grid */}
-      <div className="grid gap-gutter" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 360px), 1fr))' }}>
-        {reportCards.map(card => (
-          <div key={card.title} className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden flex flex-col group hover:-translate-y-1 transition-transform duration-200">
-            <div className="p-lg flex-1">
-              <div className="flex items-center justify-between mb-md">
-                <div className={`p-sm rounded-lg ${card.iconColor}`}>
-                  <span className="material-symbols-outlined">{card.icon}</span>
-                </div>
-                {card.badge && (
-                  <span className={`text-label-sm px-sm py-xs rounded ${card.badgeStyle}`}>{card.badge}</span>
-                )}
-              </div>
-              <h3 className="text-headline-md text-on-surface mb-xs">{card.title}</h3>
-              <p className="text-body-md text-on-surface-variant mb-md">{card.desc}</p>
-              {card.chart}
-            </div>
-            <div className="p-md bg-surface-container-low border-t border-outline-variant">
-              <button
-                onClick={() => handleGenerateReport(card)}
-                className={`w-full bg-surface-container-highest text-on-surface font-bold py-sm rounded-lg flex items-center justify-center transition-all ${card.hoverBtn}`}
-              >
-                Generate Report
-                <span className="material-symbols-outlined ml-sm text-[20px]">chevron_right</span>
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Bottom Section */}
-      <div className="mt-xl grid grid-cols-1 lg:grid-cols-3 gap-lg">
-        <div className="lg:col-span-2 bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
-          <h4 className="text-headline-md font-bold mb-md flex items-center">
-            <span className="material-symbols-outlined mr-sm text-primary">history</span>
-            Recently Generated Reports
-          </h4>
-          <div className="space-y-md">
-            {recentReports.map((r, i) => (
-              <div key={i} className="flex items-center justify-between p-md bg-background rounded-lg border border-outline-variant/30 hover:border-primary/50 transition-colors">
-                <div className="flex items-center space-x-md">
-                  <span className="material-symbols-outlined text-on-surface-variant">{r.icon}</span>
-                  <div>
-                    <p className="text-body-md font-bold">{r.title}</p>
-                    <p className="text-label-sm text-on-surface-variant">Generated by {r.by} • {r.when}</p>
-                  </div>
-                </div>
-                <div className="flex space-x-sm">
-                  <button onClick={() => setViewReport(r)} className="p-xs hover:text-primary transition-colors">
-                    <span className="material-symbols-outlined text-[20px]">visibility</span>
-                  </button>
-                  <button onClick={() => handleDownload(r)} className="p-xs hover:text-primary transition-colors">
-                    <span className="material-symbols-outlined text-[20px]">download</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="bg-primary text-on-primary rounded-xl p-lg relative overflow-hidden shadow-lg shadow-primary/20">
-          <div className="relative z-10">
-            <h4 className="text-headline-md font-bold mb-md">Insights Engine</h4>
-            <p className="text-on-primary-container text-body-md mb-lg">AI-driven analysis suggests a 15% increase in voluntary leave for the next quarter. Would you like to generate a mitigation strategy report?</p>
-            <button
-              onClick={() => showToast('Insights Engine is analyzing your data…')}
-              className="bg-white text-primary px-lg py-md rounded-lg font-bold w-full active:scale-95 transition-transform"
-            >
-              Explore Insights
+      {/* Report Output */}
+      {reportData && (
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
+          <div className="flex items-center justify-between mb-lg">
+            <h3 className="text-headline-md">{selectedType?.name} — Results</h3>
+            <button onClick={() => window.print()} className="flex items-center gap-xs px-md py-sm border border-outline-variant rounded-lg text-label-md hover:bg-surface-container-low">
+              <span className="material-symbols-outlined text-[18px]">print</span>
+              Print
             </button>
           </div>
-          <div className="absolute -right-8 -bottom-8 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
-          <div className="absolute -left-8 -top-8 w-32 h-32 bg-on-primary/5 rounded-full blur-2xl"></div>
+          {renderReport()}
         </div>
-      </div>
+      )}
+
+      {!selectedType && !loadingTypes && (
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-xl flex flex-col items-center justify-center text-on-surface-variant shadow-sm">
+          <span className="material-symbols-outlined text-[48px] mb-md opacity-30">analytics</span>
+          <p className="text-body-md">Select a report type above to get started.</p>
+        </div>
+      )}
     </div>
   )
 }

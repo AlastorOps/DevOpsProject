@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { api } from '../../lib/api.js'
+import { useAuth } from '../../context/AuthContext.jsx'
 
 const ratingStyle = {
   Excellent: 'bg-secondary-container text-on-secondary-container',
@@ -7,167 +9,167 @@ const ratingStyle = {
   Poor:      'bg-error-container text-on-error-container',
 }
 
-const starsToRating = (s) => s >= 5 ? 'Excellent' : s >= 4 ? 'Good' : s >= 3 ? 'Average' : 'Poor'
-
-const initialReviews = [
-  { init: 'JS', name: 'Jordan Smith', dept: 'Engineering', position: 'Senior Frontend Dev', lastReview: 'Oct 12, 2023', rating: 'Excellent', reviewer: 'Maria Garcia' },
-  { init: 'AL', name: 'Amara Lawson', dept: 'Marketing',   position: 'Growth Manager',       lastReview: 'Nov 04, 2023', rating: 'Good',      reviewer: 'Chris Evans' },
-  { init: 'KT', name: 'Kevin Tuan',   dept: 'Sales',       position: 'Sales Associate',       lastReview: 'Dec 15, 2023', rating: 'Average',   reviewer: 'Sarah Blake' },
-  { init: 'DM', name: 'Dianne Miles', dept: 'Design',      position: 'UI/UX Designer',        lastReview: 'Jan 02, 2024', rating: 'Poor',      reviewer: 'Maria Garcia' },
-  { init: 'RR', name: 'Riley Reid',   dept: 'Engineering', position: 'QA Specialist',         lastReview: 'Dec 20, 2023', rating: 'Excellent', reviewer: 'Chris Evans' },
-]
-
-const emptyForm = { employee: '', cycle: 'Annual Review 2024', stars: 4, comments: '' }
-
 export default function PerformanceReviews() {
-  const [reviewList, setReviewList]   = useState(initialReviews)
+  const { user } = useAuth()
+  const [reviews, setReviews]         = useState([])
+  const [stats, setStats]             = useState(null)
+  const [employees, setEmployees]     = useState([])
+  const [departments, setDepartments] = useState([])
+  const [total, setTotal]             = useState(0)
+  const [loading, setLoading]         = useState(true)
   const [showModal, setShowModal]     = useState(false)
-  const [form, setForm]               = useState(emptyForm)
+  const [form, setForm]               = useState({ employee_id: '', cycle: 'Annual Review 2025', stars: 4, comments: '' })
   const [hoverStar, setHoverStar]     = useState(0)
   const [toast, setToast]             = useState(null)
   const [search, setSearch]           = useState('')
-  const [filterDept, setFilterDept]   = useState('All Departments')
-  const [filterRating, setFilterRating] = useState('All Ratings')
+  const [filterDept, setFilterDept]   = useState('')
+  const [filterRating, setFilterRating] = useState('')
+  const [page, setPage]               = useState(1)
+  const [saving, setSaving]           = useState(false)
+  const limit = 20
 
-  const showToast = (message) => {
-    setToast(message)
-    setTimeout(() => setToast(null), 3000)
+  const showToast = (message) => { setToast(message); setTimeout(() => setToast(null), 3000) }
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({ page, limit, ...(search && { search }), ...(filterDept && { dept: filterDept }), ...(filterRating && { rating: filterRating }) })
+      const [rRes, sRes] = await Promise.all([api.get(`/performance?${params}`), api.get('/performance/stats')])
+      if (rRes.ok) { const d = await rRes.json(); setReviews(d.reviews || []); setTotal(d.total || 0) }
+      if (sRes.ok) setStats(await sRes.json())
+    } catch { /* ignore */ }
+    setLoading(false)
+  }, [page, search, filterDept, filterRating])
+
+  const fetchMeta = useCallback(async () => {
+    try {
+      const [eRes, dRes] = await Promise.all([api.get('/employees?limit=200'), api.get('/departments?limit=100')])
+      if (eRes.ok) { const d = await eRes.json(); setEmployees(d.employees || []) }
+      if (dRes.ok) { const d = await dRes.json(); setDepartments(d.departments || []) }
+    } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => { fetchMeta() }, [fetchMeta])
+  useEffect(() => { const t = setTimeout(fetchData, search ? 300 : 0); return () => clearTimeout(t) }, [fetchData, search])
+
+  const closeModal = () => { setShowModal(false); setForm({ employee_id: '', cycle: 'Annual Review 2025', stars: 4, comments: '' }) }
+
+  const handleCreate = async () => {
+    if (!form.employee_id) { showToast('Please select an employee.'); return }
+    setSaving(true)
+    try {
+      const res = await api.post('/performance', {
+        employee_id: form.employee_id,
+        cycle: form.cycle,
+        stars: Number(form.stars),
+        comments: form.comments || null,
+      })
+      if (res.ok || res.status === 201) {
+        showToast('Review submitted.')
+        closeModal(); fetchData()
+      } else {
+        const err = await res.json().catch(() => ({}))
+        showToast(err.detail || 'Failed to submit review.')
+      }
+    } catch { showToast('Network error.') }
+    setSaving(false)
   }
 
-  const openModal = (employeeName = '') => {
-    setForm({ ...emptyForm, employee: employeeName })
-    setHoverStar(0)
-    setShowModal(true)
-  }
-
-  const handleSubmit = () => {
-    if (!form.employee) return
-    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-    const init  = form.employee.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-    setReviewList(prev => [
-      { init, name: form.employee, dept: '—', position: form.cycle, lastReview: today, rating: starsToRating(form.stars), reviewer: 'You' },
-      ...prev,
-    ])
-    setShowModal(false)
-    setForm(emptyForm)
-    showToast(`Review for ${form.employee} submitted.`)
-  }
-
-  const handleReset = () => {
-    setSearch('')
-    setFilterDept('All Departments')
-    setFilterRating('All Ratings')
-  }
-
-  const filtered = reviewList.filter(r => {
-    const matchSearch  = `${r.name} ${r.position}`.toLowerCase().includes(search.toLowerCase())
-    const matchDept    = filterDept   === 'All Departments' || r.dept   === filterDept
-    const matchRating  = filterRating === 'All Ratings'     || r.rating === filterRating
-    return matchSearch && matchDept && matchRating
-  })
-
-  const activeStar = hoverStar || form.stars
+  const totalPages = Math.max(1, Math.ceil(total / limit))
+  const canReview = user?.role && ['Admin', 'HR Manager', 'Manager'].includes(user.role)
 
   return (
-    <div className="p-margin-mobile md:p-margin-desktop space-y-lg">
-      {/* Toast */}
+    <div className="p-margin-mobile md:p-margin-desktop">
       {toast && (
-        <div className="fixed top-20 right-6 z-50 flex items-center gap-md px-lg py-md rounded-xl shadow-lg border text-label-md font-bold bg-secondary-container text-on-secondary-container border-secondary/30">
+        <div className="fixed top-20 right-6 z-50 flex items-center gap-md px-lg py-md rounded-xl shadow-lg border text-label-md font-bold transition-all bg-secondary-container text-on-secondary-container border-secondary/30">
           <span className="material-symbols-outlined text-[20px]">check_circle</span>
           {toast}
         </div>
       )}
 
-      <div className="flex flex-col gap-md md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-display text-on-background">Performance Reviews</h2>
-          <p className="text-body-lg text-on-surface-variant">Track and manage employee growth and evaluations.</p>
+      {showModal && (
+        <div className="fixed inset-0 z-50 bg-on-background/40 backdrop-blur-sm flex items-center justify-center p-margin-mobile">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-xl shadow-2xl w-full max-w-md">
+            <h3 className="text-headline-md mb-lg">Add Performance Review</h3>
+            <div className="space-y-md">
+              <div className="flex flex-col gap-xs">
+                <label className="text-label-md text-on-surface-variant">Employee <span className="text-error">*</span></label>
+                <select className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary" value={form.employee_id} onChange={e => setForm(p => ({ ...p, employee_id: e.target.value }))}>
+                  <option value="">Select employee…</option>
+                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.emp_id})</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-xs">
+                <label className="text-label-md text-on-surface-variant">Review Cycle</label>
+                <input className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary outline-none" value={form.cycle} onChange={e => setForm(p => ({ ...p, cycle: e.target.value }))} />
+              </div>
+              <div className="flex flex-col gap-xs">
+                <label className="text-label-md text-on-surface-variant">Rating</label>
+                <div className="flex gap-xs">
+                  {[1,2,3,4,5].map(s => (
+                    <button key={s} type="button" onMouseEnter={() => setHoverStar(s)} onMouseLeave={() => setHoverStar(0)} onClick={() => setForm(p => ({ ...p, stars: s }))}>
+                      <span className={`material-symbols-outlined text-[28px] ${(hoverStar || form.stars) >= s ? 'text-primary' : 'text-outline-variant'}`} style={{ fontVariationSettings: (hoverStar || form.stars) >= s ? "'FILL' 1" : "'FILL' 0" }}>star</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-xs">
+                <label className="text-label-md text-on-surface-variant">Comments</label>
+                <textarea className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary outline-none resize-none" rows={3} placeholder="Optional comments…" value={form.comments} onChange={e => setForm(p => ({ ...p, comments: e.target.value }))} />
+              </div>
+            </div>
+            <div className="flex gap-sm justify-end mt-xl">
+              <button onClick={closeModal} className="px-lg py-sm bg-surface-container border border-outline-variant text-on-surface rounded-lg text-label-md">Cancel</button>
+              <button onClick={handleCreate} disabled={saving} className="px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md disabled:opacity-50">{saving ? 'Submitting…' : 'Submit Review'}</button>
+            </div>
+          </div>
         </div>
-        <button
-          onClick={() => openModal()}
-          className="flex items-center gap-xs px-lg py-md bg-primary text-on-primary rounded-lg text-label-md hover:opacity-90 transition-all active:scale-95 shadow-md"
-        >
-          <span className="material-symbols-outlined">add</span>
-          Add Review
-        </button>
+      )}
+
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-xl gap-md">
+        <div>
+          <h2 className="text-headline-lg text-on-surface">Performance Reviews</h2>
+          <p className="text-body-md text-on-surface-variant">Track and manage employee performance evaluations</p>
+        </div>
+        {canReview && (
+          <button onClick={() => setShowModal(true)} className="flex items-center gap-xs px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md hover:brightness-110 active:scale-95 transition-all shadow-md">
+            <span className="material-symbols-outlined text-[18px]">add</span>
+            Add Review
+          </button>
+        )}
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-gutter">
-        <div className="md:col-span-1 p-lg bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm">
-          <p className="text-label-md text-outline">Avg. Performance Score</p>
-          <div className="mt-sm flex items-end gap-xs">
-            <span className="text-display text-primary">4.2</span>
-            <span className="text-body-md text-secondary mb-1">/ 5.0</span>
-          </div>
-          <div className="mt-md flex items-center text-secondary">
-            <span className="material-symbols-outlined text-[18px]">trending_up</span>
-            <span className="text-label-sm ml-1">+8% from last quarter</span>
-          </div>
-        </div>
-        <div className="md:col-span-1 p-lg bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm">
-          <p className="text-label-md text-outline">Pending Reviews</p>
-          <div className="mt-sm">
-            <span className="text-display text-on-background">12</span>
-          </div>
-          <div className="mt-md flex items-center text-tertiary">
-            <span className="material-symbols-outlined text-[18px]">schedule</span>
-            <span className="text-label-sm ml-1">Due within 7 days</span>
-          </div>
-        </div>
-        <div className="md:col-span-2 p-lg bg-primary-container text-on-primary-container rounded-xl shadow-sm flex justify-between items-center relative overflow-hidden">
-          <div className="relative z-10">
-            <h3 className="text-headline-md font-bold">Quarterly Review Season</h3>
-            <p className="text-body-md mt-xs max-w-[280px] opacity-90">65% of reviews completed. Let's reach the goal by Friday!</p>
-            <div className="mt-md w-48 h-2 bg-on-primary-container/20 rounded-full">
-              <div className="h-full bg-on-primary-container rounded-full w-[65%]"></div>
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-gutter mb-lg">
+          {[
+            { label: 'Avg Rating', val: `${stats.average_stars}/5.0`, icon: 'star' },
+            { label: 'Total Reviews', val: stats.total_reviews, icon: 'rate_review' },
+            { label: 'Excellent', val: stats.excellent_count, icon: 'emoji_events' },
+            { label: 'Needs Review', val: stats.pending_count, icon: 'pending_actions' },
+          ].map(s => (
+            <div key={s.label} className="bg-surface-container-lowest border border-outline-variant p-lg rounded-xl flex items-center gap-md shadow-sm">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary"><span className="material-symbols-outlined">{s.icon}</span></div>
+              <div><p className="text-label-sm text-on-surface-variant uppercase tracking-wider">{s.label}</p><p className="text-headline-md font-bold mt-xs">{s.val}</p></div>
             </div>
-          </div>
-          <span className="material-symbols-outlined text-[120px] absolute right-0 top-1/2 -translate-y-1/2 opacity-10 pointer-events-none">star</span>
+          ))}
         </div>
-      </div>
+      )}
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row items-center gap-md p-md bg-surface-container-low rounded-lg border border-outline-variant">
-        <div className="relative flex-1 w-full">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">person_search</span>
-          <input
-            className="w-full pl-10 pr-4 py-2 border border-outline-variant rounded-lg bg-surface-container-lowest text-body-md outline-none focus:ring-1 focus:ring-primary"
-            placeholder="Search by name or position..."
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md mb-lg flex flex-wrap gap-md shadow-sm">
+        <div className="flex-1 min-w-[200px] relative">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+          <input className="w-full bg-background border border-outline-variant rounded-lg py-2 pl-10 pr-4 text-body-md focus:ring-2 focus:ring-primary outline-none" placeholder="Search employee…" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
         </div>
-        <select
-          className="w-full md:w-48 py-2 px-md border border-outline-variant rounded-lg bg-surface-container-lowest text-body-md"
-          value={filterDept}
-          onChange={e => setFilterDept(e.target.value)}
-        >
-          <option>All Departments</option>
-          <option>Engineering</option>
-          <option>Marketing</option>
-          <option>Sales</option>
-          <option>Human Resources</option>
-          <option>Design</option>
+        <select className="bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md" value={filterDept} onChange={e => { setFilterDept(e.target.value); setPage(1) }}>
+          <option value="">All Departments</option>
+          {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
         </select>
-        <select
-          className="w-full md:w-48 py-2 px-md border border-outline-variant rounded-lg bg-surface-container-lowest text-body-md"
-          value={filterRating}
-          onChange={e => setFilterRating(e.target.value)}
-        >
-          <option>All Ratings</option>
-          <option>Excellent</option>
-          <option>Good</option>
-          <option>Average</option>
-          <option>Poor</option>
+        <select className="bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md" value={filterRating} onChange={e => { setFilterRating(e.target.value); setPage(1) }}>
+          <option value="">All Ratings</option>
+          <option>Excellent</option><option>Good</option><option>Average</option><option>Poor</option>
         </select>
-        <button
-          onClick={handleReset}
-          className="w-full md:w-auto px-lg py-2 bg-surface-container-highest border border-outline text-on-surface rounded-lg text-label-md hover:bg-surface-container-high transition-colors"
-        >
-          Reset
-        </button>
       </div>
 
       {/* Table */}
@@ -175,152 +177,47 @@ export default function PerformanceReviews() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-surface-container-high text-on-surface-variant text-label-md">
-                <th className="px-lg py-md uppercase">Employee Name</th>
-                <th className="px-lg py-md uppercase">Department</th>
-                <th className="px-lg py-md uppercase">Position</th>
-                <th className="px-lg py-md uppercase">Last Review</th>
-                <th className="px-lg py-md uppercase">Rating</th>
-                <th className="px-lg py-md uppercase">Reviewer</th>
-                <th className="px-lg py-md uppercase text-center">Action</th>
+              <tr className="bg-surface-container text-on-surface-variant text-label-md uppercase tracking-wider">
+                {['Employee', 'Department', 'Cycle', 'Rating', 'Stars', 'Reviewer', 'Date'].map(h => <th key={h} className="px-lg py-md font-bold">{h}</th>)}
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant">
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-lg py-xl text-center text-on-surface-variant text-body-md">
-                    No reviews match the current filters.
-                  </td>
-                </tr>
-              ) : filtered.map(r => (
-                <tr key={r.name + r.lastReview} className="hover:bg-surface-container-low transition-colors">
+            <tbody className="divide-y divide-outline-variant text-body-md">
+              {loading ? (
+                <tr><td colSpan={7} className="px-lg py-xl text-center text-on-surface-variant">Loading…</td></tr>
+              ) : reviews.length === 0 ? (
+                <tr><td colSpan={7} className="px-lg py-xl text-center text-on-surface-variant">No reviews found.</td></tr>
+              ) : reviews.map(rev => (
+                <tr key={rev.id} className="hover:bg-surface-container-low transition-colors">
                   <td className="px-lg py-md">
                     <div className="flex items-center gap-sm">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-label-sm">{r.init}</div>
-                      <p className="text-body-md font-bold text-on-surface">{r.name}</p>
+                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{(rev.employee?.name ?? '?').split(' ').map(n => n[0]).join('')}</div>
+                      <div><p className="font-bold">{rev.employee?.name ?? '—'}</p><p className="text-label-sm text-on-surface-variant">{rev.employee?.position?.title ?? '—'}</p></div>
                     </div>
                   </td>
-                  <td className="px-lg py-md text-body-md">{r.dept}</td>
-                  <td className="px-lg py-md text-body-md text-on-surface-variant">{r.position}</td>
-                  <td className="px-lg py-md text-body-md text-on-surface-variant">{r.lastReview}</td>
+                  <td className="px-lg py-md">{rev.employee?.department?.name ?? '—'}</td>
+                  <td className="px-lg py-md">{rev.cycle}</td>
+                  <td className="px-lg py-md"><span className={`inline-flex px-2.5 py-0.5 rounded-full text-label-sm font-bold ${ratingStyle[rev.rating] ?? ''}`}>{rev.rating}</span></td>
                   <td className="px-lg py-md">
-                    <span className={`px-sm py-1 rounded-full text-label-sm ${ratingStyle[r.rating]}`}>{r.rating}</span>
+                    <div className="flex gap-xs">{[1,2,3,4,5].map(i => <span key={i} className={`material-symbols-outlined text-[16px] ${i <= rev.stars ? 'text-primary' : 'text-outline-variant'}`} style={{ fontVariationSettings: i <= rev.stars ? "'FILL' 1" : "'FILL' 0" }}>star</span>)}</div>
                   </td>
-                  <td className="px-lg py-md text-body-md text-on-surface-variant">{r.reviewer}</td>
-                  <td className="px-lg py-md text-center">
-                    <button
-                      onClick={() => openModal(r.name)}
-                      className="text-primary hover:bg-primary/10 px-md py-1 rounded transition-colors text-label-md"
-                    >
-                      Add Review
-                    </button>
-                  </td>
+                  <td className="px-lg py-md">{rev.reviewer_name ?? '—'}</td>
+                  <td className="px-lg py-md">{rev.review_date}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <div className="px-lg py-md flex flex-col gap-md sm:flex-row sm:items-center sm:justify-between border-t border-outline-variant">
-          <p className="text-body-md text-on-surface-variant">
-            {search || filterDept !== 'All Departments' || filterRating !== 'All Ratings'
-              ? `${filtered.length} result${filtered.length !== 1 ? 's' : ''} found`
-              : `Showing 1 to ${reviewList.length} of ${reviewList.length} employees`}
-          </p>
-          <div className="flex items-center gap-xs">
-            <button className="p-2 rounded-lg hover:bg-surface-container-low text-outline opacity-50" disabled>
-              <span className="material-symbols-outlined">chevron_left</span>
-            </button>
-            <button className="w-8 h-8 rounded-lg bg-primary text-on-primary text-label-md">1</button>
-            <button className="w-8 h-8 rounded-lg hover:bg-surface-container-low text-on-surface-variant text-label-md">2</button>
-            <button className="w-8 h-8 rounded-lg hover:bg-surface-container-low text-on-surface-variant text-label-md">3</button>
-            <button className="p-2 rounded-lg hover:bg-surface-container-low text-outline">
-              <span className="material-symbols-outlined">chevron_right</span>
-            </button>
+        <div className="p-md bg-surface-container-low flex flex-col gap-md sm:flex-row sm:items-center sm:justify-between border-t border-outline-variant">
+          <p className="text-label-sm text-on-surface-variant">Showing {reviews.length} of {total} reviews</p>
+          <div className="flex space-x-sm">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded hover:bg-surface-container disabled:opacity-30"><span className="material-symbols-outlined">chevron_left</span></button>
+            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
+              <button key={p} onClick={() => setPage(p)} className={`px-3 py-1 rounded text-label-sm ${p === page ? 'bg-primary text-on-primary' : 'hover:bg-surface-container'}`}>{p}</button>
+            ))}
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="p-1 rounded hover:bg-surface-container disabled:opacity-30"><span className="material-symbols-outlined">chevron_right</span></button>
           </div>
         </div>
       </div>
-
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-margin-mobile">
-          <div className="absolute inset-0 bg-on-background/40 backdrop-blur-sm" onClick={() => setShowModal(false)}></div>
-          <div className="relative bg-surface-container-lowest w-full max-w-xl p-xl rounded-2xl shadow-2xl space-y-lg border border-outline-variant">
-            <div className="flex items-center justify-between">
-              <h3 className="text-headline-md font-bold">New Performance Review</h3>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-surface-container rounded-full">
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            <div className="space-y-md">
-              <div className="grid grid-cols-2 gap-md">
-                <div className="space-y-xs">
-                  <label className="text-label-md text-on-surface">Employee</label>
-                  <select
-                    className="w-full py-2 px-md border border-outline-variant rounded-lg focus:ring-1 focus:ring-primary outline-none"
-                    value={form.employee}
-                    onChange={e => setForm(prev => ({ ...prev, employee: e.target.value }))}
-                  >
-                    <option value="">Select employee…</option>
-                    {initialReviews.map(r => (
-                      <option key={r.name} value={r.name}>{r.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-xs">
-                  <label className="text-label-md text-on-surface">Review Cycle</label>
-                  <select
-                    className="w-full py-2 px-md border border-outline-variant rounded-lg focus:ring-1 focus:ring-primary outline-none"
-                    value={form.cycle}
-                    onChange={e => setForm(prev => ({ ...prev, cycle: e.target.value }))}
-                  >
-                    <option>Annual Review 2024</option>
-                    <option>Q1 Mid-Year</option>
-                  </select>
-                </div>
-              </div>
-              <div className="space-y-xs">
-                <label className="text-label-md text-on-surface">Rating Score</label>
-                <div className="flex items-center gap-xs">
-                  {[1, 2, 3, 4, 5].map(i => (
-                    <button
-                      key={i}
-                      onClick={() => setForm(prev => ({ ...prev, stars: i }))}
-                      onMouseEnter={() => setHoverStar(i)}
-                      onMouseLeave={() => setHoverStar(0)}
-                      className={i <= activeStar ? 'text-primary' : 'text-outline'}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontVariationSettings: i <= activeStar ? "'FILL' 1" : "'FILL' 0" }}>star</span>
-                    </button>
-                  ))}
-                  <span className="ml-md text-body-md font-bold text-on-surface">
-                    {activeStar}.0 — {starsToRating(activeStar)}
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-xs">
-                <label className="text-label-md text-on-surface">Review Comments</label>
-                <textarea
-                  className="w-full p-md border border-outline-variant rounded-lg focus:ring-1 focus:ring-primary outline-none text-body-md resize-none"
-                  placeholder="Provide detailed feedback on strengths and areas for improvement..."
-                  rows={4}
-                  value={form.comments}
-                  onChange={e => setForm(prev => ({ ...prev, comments: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-md pt-md">
-              <button onClick={() => setShowModal(false)} className="px-lg py-md text-on-surface-variant text-label-md hover:bg-surface-container rounded-lg">Cancel</button>
-              <button
-                onClick={handleSubmit}
-                disabled={!form.employee}
-                className="px-xl py-md bg-primary text-on-primary text-label-md rounded-lg shadow-md hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Submit Review
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
