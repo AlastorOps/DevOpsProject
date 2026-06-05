@@ -43,6 +43,13 @@ jobs:
     defaults:
       run:
         working-directory: backend
+<<<<<<< HEAD
+=======
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/test
+      SECRET_KEY: ci-only-placeholder-secret-key-32chars
+      ADMIN_PASSWORD: ci-placeholder-admin-password
+>>>>>>> 3a4016af3185dc214f873ba808f24b3185e9d7d6
     steps:
       - uses: actions/checkout@v4
 
@@ -61,7 +68,7 @@ jobs:
   docker:
     name: Build & Push Docker Images
     needs: [build-frontend, build-backend]
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

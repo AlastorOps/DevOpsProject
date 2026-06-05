@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState } from 'react'
 
 const AuthContext = createContext(null)
@@ -41,8 +42,16 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
+  function updateUser(updatedFields) {
+    setUser(prev => {
+      const merged = { ...prev, ...updatedFields }
+      localStorage.setItem('auth_user', JSON.stringify(merged))
+      return merged
+    })
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   )
