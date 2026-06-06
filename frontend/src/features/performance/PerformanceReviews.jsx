@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api } from '../../lib/api.js'
+import { performanceService } from '../../api/performance.js'
+import { employeeService } from '../../api/employees.js'
+import { departmentService } from '../../api/departments.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 import EmployeeCombobox from '../../components/ui/EmployeeCombobox.jsx'
 
@@ -34,8 +36,10 @@ export default function PerformanceReviews() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ page, limit, ...(search && { search }), ...(filterDept && { dept: filterDept }), ...(filterRating && { rating: filterRating }) })
-      const [rRes, sRes] = await Promise.all([api.get(`/performance?${params}`), api.get('/performance/stats')])
+      const [rRes, sRes] = await Promise.all([
+        performanceService.list({ page, limit, search, dept: filterDept, rating: filterRating }),
+        performanceService.stats(),
+      ])
       if (rRes.ok) { const d = await rRes.json(); setReviews(d.reviews || []); setTotal(d.total || 0) }
       if (sRes.ok) setStats(await sRes.json())
     } catch { /* ignore */ }
@@ -44,7 +48,7 @@ export default function PerformanceReviews() {
 
   const fetchMeta = useCallback(async () => {
     try {
-      const [eRes, dRes] = await Promise.all([api.get('/employees?limit=500'), api.get('/departments?limit=100')])
+      const [eRes, dRes] = await Promise.all([employeeService.list({ limit: 500 }), departmentService.list({ limit: 100 })])
       if (eRes.ok) { const d = await eRes.json(); setEmployees(d.employees || []) }
       if (dRes.ok) { const d = await dRes.json(); setDepartments(d.departments || []) }
     } catch { /* ignore */ }
@@ -59,7 +63,7 @@ export default function PerformanceReviews() {
     if (!form.employee_id) { showToast('Please select an employee.'); return }
     setSaving(true)
     try {
-      const res = await api.post('/performance', {
+      const res = await performanceService.create({
         employee_id: form.employee_id,
         cycle: form.cycle,
         stars: Number(form.stars),

@@ -1,25 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
-
-const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
-
-function authFetch(path, options = {}) {
-  const token = localStorage.getItem('access_token')
-  return fetch(`${BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...options.headers,
-    },
-  }).then(async res => {
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.detail ?? 'Request failed')
-    }
-    return res.status === 204 ? null : res.json()
-  })
-}
+import { profileService } from '../../api/users.js'
+import { client } from '../../api/client.js'
 
 function formatDate(val) {
   if (!val) return '—'
@@ -53,12 +35,12 @@ export default function PersonalProfile() {
   useEffect(() => {
     async function load() {
       try {
-        const p = await authFetch('/users/profile/me')
+        const p = await profileService.get()
         setProfile(p)
         if (p.employee_id) {
           try {
-            const e = await authFetch(`/employees/${p.employee_id}`)
-            setEmployee(e)
+            const eRes = await client.get(`/employees/${p.employee_id}`)
+            if (eRes.ok) setEmployee(await eRes.json())
           } catch {
             // employee record not accessible — skip silently
           }
@@ -83,10 +65,7 @@ export default function PersonalProfile() {
     setEditSaving(true)
     setEditError('')
     try {
-      const updated = await authFetch('/users/profile/me', {
-        method: 'PUT',
-        body: JSON.stringify({ name: editForm.name, email: editForm.email }),
-      })
+      const updated = await profileService.update({ name: editForm.name, email: editForm.email })
       setProfile(updated)
       updateUser({ name: updated.name, email: updated.email })
       setEditOpen(false)
@@ -105,10 +84,7 @@ export default function PersonalProfile() {
     }
     setPwStatus('loading')
     try {
-      await authFetch('/users/profile/password', {
-        method: 'PUT',
-        body: JSON.stringify(pwForm),
-      })
+      await profileService.changePassword(pwForm)
       setPwStatus('success')
       setPwForm({ current_password: '', new_password: '', confirm_password: '' })
     } catch (err) {

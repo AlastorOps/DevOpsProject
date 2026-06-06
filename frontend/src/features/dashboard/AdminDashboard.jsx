@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api } from '../../lib/api.js'
+import { dashboardService } from '../../api/dashboard.js'
+import { employeeService } from '../../api/employees.js'
+import { leaveService } from '../../api/leave.js'
 
 const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
 
@@ -21,14 +23,14 @@ export default function AdminDashboard() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await api.get('/dashboard/stats')
+      const res = await dashboardService.adminStats()
       if (res.ok) setStats(await res.json())
     } catch { /* ignore */ }
   }, [])
 
   const fetchChart = useCallback(async (period) => {
     try {
-      const res = await api.get(`/dashboard/charts?period=${period}`)
+      const res = await dashboardService.charts(period)
       if (res.ok) {
         const data = await res.json()
         setChartData(data.data || [])
@@ -39,8 +41,8 @@ export default function AdminDashboard() {
   const fetchRecent = useCallback(async () => {
     try {
       const [empRes, leaveRes] = await Promise.all([
-        api.get('/employees?limit=5&page=1'),
-        api.get('/leave?status=Pending&limit=5'),
+        employeeService.list({ limit: 5, page: 1 }),
+        leaveService.list({ status: 'Pending', limit: 5 }),
       ])
       if (empRes.ok) {
         const d = await empRes.json()
@@ -62,7 +64,7 @@ export default function AdminDashboard() {
 
   const handleLeaveAction = async (leave, action) => {
     try {
-      const res = await api.put(`/leave/${leave.id}/${action === 'Approve' ? 'approve' : 'reject'}`, {})
+      const res = await (action === 'Approve' ? leaveService.approve(leave.id) : leaveService.reject(leave.id))
       if (res.ok) {
         setLeaveRequests(prev => prev.filter(r => r.id !== leave.id))
         showToast(`Leave for ${leave.employee?.name} ${action === 'Approve' ? 'approved' : 'rejected'}.`, action === 'Approve' ? 'success' : 'error')

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api } from '../../lib/api.js'
+import { rolesService } from '../../api/roles.js'
 
 const modules = [
   { icon: 'dashboard', title: 'Dashboard Module', cols: 'grid-cols-1 md:grid-cols-2', perms: [
@@ -51,33 +51,40 @@ export default function RolesPermissions() {
   const [nameError, setNameError]       = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [saving, setSaving]             = useState(false)
+  const [deleting, setDeleting]         = useState(false)
 
   const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3000) }
 
   const fetchRoles = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await api.get('/roles')
+      const res = await rolesService.list()
       if (res.ok) {
         const data = await res.json()
         setRoles(data)
-        if (data.length > 0 && !activeRole) {
-          setActiveRole(data[0].name)
-          const perms = roleToPerms(data[0])
-          setPermissions(prev => ({ ...prev, [data[0].name]: perms }))
-          setSavedPerms(prev => ({ ...prev, [data[0].name]: perms }))
+        if (data.length > 0) {
+          setActiveRole(prev => {
+            if (prev !== null && data.some(r => r.name === prev)) return prev
+            const first = data[0]
+            const perms = roleToPerms(first)
+            setPermissions(p => ({ ...p, [first.name]: perms }))
+            setSavedPerms(p => ({ ...p, [first.name]: perms }))
+            return first.name
+          })
+        } else {
+          setActiveRole(null)
         }
       }
     } catch { /* ignore */ }
     setLoading(false)
-  }, [activeRole])
+  }, [])
 
   useEffect(() => { fetchRoles() }, [fetchRoles])
 
   const loadRolePerms = async (roleName) => {
-    if (permissions[roleName]) return
+    if (roleName in permissions) return
     try {
-      const res = await api.get(`/roles/${encodeURIComponent(roleName)}/permissions`)
+      const res = await rolesService.getPermissions(roleName)
       if (res.ok) {
         const data = await res.json()
         const perms = roleToPerms(data)
@@ -105,7 +112,7 @@ export default function RolesPermissions() {
     setSaving(true)
     try {
       const activePerms = permissions[activeRole] ?? emptyPerms()
-      const res = await api.put(`/roles/${encodeURIComponent(activeRole)}`, { permissions: activePerms })
+      const res = await rolesService.updatePermissions(activeRole, { permissions: activePerms })
       if (res.ok) {
         showToast(`Permissions saved for "${activeRole}".`)
         setSavedPerms(prev => ({ ...prev, [activeRole]: { ...activePerms } }))
@@ -127,13 +134,12 @@ export default function RolesPermissions() {
     const trimmed = newName.trim()
     if (!trimmed) { setNameError('Role name is required.'); return }
     try {
-      const res = await api.post('/roles', { name: trimmed, description: newDesc.trim() || 'Custom role' })
+      const res = await rolesService.create({ name: trimmed, description: newDesc.trim() || 'Custom role' })
       if (res.ok || res.status === 201) {
         showToast(`Role "${trimmed}" created.`)
         setShowModal(false); setNewName(''); setNewDesc(''); setNameError('')
-        const perms = emptyPerms()
-        setPermissions(prev => ({ ...prev, [trimmed]: perms }))
-        setSavedPerms(prev => ({ ...prev, [trimmed]: perms }))
+        setPermissions(prev => ({ ...prev, [trimmed]: emptyPerms() }))
+        setSavedPerms(prev => ({ ...prev, [trimmed]: emptyPerms() }))
         setActiveRole(trimmed)
         await fetchRoles()
       } else {
@@ -145,10 +151,13 @@ export default function RolesPermissions() {
 
   const handleDeleteRole = async () => {
     if (!deleteTarget) return
+    setDeleting(true)
     try {
-      const res = await api.delete(`/roles/${encodeURIComponent(deleteTarget)}`)
+      const res = await rolesService.remove(deleteTarget)
       if (res.ok || res.status === 204) {
         showToast(`Role "${deleteTarget}" deleted.`, 'error')
+        setPermissions(prev => { const n = { ...prev }; delete n[deleteTarget]; return n })
+        setSavedPerms(prev => { const n = { ...prev }; delete n[deleteTarget]; return n })
         setDeleteTarget(null)
         if (activeRole === deleteTarget) setActiveRole(null)
         await fetchRoles()
@@ -157,10 +166,13 @@ export default function RolesPermissions() {
         showToast(err.detail || 'Delete failed.', 'error')
       }
     } catch { showToast('Network error.', 'error') }
+    setDeleting(false)
   }
 
-  const activePerms = activeRole ? (permissions[activeRole] ?? emptyPerms()) : emptyPerms()
-  const enabledCount = Object.values(activePerms).filter(Boolean).length
+  const activeRoleObj  = roles.find(r => r.name === activeRole) ?? null
+  const canDeleteActive = activeRoleObj && !activeRoleObj.is_system && roles.length > 1
+  const activePerms    = activeRole ? (permissions[activeRole] ?? emptyPerms()) : emptyPerms()
+  const enabledCount   = Object.values(activePerms).filter(Boolean).length
 
   return (
     <div className="p-margin-mobile md:p-margin-desktop">
@@ -171,6 +183,7 @@ export default function RolesPermissions() {
         </div>
       )}
 
+      {/* Create Role Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-on-background/40 backdrop-blur-sm flex items-center justify-center p-margin-mobile">
           <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-xl shadow-2xl w-full max-w-md">
@@ -194,17 +207,25 @@ export default function RolesPermissions() {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 bg-on-background/40 backdrop-blur-sm flex items-center justify-center p-margin-mobile">
           <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-xl shadow-2xl max-w-md w-full">
             <div className="flex items-center gap-md mb-md">
-              <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center shrink-0"><span className="material-symbols-outlined text-error">warning</span></div>
+              <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-error">warning</span>
+              </div>
               <h3 className="text-headline-md text-on-surface">Delete Role?</h3>
             </div>
-            <p className="text-body-md text-on-surface-variant mb-xl">Delete <strong>"{deleteTarget}"</strong>? All permissions will be removed.</p>
+            <p className="text-body-md text-on-surface-variant mb-xl">
+              Delete <strong>"{deleteTarget}"</strong>? All assigned permissions will be permanently removed.
+            </p>
             <div className="flex gap-sm justify-end">
-              <button onClick={() => setDeleteTarget(null)} className="px-lg py-sm bg-surface-container border border-outline-variant text-on-surface rounded-lg text-label-md">Cancel</button>
-              <button onClick={handleDeleteRole} className="px-lg py-sm bg-error text-on-error rounded-lg text-label-md hover:opacity-90">Delete Role</button>
+              <button onClick={() => setDeleteTarget(null)} disabled={deleting} className="px-lg py-sm bg-surface-container border border-outline-variant text-on-surface rounded-lg text-label-md disabled:opacity-50">Cancel</button>
+              <button onClick={handleDeleteRole} disabled={deleting} className="px-lg py-sm bg-error text-on-error rounded-lg text-label-md hover:opacity-90 disabled:opacity-50 flex items-center gap-sm">
+                {deleting && <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>}
+                {deleting ? 'Deleting…' : 'Delete Role'}
+              </button>
             </div>
           </div>
         </div>
@@ -235,15 +256,28 @@ export default function RolesPermissions() {
               ) : (
                 <div className="flex flex-col divide-y divide-outline-variant">
                   {roles.map(role => (
-                    <div key={role.name} className={`flex items-center justify-between p-lg transition-all cursor-pointer group ${activeRole === role.name ? 'bg-surface-container-low border-r-4 border-primary' : 'hover:bg-surface-container-low'}`} onClick={() => handleSelectRole(role.name)}>
+                    <div
+                      key={role.name}
+                      className={`flex items-center justify-between p-lg transition-all cursor-pointer group ${activeRole === role.name ? 'bg-surface-container-low border-r-4 border-primary' : 'hover:bg-surface-container-low'}`}
+                      onClick={() => handleSelectRole(role.name)}
+                    >
                       <div className="flex flex-col min-w-0 pr-sm flex-1">
-                        <span className={`text-body-md font-bold truncate ${activeRole === role.name ? 'text-primary' : 'text-on-surface'}`}>{role.name}</span>
+                        <div className="flex items-center gap-xs">
+                          <span className={`text-body-md font-bold truncate ${activeRole === role.name ? 'text-primary' : 'text-on-surface'}`}>{role.name}</span>
+                          {role.is_system && (
+                            <span className="text-label-xs bg-surface-variant text-on-surface-variant px-xs py-[2px] rounded-full shrink-0">system</span>
+                          )}
+                        </div>
                         <span className="text-label-sm text-on-surface-variant truncate">{role.description ?? ''}</span>
                       </div>
                       <div className="flex items-center gap-xs shrink-0">
                         <span className={`material-symbols-outlined ${activeRole === role.name ? 'text-primary' : 'text-outline group-hover:text-on-surface'} transition-all`}>chevron_right</span>
                         {!role.is_system && roles.length > 1 && (
-                          <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(role.name) }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-error-container/20 rounded-lg text-error transition-all">
+                          <button
+                            onClick={e => { e.stopPropagation(); setDeleteTarget(role.name) }}
+                            className="p-1 rounded-lg text-error hover:bg-error/10 transition-all"
+                            title="Delete role"
+                          >
                             <span className="material-symbols-outlined text-[18px]">delete</span>
                           </button>
                         )}
@@ -276,8 +310,17 @@ export default function RolesPermissions() {
                     <p className="text-label-sm text-secondary">{enabledCount} of {allPerms.length} permissions enabled</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-sm">
-                  <button onClick={handleReset} className="px-lg py-md rounded-lg text-outline text-label-md border border-outline-variant hover:bg-surface-container active:scale-95 transition-all">Reset</button>
+                <div className="flex items-center gap-sm flex-wrap">
+                  {canDeleteActive && (
+                    <button
+                      onClick={() => setDeleteTarget(activeRole)}
+                      className="px-lg py-md rounded-lg text-error text-label-md border border-error/30 hover:bg-error/10 active:scale-95 transition-all flex items-center gap-xs"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                      Delete Role
+                    </button>
+                  )}
+                  <button onClick={handleReset} disabled={!activeRole} className="px-lg py-md rounded-lg text-outline text-label-md border border-outline-variant hover:bg-surface-container active:scale-95 transition-all disabled:opacity-40">Reset</button>
                   <button onClick={handleSave} disabled={saving || !activeRole} className="bg-primary text-on-primary px-xl py-md rounded-lg text-label-md shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
                 </div>
               </div>
@@ -285,7 +328,9 @@ export default function RolesPermissions() {
                 {modules.map(mod => (
                   <div key={mod.title}>
                     <div className="flex items-center gap-md mb-md">
-                      <div className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary"><span className="material-symbols-outlined">{mod.icon}</span></div>
+                      <div className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+                        <span className="material-symbols-outlined">{mod.icon}</span>
+                      </div>
                       <h4 className="text-headline-md text-on-surface">{mod.title}</h4>
                     </div>
                     <div className={`grid ${mod.cols} gap-md ml-14`}>
@@ -293,8 +338,8 @@ export default function RolesPermissions() {
                         const k = key(mod.title, perm.label)
                         const checked = activePerms[k] ?? false
                         return (
-                          <label key={perm.label} className={`flex items-start gap-md p-md rounded-lg border cursor-pointer transition-all ${checked ? 'border-primary/40 bg-primary/5' : 'border-outline-variant hover:bg-surface-container-low'}`}>
-                            <input checked={checked} onChange={() => togglePerm(mod.title, perm.label)} className="mt-1 w-5 h-5 rounded border-outline text-primary focus:ring-primary cursor-pointer" type="checkbox" />
+                          <label key={perm.label} className={`flex items-start gap-md p-md rounded-lg border cursor-pointer transition-all ${checked ? 'border-primary/40 bg-primary/5' : 'border-outline-variant hover:bg-surface-container-low'} ${!activeRole ? 'pointer-events-none opacity-40' : ''}`}>
+                            <input checked={checked} onChange={() => togglePerm(mod.title, perm.label)} disabled={!activeRole} className="mt-1 w-5 h-5 rounded border-outline text-primary focus:ring-primary cursor-pointer" type="checkbox" />
                             <div>
                               <p className={`font-bold text-body-md ${checked ? 'text-primary' : ''}`}>{perm.label}</p>
                               <p className="text-label-sm text-on-surface-variant">{perm.desc}</p>

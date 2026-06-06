@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { api } from '../../lib/api.js'
+import { reportsService } from '../../api/reports.js'
+import { departmentService } from '../../api/departments.js'
 
 const REPORT_ICONS = {
   headcount:   'group',
@@ -25,7 +26,7 @@ export default function SystemReports() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [rRes, dRes] = await Promise.all([api.get('/reports'), api.get('/departments?limit=100')])
+        const [rRes, dRes] = await Promise.all([reportsService.listTypes(), departmentService.list({ limit: 100 })])
         if (rRes.ok) setReportTypes(await rRes.json())
         if (dRes.ok) { const d = await dRes.json(); setDepartments(d.departments || []) }
       } catch { /* ignore */ }
@@ -39,8 +40,7 @@ export default function SystemReports() {
     setLoading(true)
     setReportData(null)
     try {
-      const params = new URLSearchParams({ report_type: selectedType.id, ...(deptFilter && { dept_filter: deptFilter }), ...(periodFilter && { period_filter: periodFilter }) })
-      const res = await api.post(`/reports/generate?${params}`, {})
+      const res = await reportsService.generate({ reportType: selectedType.id, deptFilter, periodFilter })
       if (res.ok) setReportData(await res.json())
       else { const err = await res.json().catch(() => ({})); showToast(err.detail || 'Generation failed.', 'error') }
     } catch { showToast('Network error.', 'error') }

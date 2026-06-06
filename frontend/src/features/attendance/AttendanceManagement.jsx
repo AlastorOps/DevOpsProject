@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api } from '../../lib/api.js'
+import { attendanceService } from '../../api/attendance.js'
+import { employeeService } from '../../api/employees.js'
+import { departmentService } from '../../api/departments.js'
 import EmployeeCombobox from '../../components/ui/EmployeeCombobox.jsx'
 
 const statusStyle = {
@@ -34,7 +36,7 @@ export default function AttendanceManagement() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await api.get(`/attendance/stats?target_date=${date}`)
+      const res = await attendanceService.stats(date)
       if (res.ok) setStats(await res.json())
     } catch { /* ignore */ }
   }, [date])
@@ -42,8 +44,7 @@ export default function AttendanceManagement() {
   const fetchRecords = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ page, limit, target_date: date, ...(filterDept && { dept: filterDept }), ...(filterStatus && { status: filterStatus }) })
-      const res = await api.get(`/attendance?${params}`)
+      const res = await attendanceService.list({ page, limit, targetDate: date, dept: filterDept, status: filterStatus })
       if (res.ok) { const d = await res.json(); setRecords(d.records || []); setTotal(d.total || 0) }
     } catch { /* ignore */ }
     setLoading(false)
@@ -52,7 +53,7 @@ export default function AttendanceManagement() {
   const fetchEmployees = useCallback(async () => {
     setEmpLoading(true)
     try {
-      const [eRes, dRes] = await Promise.all([api.get('/employees?limit=500'), api.get('/departments?limit=100')])
+      const [eRes, dRes] = await Promise.all([employeeService.list({ limit: 500 }), departmentService.list({ limit: 100 })])
       if (eRes.ok) { const d = await eRes.json(); setEmployees(d.employees || []) }
       else showToast('Failed to load employee list.', 'error')
       if (dRes.ok) { const d = await dRes.json(); setDepartments(d.departments || []) }
@@ -75,7 +76,7 @@ export default function AttendanceManagement() {
     if (employees.length === 0) fetchEmployees()
     const fetchMarked = async () => {
       try {
-        const res = await api.get(`/attendance?target_date=${date}&limit=500&page=1`)
+        const res = await attendanceService.list({ targetDate: date, limit: 500, page: 1 })
         if (res.ok) {
           const d = await res.json()
           setMarkedIds(new Set((d.records || []).map(r => r.employee_id)))
@@ -111,7 +112,7 @@ export default function AttendanceManagement() {
         check_in: form.check_in || null,
         check_out: form.check_out || null,
       }
-      const res = await api.post('/attendance', payload)
+      const res = await attendanceService.create(payload)
       if (res.ok || res.status === 201) {
         showToast('Attendance marked.')
         closeModal(); fetchStats(); fetchRecords()

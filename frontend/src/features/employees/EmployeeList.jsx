@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { api } from '../../lib/api.js'
+import { employeeService } from '../../api/employees.js'
+import { departmentService } from '../../api/departments.js'
 
 const statusStyle = {
   Active:     'bg-secondary-container text-on-secondary-container',
@@ -33,8 +34,7 @@ export default function EmployeeList() {
   const fetchEmployees = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ page, limit, search, dept: filterDept, status: filterStatus })
-      const res = await api.get(`/employees?${params}`)
+      const res = await employeeService.list({ page, limit, search, dept: filterDept, status: filterStatus })
       if (res.ok) {
         const d = await res.json()
         setEmployees(d.employees)
@@ -46,7 +46,7 @@ export default function EmployeeList() {
 
   const fetchDepartments = useCallback(async () => {
     try {
-      const res = await api.get('/departments?limit=100')
+      const res = await departmentService.list({ limit: 100 })
       if (res.ok) { const d = await res.json(); setDepartments(d.departments || []) }
     } catch { /* ignore */ }
   }, [])
@@ -73,7 +73,7 @@ export default function EmployeeList() {
   const handleSave = async () => {
     if (!form.name?.trim()) return
     try {
-      const res = await api.put(`/employees/${editEmp.id}`, {
+      const res = await employeeService.update(editEmp.id, {
         name: form.name, phone: form.phone || null, gender: form.gender,
         department_id: form.department_id ? Number(form.department_id) : null,
         status: form.status,
@@ -91,7 +91,7 @@ export default function EmployeeList() {
 
   const handleDelete = async () => {
     try {
-      const res = await api.delete(`/employees/${deleteTarget.id}`)
+      const res = await employeeService.remove(deleteTarget.id)
       if (res.ok || res.status === 204) {
         showToast(`${deleteTarget.name} removed.`, 'error')
         setDeleteTarget(null)

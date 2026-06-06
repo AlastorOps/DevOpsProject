@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { api } from '../../lib/api.js'
+import { leaveService } from '../../api/leave.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 const statusStyle = {
@@ -41,8 +41,8 @@ export default function RequestLeave() {
     const load = async () => {
       try {
         const [bRes, lRes] = await Promise.all([
-          api.get(`/leave/employee/${user.employee_id}/balance`),
-          api.get(`/leave/employee/${user.employee_id}?limit=5`),
+          leaveService.getBalance(user.employee_id),
+          leaveService.listByEmployee(user.employee_id, { limit: 5 }),
         ])
         if (bRes.ok) setBalances(await bRes.json())
         if (lRes.ok) { const d = await lRes.json(); setRecent(d.requests || []) }
@@ -71,20 +71,14 @@ export default function RequestLeave() {
       fd.append('reason', reason)
       if (file) fd.append('document', file)
 
-      const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
-      const token = localStorage.getItem('access_token')
-      const res = await fetch(`${BASE}/leave`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: fd,
-      })
+      const res = await leaveService.submit(fd)
 
       if (res.ok || res.status === 201) {
         showToast(`Leave request submitted for ${days} day${days !== 1 ? 's' : ''}.`)
         setFromDate(''); setToDate(''); setReason(''); setFileName(''); setFile(null)
         const [bRes, lRes] = await Promise.all([
-          api.get(`/leave/employee/${user.employee_id}/balance`),
-          api.get(`/leave/employee/${user.employee_id}?limit=5`),
+          leaveService.getBalance(user.employee_id),
+          leaveService.listByEmployee(user.employee_id, { limit: 5 }),
         ])
         if (bRes.ok) setBalances(await bRes.json())
         if (lRes.ok) { const d = await lRes.json(); setRecent(d.requests || []) }

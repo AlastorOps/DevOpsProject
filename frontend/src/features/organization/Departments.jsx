@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api } from '../../lib/api.js'
+import { departmentService } from '../../api/departments.js'
 
 export default function Departments() {
   const [departments, setDepartments] = useState([])
@@ -22,8 +22,7 @@ export default function Departments() {
   const fetchDepartments = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ limit: 100, search })
-      const res = await api.get(`/departments?${params}`)
+      const res = await departmentService.list({ limit: 100, search })
       if (res.ok) { const d = await res.json(); setDepartments(d.departments || []); setTotal(d.total || 0) }
     } catch { /* ignore */ }
     setLoading(false)
@@ -44,8 +43,8 @@ export default function Departments() {
     try {
       const payload = { name: form.name.trim(), head: form.head || null, budget: form.budget ? Number(form.budget) : null }
       const res = editDept
-        ? await api.put(`/departments/${editDept.id}`, payload)
-        : await api.post('/departments', payload)
+        ? await departmentService.update(editDept.id, payload)
+        : await departmentService.create(payload)
       if (res.ok || res.status === 201) {
         showToast(editDept ? `${form.name} updated.` : `${form.name} created.`)
         closeModal()
@@ -60,7 +59,7 @@ export default function Departments() {
 
   const handleDelete = async () => {
     try {
-      const res = await api.delete(`/departments/${deleteTarget.id}`)
+      const res = await departmentService.remove(deleteTarget.id)
       if (res.ok || res.status === 204) {
         showToast(`${deleteTarget.name} deleted.`, 'error')
         setDeleteTarget(null)

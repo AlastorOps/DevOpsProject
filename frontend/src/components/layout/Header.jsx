@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../context/AuthContext'
-import { api } from '../../lib/api.js'
+import { notificationService } from '../../api/notifications.js'
 
 function initials(name = '') {
   return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
@@ -50,7 +50,7 @@ export default function Header({ onMenuClick }) {
   const fetchNotifications = useCallback(async () => {
     setNotifLoading(true)
     try {
-      const res = await api.get('/notifications')
+      const res = await notificationService.list()
       if (res.ok) {
         const data = await res.json()
         setNotifications(data)
@@ -70,13 +70,13 @@ export default function Header({ onMenuClick }) {
   const markRead = async (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
     setUnreadCount(prev => Math.max(0, prev - 1))
-    try { await api.put(`/notifications/${id}/read`, {}) } catch { /* ignore */ }
+    try { await notificationService.markRead(id) } catch { /* ignore */ }
   }
 
   const markAllRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })))
     setUnreadCount(0)
-    try { await api.put('/notifications/read-all', {}) } catch { /* ignore */ }
+    try { await notificationService.markAllRead() } catch { /* ignore */ }
   }
 
   const iconColor = (n) => {

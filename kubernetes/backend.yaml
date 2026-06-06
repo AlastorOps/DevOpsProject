@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ems-ops-backend
+  namespace: ems-ops
+  labels:
+    app: ems-ops-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ems-ops-backend
+  template:
+    metadata:
+      labels:
+        app: ems-ops-backend
+    spec:
+      containers:
+        - name: backend
+          image: alastorops/employee-management-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ems-ops-secrets
+                  key: DATABASE_URL
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ems-ops-secrets
+                  key: SECRET_KEY
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ems-ops-secrets
+                  key: ADMIN_PASSWORD
+            - name: ALGORITHM
+              value: "HS256"
+            - name: ACCESS_TOKEN_EXPIRE_MINUTES
+              value: "30"
+            - name: REFRESH_TOKEN_EXPIRE_DAYS
+              value: "7"
+            - name: CORS_ORIGINS
+              value: '["http://ems-ops.local","http://localhost:8080"]'
+            - name: UPLOAD_DIR
+              value: "/app/uploads"
+          volumeMounts:
+            - name: upload-storage
+              mountPath: /app/uploads
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: upload-storage
+          persistentVolumeClaim:
+            claimName: ems-ops-uploads-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  # Must match the hostname in frontend/nginx.conf: proxy_pass http://backend:8000/
+  name: backend
+  namespace: ems-ops
+  labels:
+    app: ems-ops-backend
+spec:
+  selector:
+    app: ems-ops-backend
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ems-ops-uploads-pvc
+  namespace: ems-ops
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi

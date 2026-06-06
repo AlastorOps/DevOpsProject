@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api } from '../../lib/api.js'
+import { employeeService } from '../../api/employees.js'
+import { departmentService } from '../../api/departments.js'
+import { positionService } from '../../api/positions.js'
+import { rolesService } from '../../api/roles.js'
 
 const emptyForm = {
   name: '', gender: '', dob: '', phone: '', personal_email: '', address: '',
@@ -27,9 +30,9 @@ export default function AddEmployee() {
     const load = async () => {
       try {
         const [dRes, rRes, eRes] = await Promise.all([
-          api.get('/departments?limit=100'),
-          api.get('/roles'),
-          api.get('/employees?limit=3&page=1'),
+          departmentService.list({ limit: 100 }),
+          rolesService.list(),
+          employeeService.list({ limit: 3, page: 1 }),
         ])
         if (dRes.ok) { const d = await dRes.json(); setDepartments(d.departments || []) }
         if (rRes.ok) setRoles(await rRes.json())
@@ -43,7 +46,7 @@ export default function AddEmployee() {
     if (!form.department_id) { setPositions([]); return }
     const dept = departments.find(d => d.id === Number(form.department_id))
     if (!dept) return
-    api.get(`/positions?dept=${encodeURIComponent(dept.name)}&limit=100`).then(res => {
+    positionService.list({ dept: dept.name, limit: 100 }).then(res => {
       if (res.ok) res.json().then(d => setPositions(d.positions || []))
     })
   }, [form.department_id, departments])
@@ -94,7 +97,7 @@ export default function AddEmployee() {
         user_role: form.user_role,
         account_active: form.account_active,
       }
-      const res = await api.post('/employees', payload)
+      const res = await employeeService.create(payload)
       if (res.ok) {
         showToast(`${form.name} has been registered.`)
         setTimeout(() => navigate('/employees'), 1200)

@@ -75,3 +75,4 @@ kubeconfig
 kubeconfig.*
 *.kubeconfig
 .kube/
+kubernetes/secrets.yaml

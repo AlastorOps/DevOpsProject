@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { api } from '../../lib/api.js'
+import { payrollService } from '../../api/payroll.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 export default function PayslipView() {
@@ -17,16 +17,16 @@ export default function PayslipView() {
       try {
         const id = searchParams.get('id')
         if (id) {
-          const res = await api.get(`/payroll/${id}/payslip`)
+          const res = await payrollService.getPayslip(id)
           if (res.ok) { setPayslip(await res.json()); setLoading(false); return }
           setError('Payslip not found.')
         } else if (user?.employee_id) {
-          const listRes = await api.get(`/payroll/employee/${user.employee_id}?limit=1`)
+          const listRes = await payrollService.listByEmployee(user.employee_id, { limit: 1 })
           if (listRes.ok) {
             const d = await listRes.json()
             if (d.records?.length > 0) {
               const rec = d.records[0]
-              const slipRes = await api.get(`/payroll/${rec.id}/payslip`)
+              const slipRes = await payrollService.getPayslip(rec.id)
               if (slipRes.ok) { setPayslip(await slipRes.json()); setLoading(false); return }
             }
           }

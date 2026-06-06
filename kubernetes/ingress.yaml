@@ -1,20 +1,21 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: EMS-Ops-frontend-ingress
-  namespace: EMS-Ops
+  name: ems-ops-ingress
+  namespace: ems-ops
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
 spec:
   ingressClassName: nginx
   rules:
-    - host: EMS-Ops.local  # Replace with your actual domain
+    - host: ems-ops.local  # Replace with your actual domain
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: EMS-Ops-frontend-svc
+                name: ems-ops-frontend-svc
                 port:
                   number: 80

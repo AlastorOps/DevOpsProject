@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api } from '../../lib/api.js'
+import { dashboardService } from '../../api/dashboard.js'
+import { attendanceService } from '../../api/attendance.js'
+import { leaveService } from '../../api/leave.js'
+import { notificationService } from '../../api/notifications.js'
 
 const statusStyle = {
   'On Time': 'bg-secondary-container text-on-secondary-container',
@@ -25,15 +28,15 @@ export default function EmployeeDashboard() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await api.get('/my-dashboard/stats')
+        const res = await dashboardService.employeeStats()
         if (res.ok) {
           const d = await res.json()
           setData(d)
 
           if (d.employee?.id) {
             const [attRes, leaveRes] = await Promise.all([
-              api.get(`/attendance/employee/${d.employee.id}?limit=3`),
-              api.get(`/leave/employee/${d.employee.id}?limit=5`),
+              attendanceService.listByEmployee(d.employee.id, { limit: 3 }),
+              leaveService.listByEmployee(d.employee.id, { limit: 5 }),
             ])
             if (attRes.ok) { const a = await attRes.json(); setAttendanceLogs(a.records || []) }
             if (leaveRes.ok) { const l = await leaveRes.json(); setRecentLeave(l.requests || []) }
@@ -46,7 +49,7 @@ export default function EmployeeDashboard() {
   }, [])
 
   const markNotificationRead = async (id) => {
-    await api.put(`/notifications/${id}/read`, {})
+    await notificationService.markRead(id)
     setData(prev => prev ? {
       ...prev,
       notifications: prev.notifications.map(n => n.id === id ? { ...n, read: true } : n),

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api } from '../../lib/api.js'
+import { leaveService } from '../../api/leave.js'
 
 const statusStyle = {
   Pending:  'bg-tertiary-fixed text-on-tertiary-fixed-variant',
@@ -23,8 +23,7 @@ export default function LeaveManagement() {
   const fetchRequests = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ page, limit, ...(filterType && { leave_type: filterType }), ...(filterStatus && { status: filterStatus }) })
-      const res = await api.get(`/leave?${params}`)
+      const res = await leaveService.list({ page, limit, leaveType: filterType, status: filterStatus })
       if (res.ok) { const d = await res.json(); setRequests(d.requests || []); setTotal(d.total || 0) }
     } catch { /* ignore */ }
     setLoading(false)
@@ -34,7 +33,7 @@ export default function LeaveManagement() {
 
   const handleAction = async (req, action) => {
     try {
-      const res = await api.put(`/leave/${req.id}/${action}`, {})
+      const res = await (action === 'approve' ? leaveService.approve(req.id) : leaveService.reject(req.id))
       if (res.ok) {
         const newStatus = action === 'approve' ? 'Approved' : 'Rejected'
         showToast(`Leave for ${req.employee?.name} ${newStatus.toLowerCase()}.`, action === 'reject' ? 'error' : 'success')
