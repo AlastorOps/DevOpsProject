@@ -89,7 +89,10 @@ export default function EmployeeDetail() {
         <div className="h-24 bg-primary/10"></div>
         <div className="px-xl pb-xl -mt-12 flex flex-col md:flex-row md:items-end justify-between gap-md">
           <div className="flex flex-col sm:flex-row sm:items-end gap-lg">
-            <div className="w-24 h-24 rounded-xl bg-primary flex items-center justify-center text-on-primary font-bold text-2xl border-4 border-surface-container-lowest shadow-md">{initials}</div>
+            {employee.photo_path
+              ? <img src={`/uploads/${employee.photo_path}`} alt={employee.name} className="w-24 h-24 rounded-xl object-cover border-4 border-surface-container-lowest shadow-md" />
+              : <div className="w-24 h-24 rounded-xl bg-primary flex items-center justify-center text-on-primary font-bold text-2xl border-4 border-surface-container-lowest shadow-md">{initials}</div>
+            }
             <div className="pb-2">
               <h1 className="text-headline-lg font-bold text-on-surface">{employee.name}</h1>
               <p className="text-body-md text-primary">{employee.position?.title ?? '—'}</p>

@@ -16,6 +16,7 @@ const emptyForm = {
 export default function AddEmployee() {
   const [form, setForm]                 = useState(emptyForm)
   const [showPassword, setShowPassword] = useState(false)
+  const [photoFile, setPhotoFile]       = useState(null)
   const [photoPreview, setPhotoPreview] = useState(null)
   const [toast, setToast]               = useState(null)
   const [departments, setDepartments]   = useState([])
@@ -60,11 +61,14 @@ export default function AddEmployee() {
 
   const handlePhoto = (e) => {
     const file = e.target.files[0]
-    if (file) setPhotoPreview(URL.createObjectURL(file))
+    if (file) {
+      setPhotoFile(file)
+      setPhotoPreview(URL.createObjectURL(file))
+    }
   }
 
   const checklist = [
-    { label: 'Personal details collected',      done: !!(form.name && form.personal_email) },
+    { label: 'Personal details collected',      done: !!form.name },
     { label: 'Department assignment confirmed',  done: !!form.department_id },
     { label: 'System account created',           done: !!(form.work_email && form.user_password) },
     { label: 'Equipment request submitted',      done: false },
@@ -73,7 +77,6 @@ export default function AddEmployee() {
 
   const handleSave = async () => {
     if (!form.name.trim()) { showToast('Full name is required.', 'error'); return }
-    if (!form.personal_email.trim()) { showToast('Personal email is required.', 'error'); return }
     if (!form.department_id) { showToast('Please select a department.', 'error'); return }
     if (form.work_email && !form.user_password.trim()) { showToast('Password is required when creating an account.', 'error'); return }
 
@@ -84,7 +87,7 @@ export default function AddEmployee() {
         gender: form.gender || null,
         dob: form.dob || null,
         phone: form.phone || null,
-        personal_email: form.personal_email,
+        personal_email: form.personal_email || null,
         address: form.address || null,
         emp_id: form.emp_id || null,
         department_id: form.department_id ? Number(form.department_id) : null,
@@ -99,6 +102,12 @@ export default function AddEmployee() {
       }
       const res = await employeeService.create(payload)
       if (res.ok) {
+        const data = await res.json()
+        if (photoFile) {
+          const fd = new FormData()
+          fd.append('photo', photoFile)
+          await employeeService.uploadPhoto(data.id, fd)
+        }
         showToast(`${form.name} has been registered.`)
         setTimeout(() => navigate('/employees'), 1200)
       } else {
@@ -177,7 +186,7 @@ export default function AddEmployee() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
               <div className="space-y-xs">
-                <label className="text-label-md text-on-surface-variant ml-xs">Personal Email <span className="text-error">*</span></label>
+                <label className="text-label-md text-on-surface-variant ml-xs">Personal Email</label>
                 <input className="w-full border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded-lg py-md px-md text-body-md outline-none" placeholder="j.doe@example.com" type="email" {...f('personal_email')} />
               </div>
               <div className="space-y-xs">

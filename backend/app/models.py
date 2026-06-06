@@ -63,6 +63,7 @@ class Employee(Base):
     hire_date: Mapped[Optional[date]] = mapped_column(Date)
     employment_type: Mapped[Optional[str]] = mapped_column(String(20))
     salary: Mapped[Optional[Decimal]] = mapped_column(Numeric(15, 2))
+    photo_path: Mapped[Optional[str]] = mapped_column(String(500))
     status: Mapped[str] = mapped_column(String(20), default="Active")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

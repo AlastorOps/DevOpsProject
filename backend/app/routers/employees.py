@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+import os
+from pathlib import Path
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from app.database import get_db
@@ -164,6 +166,31 @@ def update_employee(
         .filter(Employee.id == employee.id)
         .first()
     )
+
+
+@router.post("/{employee_id}/photo")
+async def upload_employee_photo(
+    employee_id: str,
+    photo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_hr),
+):
+    employee = db.query(Employee).filter(Employee.id == employee_id).first()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    upload_dir = Path(os.getenv("UPLOAD_DIR", "uploads")) / "employees"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    ext = Path(photo.filename).suffix.lower() if photo.filename else ".jpg"
+    filename = f"{employee_id}{ext}"
+    content = await photo.read()
+    with open(upload_dir / filename, "wb") as f:
+        f.write(content)
+
+    employee.photo_path = f"employees/{filename}"
+    db.commit()
+    return {"photo_path": employee.photo_path}
 
 
 @router.delete("/{employee_id}", status_code=204)

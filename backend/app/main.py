@@ -69,6 +69,7 @@ async def lifespan(app: FastAPI):
     upload_dirs = [
         os.path.join(settings.upload_dir, "leave_documents"),
         os.path.join(settings.upload_dir, "logos"),
+        os.path.join(settings.upload_dir, "employees"),
     ]
     for d in upload_dirs:
         os.makedirs(d, exist_ok=True)
