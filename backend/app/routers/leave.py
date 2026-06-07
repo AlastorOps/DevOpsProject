@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 from datetime import date as date_type, datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
@@ -15,23 +16,24 @@ from app.config import settings
 router = APIRouter(prefix="/leave", tags=["leave"])
 
 ALLOWED_EXTS = {".pdf", ".jpg", ".jpeg", ".png"}
+
+LEAVE_DEFAULTS = {
+    "Annual Leave": 14,
+    "Sick Leave": 14,
+    "Personal Leave": 5,
+    "Maternity / Paternity Leave": 90,
+    "Emergency Leave": 3,
+}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
 def _generate_leave_id(db: Session) -> str:
     year = datetime.utcnow().year
-    last = (
-        db.query(LeaveRequest.leave_id)
-        .filter(LeaveRequest.leave_id.like(f"LV-{year}-%"))
-        .order_by(LeaveRequest.leave_id.desc())
-        .first()
-    )
-    if not last:
+    rows = db.query(LeaveRequest.leave_id).filter(LeaveRequest.leave_id.like(f"LV-{year}-%")).all()
+    if not rows:
         return f"LV-{year}-0001"
-    try:
-        num = int(last[0].split("-")[2]) + 1
-    except (IndexError, ValueError):
-        num = db.query(LeaveRequest).filter(LeaveRequest.leave_id.like(f"LV-{year}-%")).count() + 1
+    nums = [int(m.group()) for row in rows if (m := re.search(r'\d+$', row[0]))]
+    num = max(nums) + 1 if nums else 1
     return f"LV-{year}-{str(num).zfill(4)}"
 
 
@@ -156,6 +158,13 @@ def approve_leave(
 
     if balance:
         balance.used = balance.used + leave.days
+    else:
+        db.add(LeaveBalance(
+            employee_id=leave.employee_id,
+            leave_type=leave.leave_type,
+            total=LEAVE_DEFAULTS.get(leave.leave_type, 0),
+            used=leave.days,
+        ))
 
     _notify_user(
         db, leave.employee_id,

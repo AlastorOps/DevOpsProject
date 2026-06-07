@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../context/AuthContext'
 import { notificationService } from '../../api/notifications.js'
+import { client, getToken } from '../../api/client.js'
 
 function initials(name = '') {
   return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
@@ -60,12 +61,40 @@ export default function Header({ onMenuClick }) {
     setNotifLoading(false)
   }, [])
 
+  // Initial load of existing notifications
+  useEffect(() => { fetchNotifications() }, [fetchNotifications])
+
+  // SSE for real-time new notifications
   useEffect(() => {
-    fetchNotifications()
-    // poll every 60 s so the badge stays fresh without a page reload
-    const interval = setInterval(fetchNotifications, 60_000)
-    return () => clearInterval(interval)
-  }, [fetchNotifications])
+    const token = getToken()
+    if (!token) return
+
+    let es
+    let retryTimer
+
+    const connect = () => {
+      es = new EventSource(`${client.BASE}/notifications/stream?token=${encodeURIComponent(token)}`)
+
+      es.onmessage = (e) => {
+        const incoming = JSON.parse(e.data)
+        setNotifications(prev => {
+          const existing = new Set(prev.map(n => n.id))
+          const fresh = incoming.filter(n => !existing.has(n.id))
+          if (!fresh.length) return prev
+          return [...fresh, ...prev]
+        })
+        setUnreadCount(prev => prev + incoming.filter(n => !n.read).length)
+      }
+
+      es.onerror = () => {
+        es.close()
+        retryTimer = setTimeout(connect, 5000)
+      }
+    }
+
+    connect()
+    return () => { es?.close(); clearTimeout(retryTimer) }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const markRead = async (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))

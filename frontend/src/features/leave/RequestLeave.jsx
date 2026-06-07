@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { leaveService } from '../../api/leave.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 
@@ -20,6 +20,7 @@ const calcDays = (from, to) => {
 
 export default function RequestLeave() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [balances, setBalances]     = useState([])
   const [recent, setRecent]         = useState([])
   const [leaveType, setLeaveType]   = useState('Annual Leave')
@@ -75,13 +76,7 @@ export default function RequestLeave() {
 
       if (res.ok || res.status === 201) {
         showToast(`Leave request submitted for ${days} day${days !== 1 ? 's' : ''}.`)
-        setFromDate(''); setToDate(''); setReason(''); setFileName(''); setFile(null)
-        const [bRes, lRes] = await Promise.all([
-          leaveService.getBalance(user.employee_id),
-          leaveService.listByEmployee(user.employee_id, { limit: 5 }),
-        ])
-        if (bRes.ok) setBalances(await bRes.json())
-        if (lRes.ok) { const d = await lRes.json(); setRecent(d.requests || []) }
+        setTimeout(() => navigate('/my-dashboard'), 1200)
       } else {
         const err = await res.json().catch(() => ({}))
         showToast(err.detail || 'Submission failed.', 'error')
