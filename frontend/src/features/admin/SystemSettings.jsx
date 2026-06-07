@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTheme } from '../../hooks/useTheme.js'
-import { api } from '../../lib/api.js'
-
-const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
+import { settingsService } from '../../api/settings.js'
+import { client } from '../../api/client.js'
 
 export default function SystemSettings() {
   const [toast, setToast]               = useState(null)
@@ -24,11 +23,11 @@ export default function SystemSettings() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await api.get('/settings')
+        const res = await settingsService.get()
         if (res.ok) {
           const d = await res.json()
           setSettings(d)
-          if (d.logo_path) setLogoPreview(`${BASE}/uploads/logos/${d.logo_path.split('/').pop()}`)
+          if (d.logo_path) setLogoPreview(`${client.BASE}/uploads/logos/${d.logo_path.split('/').pop()}`)
         }
       } catch { /* ignore */ }
       setLoading(false)
@@ -39,7 +38,7 @@ export default function SystemSettings() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const res = await api.put('/settings', {
+      const res = await settingsService.update({
         org_name: settings.org_name || null,
         reg_number: settings.reg_number || null,
         headquarters: settings.headquarters || null,
@@ -60,15 +59,8 @@ export default function SystemSettings() {
     const file = e.target.files[0]
     if (!file) return
     setLogoPreview(URL.createObjectURL(file))
-    const fd = new FormData()
-    fd.append('logo', file)
-    const token = localStorage.getItem('access_token')
     try {
-      const res = await fetch(`${BASE}/settings/logo`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: fd,
-      })
+      const res = await settingsService.uploadLogo(file)
       if (res.ok) showToast('Logo updated.')
       else showToast('Logo upload failed.', 'error')
     } catch { showToast('Network error.', 'error') }
@@ -77,7 +69,7 @@ export default function SystemSettings() {
   const handleReset = async () => {
     setShowResetConfirm(false)
     try {
-      const res = await api.post('/settings/reset', {})
+      const res = await settingsService.reset()
       if (res.ok || res.status === 204) showToast('All system data has been reset.', 'error')
       else { const err = await res.json().catch(() => ({})); showToast(err.detail || 'Reset failed.', 'error') }
     } catch { showToast('Network error.', 'error') }

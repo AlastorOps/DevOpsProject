@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { api } from '../../lib/api.js'
+import { usersService } from '../../api/users.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 const roleStyle = {
@@ -40,8 +40,7 @@ export default function UserManagement() {
   const fetchUsers = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ page, limit, ...(search && { search }), ...(roleFilter && { role: roleFilter }), ...(statusFilter && { status: statusFilter }) })
-      const res = await api.get(`/users?${params}`)
+      const res = await usersService.list({ page, limit, search, role: roleFilter, status: statusFilter })
       if (res.ok) { const d = await res.json(); setUsers(d.users || []); setTotal(d.total || 0) }
     } catch { /* ignore */ }
     setLoading(false)
@@ -69,10 +68,9 @@ export default function UserManagement() {
     try {
       let res
       if (editingUser) {
-        const payload = { name: form.name, email: form.email, role: form.role, status: form.status }
-        res = await api.put(`/users/${editingUser.id}`, payload)
+        res = await usersService.update(editingUser.id, { name: form.name, email: form.email, role: form.role, status: form.status })
       } else {
-        res = await api.post('/users', { name: form.name, email: form.email, password: form.password, role: form.role, status: form.status })
+        res = await usersService.create({ name: form.name, email: form.email, password: form.password, role: form.role, status: form.status })
       }
       if (res.ok || res.status === 201) {
         showToast(editingUser ? `${form.name} updated.` : `User ${form.name} added.`)
@@ -88,7 +86,7 @@ export default function UserManagement() {
   const toggleStatus = async (user) => {
     const next = user.status === 'Active' ? 'Inactive' : 'Active'
     try {
-      const res = await api.put(`/users/${user.id}/status`, { status: next })
+      const res = await usersService.updateStatus(user.id, next)
       if (res.ok) { showToast(`${user.name} is now ${next}.`, next === 'Active' ? 'success' : 'error'); fetchUsers() }
       else { const err = await res.json().catch(() => ({})); showToast(err.detail || 'Failed.', 'error') }
     } catch { showToast('Network error.', 'error') }
@@ -97,7 +95,7 @@ export default function UserManagement() {
   const handleDelete = async () => {
     const user = users.find(u => u.id === deleteId)
     try {
-      const res = await api.delete(`/users/${deleteId}`)
+      const res = await usersService.remove(deleteId)
       if (res.ok || res.status === 204) {
         showToast(`${user?.name} removed.`, 'error'); setDeleteId(null); fetchUsers()
       } else {
@@ -108,9 +106,7 @@ export default function UserManagement() {
 
   const handleExport = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
-      const res = await fetch(`${BASE}/users/export`, { headers: { Authorization: `Bearer ${token}` } })
+      const res = await usersService.export()
       if (!res.ok) { showToast('Export failed.', 'error'); return }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)

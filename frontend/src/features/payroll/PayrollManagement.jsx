@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { api } from '../../lib/api.js'
+import { payrollService } from '../../api/payroll.js'
+import { employeeService } from '../../api/employees.js'
 import EmployeeCombobox from '../../components/ui/EmployeeCombobox.jsx'
 
 const statusStyle = {
@@ -32,10 +33,9 @@ export default function PayrollManagement() {
     setLoading(true)
     try {
       const status = activeTab === 'paid' ? 'Paid' : activeTab === 'pending' ? 'Pending' : ''
-      const params = new URLSearchParams({ page, limit, ...(status && { status }) })
       const [rRes, sRes] = await Promise.all([
-        api.get(`/payroll?${params}`),
-        api.get('/payroll/stats'),
+        payrollService.list({ page, limit, status }),
+        payrollService.stats(),
       ])
       if (rRes.ok) { const d = await rRes.json(); setRecords(d.records || []); setTotal(d.total || 0) }
       if (sRes.ok) setStats(await sRes.json())
@@ -46,7 +46,7 @@ export default function PayrollManagement() {
   const fetchEmployees = useCallback(async () => {
     setEmpLoading(true)
     try {
-      const res = await api.get('/employees?limit=500&status=Active')
+      const res = await employeeService.list({ limit: 500, status: 'Active' })
       if (res.ok) {
         const d = await res.json()
         setEmployees(d.employees || [])
@@ -86,7 +86,7 @@ export default function PayrollManagement() {
         bonus: Number(form.bonus) || 0,
         deductions: Number(form.deductions) || 0,
       }
-      const res = await api.post('/payroll', payload)
+      const res = await payrollService.create(payload)
       if (res.ok || res.status === 201) {
         showToast('Payroll record created.')
         closeModal(); fetchData()
@@ -100,7 +100,7 @@ export default function PayrollManagement() {
 
   const handleApprove = async (record) => {
     try {
-      const res = await api.put(`/payroll/${record.id}/approve`, {})
+      const res = await payrollService.approve(record.id)
       if (res.ok) { showToast(`Payroll for ${record.employee?.name} marked as paid.`); fetchData() }
       else { const err = await res.json().catch(() => ({})); showToast(err.detail || 'Failed.', 'error') }
     } catch { showToast('Network error.', 'error') }

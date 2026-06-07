@@ -1,7 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Badge from '../../components/ui/Badge'
-import { api } from '../../lib/api.js'
+import { employeeService } from '../../api/employees.js'
+import { attendanceService } from '../../api/attendance.js'
+import { leaveService } from '../../api/leave.js'
+import { payrollService } from '../../api/payroll.js'
+import { performanceService } from '../../api/performance.js'
 
 const tabs = ['Profile', 'Attendance', 'Leave', 'Payroll', 'Performance']
 
@@ -20,7 +24,7 @@ export default function EmployeeDetail() {
 
   const fetchEmployee = useCallback(async () => {
     try {
-      const res = await api.get(`/employees/${id}`)
+      const res = await employeeService.get(id)
       if (res.ok) setEmployee(await res.json())
     } catch { /* ignore */ }
   }, [id])
@@ -29,20 +33,20 @@ export default function EmployeeDetail() {
     if (!id) return
     try {
       if (tab === 'Attendance') {
-        const res = await api.get(`/attendance/employee/${id}?limit=20`)
+        const res = await attendanceService.listByEmployee(id, { limit: 20 })
         if (res.ok) { const d = await res.json(); setAttendance(d.records || []) }
       } else if (tab === 'Leave') {
         const [lRes, bRes] = await Promise.all([
-          api.get(`/leave/employee/${id}?limit=20`),
-          api.get(`/leave/employee/${id}/balance`),
+          leaveService.listByEmployee(id, { limit: 20 }),
+          leaveService.getBalance(id),
         ])
         if (lRes.ok) { const d = await lRes.json(); setLeaves(d.requests || []) }
         if (bRes.ok) setLeaveBalance(await bRes.json())
       } else if (tab === 'Payroll') {
-        const res = await api.get(`/payroll/employee/${id}?limit=20`)
+        const res = await payrollService.listByEmployee(id, { limit: 20 })
         if (res.ok) { const d = await res.json(); setPayroll(d.records || []) }
       } else if (tab === 'Performance') {
-        const res = await api.get(`/performance/employee/${id}?limit=20`)
+        const res = await performanceService.listByEmployee(id, { limit: 20 })
         if (res.ok) { const d = await res.json(); setPerformance(d.reviews || []) }
       }
     } catch { /* ignore */ }
@@ -85,7 +89,10 @@ export default function EmployeeDetail() {
         <div className="h-24 bg-primary/10"></div>
         <div className="px-xl pb-xl -mt-12 flex flex-col md:flex-row md:items-end justify-between gap-md">
           <div className="flex flex-col sm:flex-row sm:items-end gap-lg">
-            <div className="w-24 h-24 rounded-xl bg-primary flex items-center justify-center text-on-primary font-bold text-2xl border-4 border-surface-container-lowest shadow-md">{initials}</div>
+            {employee.photo_path
+              ? <img src={`/uploads/${employee.photo_path}`} alt={employee.name} className="w-24 h-24 rounded-xl object-cover border-4 border-surface-container-lowest shadow-md" />
+              : <div className="w-24 h-24 rounded-xl bg-primary flex items-center justify-center text-on-primary font-bold text-2xl border-4 border-surface-container-lowest shadow-md">{initials}</div>
+            }
             <div className="pb-2">
               <h1 className="text-headline-lg font-bold text-on-surface">{employee.name}</h1>
               <p className="text-body-md text-primary">{employee.position?.title ?? '—'}</p>

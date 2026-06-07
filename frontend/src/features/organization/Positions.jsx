@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api } from '../../lib/api.js'
+import { positionService } from '../../api/positions.js'
+import { departmentService } from '../../api/departments.js'
 
 export default function Positions() {
   const [positions, setPositions]     = useState([])
@@ -21,8 +22,10 @@ export default function Positions() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ limit: 100, search, ...(filterDept && { dept: filterDept }), ...(filterLevel && { level: filterLevel }) })
-      const [pRes, dRes] = await Promise.all([api.get(`/positions?${params}`), api.get('/departments?limit=100')])
+      const [pRes, dRes] = await Promise.all([
+        positionService.list({ limit: 100, search, dept: filterDept, level: filterLevel }),
+        departmentService.list({ limit: 100 }),
+      ])
       if (pRes.ok) { const d = await pRes.json(); setPositions(d.positions || []); setTotal(d.total || 0) }
       if (dRes.ok) { const d = await dRes.json(); setDepartments(d.departments || []) }
     } catch { /* ignore */ }
@@ -52,7 +55,7 @@ export default function Positions() {
         headcount: Number(form.headcount) || 0,
         openings: Number(form.openings) || 0,
       }
-      const res = editPos ? await api.put(`/positions/${editPos.id}`, payload) : await api.post('/positions', payload)
+      const res = editPos ? await positionService.update(editPos.id, payload) : await positionService.create(payload)
       if (res.ok || res.status === 201) {
         showToast(editPos ? `${form.title} updated.` : `${form.title} created.`)
         closeModal(); fetchData()
@@ -66,7 +69,7 @@ export default function Positions() {
 
   const handleDelete = async () => {
     try {
-      const res = await api.delete(`/positions/${deleteTarget.id}`)
+      const res = await positionService.remove(deleteTarget.id)
       if (res.ok || res.status === 204) {
         showToast(`${deleteTarget.title} deleted.`, 'error'); setDeleteTarget(null); fetchData()
       } else {

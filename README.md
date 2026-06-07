@@ -1,59 +1,62 @@
 # EMS-Ops — Employee Management System
 
-A full-stack HR and Employee Management System designed to manage employees, departments, attendance, leave requests, payroll, performance reviews, and user access control.
+A full-stack HR and Employee Management System for managing employees, departments, attendance, leave, payroll, performance reviews, and role-based access control.
 
-The platform is built using a modern DevOps-oriented architecture featuring FastAPI, React, PostgreSQL, Docker, Kubernetes, Prometheus, Grafana, and GitHub Actions CI/CD.
-
----
-
-# Features
-
-| Module              | Capabilities                                         |
-| ------------------- | ---------------------------------------------------- |
-| Authentication      | JWT login, refresh tokens, role-based access control |
-| Employee Management | Create, update, view, and deactivate employees       |
-| Organization        | Department and position management                   |
-| Attendance          | Daily attendance tracking and reporting              |
-| Leave Management    | Leave requests, approvals, and balance tracking      |
-| Payroll             | Salary processing and payroll records                |
-| Performance Reviews | Employee performance evaluations                     |
-| User Management     | User accounts and role assignments                   |
-| Profile Management  | Self-service profile updates and password changes    |
-| Roles & Permissions | Configurable access control                          |
-| Dashboard           | Administrative and employee dashboards               |
-| Reports             | System reporting and analytics                       |
-| Settings            | Organization and application settings                |
-| Monitoring          | Prometheus metrics and Grafana dashboards            |
+Built on a modern DevOps architecture: FastAPI · React · PostgreSQL · Docker · Kubernetes · GitHub Actions CI/CD.
 
 ---
 
-# Tech Stack
+## Features
 
-| Layer            | Technology                         |
-| ---------------- | ---------------------------------- |
-| Backend          | FastAPI 0.115, Python 3.12         |
-| Database         | PostgreSQL 16                      |
-| Frontend         | React 19, Vite, Tailwind CSS       |
-| Authentication   | JWT (python-jose + passlib/bcrypt) |
-| ORM              | SQLAlchemy 2.0                     |
-| Validation       | Pydantic v2                        |
-| Containerization | Docker Compose                     |
-| Orchestration    | Kubernetes                         |
-| Monitoring       | Prometheus + Grafana               |
-| CI/CD            | GitHub Actions                     |
+| Module              | Capabilities                                                  |
+| ------------------- | ------------------------------------------------------------- |
+| Authentication      | JWT login, refresh tokens, role-based access control          |
+| Employee Management | Create, update, view, deactivate employees, photo upload      |
+| Organization        | Department and position management                            |
+| Attendance          | Daily check-in/check-out tracking and reporting               |
+| Leave Management    | Leave requests, manager approvals, balance tracking           |
+| Payroll             | Salary processing, payslip generation, approval workflow      |
+| Performance Reviews | Employee evaluations with ratings and cycles                  |
+| User Management     | User accounts, role assignments, status control, CSV export   |
+| Profile Management  | Self-service profile updates and password changes             |
+| Roles & Permissions | Fully configurable module-level access control                |
+| Dashboard           | Admin KPIs and employee self-service dashboard                |
+| Reports             | System reporting and analytics with export                    |
+| Settings            | Organization profile, logo upload, notification preferences   |
+| Monitoring          | Prometheus metrics and Grafana dashboards                     |
 
 ---
 
-# Architecture Overview
+## Tech Stack
 
-```text
-React Frontend
-      │
-      ▼
-FastAPI Backend
-      │
-      ▼
- PostgreSQL
+| Layer            | Technology                              |
+| ---------------- | --------------------------------------- |
+| Backend          | FastAPI 0.115, Python 3.12              |
+| Database         | PostgreSQL 16                           |
+| Frontend         | React 19, Vite, Tailwind CSS            |
+| Authentication   | JWT — python-jose + passlib/bcrypt      |
+| ORM              | SQLAlchemy 2.0 (mapped_column API)      |
+| Validation       | Pydantic v2                             |
+| Containerization | Docker + Docker Compose                 |
+| Orchestration    | Kubernetes (nginx-ingress)              |
+| Monitoring       | Prometheus + Grafana                    |
+| CI/CD            | GitHub Actions                          |
+
+---
+
+## Architecture
+
+```
+Browser
+  │
+  ▼
+React (Vite)  ──npm run dev──►  Vite proxy  ──►  FastAPI :8000
+  │                                                    │
+  │   Docker / Kubernetes                              ▼
+  └──► Nginx :80  ──/api/──►  FastAPI :8000       PostgreSQL :5432
+                                   │
+                                   ▼
+                            /uploads  (static files)
 
 Monitoring:
 Prometheus ──► Grafana
@@ -61,45 +64,55 @@ Prometheus ──► Grafana
 
 ---
 
-# Project Structure
+## Project Structure
 
-```text
+```
 EMS-Ops/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py
-│   │   ├── config.py
-│   │   ├── database.py
-│   │   ├── models.py
-│   │   ├── auth.py
-│   │   ├── dependencies.py
-│   │   ├── routers/
-│   │   └── schemas/
+│   │   ├── main.py               # App entry point, lifespan, static mounts
+│   │   ├── config.py             # Settings from environment
+│   │   ├── database.py           # SQLAlchemy engine + session
+│   │   ├── models.py             # ORM models
+│   │   ├── auth.py               # JWT helpers
+│   │   ├── dependencies.py       # Auth guards (require_admin, require_hr …)
+│   │   ├── routers/              # One file per domain
+│   │   └── schemas/              # Pydantic request/response models
 │   ├── requirements.txt
 │   └── Dockerfile
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── app/
-│   │   ├── components/
-│   │   ├── context/
-│   │   ├── features/
-│   │   └── hooks/
+│   │   ├── api/                  # Centralized service layer (one file per domain)
+│   │   ├── components/           # Shared UI components
+│   │   ├── context/              # AuthContext (JWT + user state)
+│   │   ├── features/             # Page-level components by domain
+│   │   └── lib/                  # Legacy shim (re-exports api client)
+│   ├── nginx.conf                # Nginx reverse-proxy config (Docker)
 │   ├── Dockerfile
 │   └── package.json
 │
+├── database/
+│   └── init/
+│       ├── 01_schema.sql         # Full schema — runs once on empty volume
+│       ├── 02_seed.sql           # Roles, settings, admin account
+│       └── 03_fake_data.sql      # 15 demo employees (password: Employee@123)
+│
 ├── kubernetes/
-│   ├── namespace.yaml
-│   ├── deployment.yaml
-│   ├── service.yaml
-│   └── ingress.yaml
+│   ├── 00-namespace.yaml         # Must be applied first
+│   ├── secrets.yaml              # Base64 credentials — gitignored
+│   ├── database.yaml             # Postgres StatefulSet + Service + PVC
+│   ├── backend.yaml              # FastAPI Deployment + Service + PVC
+│   ├── deployment.yaml           # React/Nginx Deployment
+│   ├── service.yaml              # Frontend ClusterIP Service
+│   └── ingress.yaml              # nginx-ingress → frontend
 │
 ├── monitoring/
 │   ├── prometheus.yml
-│   └── grafana/
+│   └── grafana/dashboards/
 │
 ├── .github/workflows/
-│   └── main.yml
+│   └── main.yml                  # CI/CD pipeline
 │
 ├── docker-compose.yml
 ├── .env.example
@@ -108,84 +121,99 @@ EMS-Ops/
 
 ---
 
-# Prerequisites
+## Prerequisites
 
-Before running the application, install:
-
-* Docker Desktop
-* Docker Compose
-* Node.js 22+
-* npm
-* Python 3.12+
-* PostgreSQL 16 (optional for local development)
+| Tool            | Version  | Notes                          |
+| --------------- | -------- | ------------------------------ |
+| Docker Desktop  | Latest   | Required for all Docker flows  |
+| Node.js         | 22+      | Frontend local dev only        |
+| Python          | 3.12+    | Backend local dev only         |
+| kubectl         | Latest   | Kubernetes deployment only     |
 
 ---
 
-# Quick Start (Docker)
+## Quick Start — Docker Compose
 
-## Clone Repository
+### 1. Clone
 
 ```bash
 git clone <repo-url>
 cd EMS-Ops
 ```
 
-## Configure Environment
+### 2. Create environment file
 
-Create a root `.env` file:
+Create a `.env` file in the project root:
 
 ```env
-POSTGRES_PASSWORD=your-password
-SECRET_KEY=your-secret-key
+POSTGRES_PASSWORD=your-postgres-password
+SECRET_KEY=your-jwt-secret-key
 ADMIN_PASSWORD=Admin@1234
 DOCKER_USERNAME=your-dockerhub-username
 ```
 
-Create `backend/.env`:
+> Generate a strong `SECRET_KEY`:
+> ```bash
+> python -c "import secrets; print(secrets.token_hex(32))"
+> ```
 
-```env
-DATABASE_URL=postgresql://postgres:your-password@db:5432/emsops
-SECRET_KEY=your-secret-key
-ADMIN_PASSWORD=Admin@1234
-```
-
-## Build and Start
+### 3. Build and start
 
 ```bash
-docker compose up --build
+docker-compose up --build -d
+```
+
+On first boot, PostgreSQL automatically runs the init scripts in `database/init/`:
+- Creates all tables
+- Seeds roles, system settings, and the admin account
+- Loads 15 demo employees with fake data
+
+### 4. Open the app
+
+| Service     | URL                        |
+| ----------- | -------------------------- |
+| Frontend    | http://localhost:8080      |
+| Backend API | http://localhost:8000      |
+| Swagger UI  | http://localhost:8000/docs |
+| PostgreSQL  | localhost:5433             |
+
+### 5. Log in
+
+| Role       | Email                   | Password       |
+| ---------- | ----------------------- | -------------- |
+| Admin      | admin@company.com       | *(ADMIN_PASSWORD from .env)* |
+| Any demo employee | *(work email from employee list)* | Employee@123 |
+
+---
+
+## Stopping and Resetting
+
+```bash
+# Stop containers (keeps data)
+docker-compose down
+
+# Stop and delete all data volumes (full reset)
+docker-compose down -v
 ```
 
 ---
 
-## Available Services
+## Database Migrations
 
-| Service     | URL                         |
-| ----------- | --------------------------- |
-| Frontend    | http://localhost:8080       |
-| Backend API | http://localhost:8000       |
-| Swagger UI  | http://localhost:8000/docs  |
-| ReDoc       | http://localhost:8000/redoc |
-| PostgreSQL  | localhost:5433              |
+This project uses `Base.metadata.create_all()` — it creates tables on first boot but does **not** run ALTER TABLE on existing databases.
 
----
-
-## Stop Services
+If you added the `photo_path` column after your database was already created, run this once:
 
 ```bash
-docker compose down
-```
-
-Remove volumes:
-
-```bash
-docker compose down -v
+docker exec ems-db psql -U postgres -d emsops -c \
+  "ALTER TABLE employees ADD COLUMN IF NOT EXISTS photo_path VARCHAR(500);"
 ```
 
 ---
 
-# Local Development
+## Local Development
 
-## Backend
+### Backend
 
 ```bash
 cd backend
@@ -195,277 +223,265 @@ python -m venv .venv
 # Windows
 .venv\Scripts\activate
 
-# Linux/macOS
+# macOS / Linux
 source .venv/bin/activate
 
 pip install -r requirements.txt
+```
 
+Create `backend/.env`:
+
+```env
+DATABASE_URL=postgresql://postgres:your-password@localhost:5433/emsops
+SECRET_KEY=your-secret-key
+ADMIN_PASSWORD=Admin@1234
+CORS_ORIGINS=["http://localhost:5173","http://localhost:8080"]
+UPLOAD_DIR=uploads
+```
+
+Start the backend:
+
+```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-Backend runs on:
-
-```text
-http://localhost:8000
-```
-
----
-
-## Frontend
+### Frontend
 
 ```bash
 cd frontend
-
 npm install
 npm run dev
 ```
 
-Frontend runs on:
+Vite proxies `/api` and `/uploads` to `http://localhost:8000` automatically via `vite.config.js`.
 
-```text
-http://localhost:5173
-```
+Frontend runs at: `http://localhost:5173`
 
 ---
 
-# Environment Variables
+## Environment Variables
 
-## Backend (.env)
+### Root `.env` (Docker Compose)
 
-| Variable                    | Required | Description                  |
-| --------------------------- | -------- | ---------------------------- |
-| DATABASE_URL                | Yes      | PostgreSQL connection string |
-| SECRET_KEY                  | Yes      | JWT signing key              |
-| ADMIN_PASSWORD              | Yes      | Initial admin password       |
-| ALGORITHM                   | No       | JWT algorithm                |
-| ACCESS_TOKEN_EXPIRE_MINUTES | No       | Access token lifetime        |
-| REFRESH_TOKEN_EXPIRE_DAYS   | No       | Refresh token lifetime       |
-| CORS_ORIGINS                | No       | Allowed origins              |
-| UPLOAD_DIR                  | No       | Upload storage directory     |
+| Variable          | Required | Description                       |
+| ----------------- | -------- | --------------------------------- |
+| POSTGRES_PASSWORD | Yes      | PostgreSQL password               |
+| SECRET_KEY        | Yes      | JWT signing key (32+ random chars)|
+| ADMIN_PASSWORD    | Yes      | Initial admin account password    |
+| DOCKER_USERNAME   | No       | Docker Hub username for image tags|
 
----
+### Backend `backend/.env` (local dev)
 
-## Frontend (.env)
+| Variable                    | Required | Description                    |
+| --------------------------- | -------- | ------------------------------ |
+| DATABASE_URL                | Yes      | PostgreSQL connection string   |
+| SECRET_KEY                  | Yes      | JWT signing key                |
+| ADMIN_PASSWORD              | Yes      | Initial admin password         |
+| ALGORITHM                   | No       | Default: HS256                 |
+| ACCESS_TOKEN_EXPIRE_MINUTES | No       | Default: 30                    |
+| REFRESH_TOKEN_EXPIRE_DAYS   | No       | Default: 7                     |
+| CORS_ORIGINS                | No       | JSON array of allowed origins  |
+| UPLOAD_DIR                  | No       | Default: uploads               |
 
-| Variable          | Required | Description     |
-| ----------------- | -------- | --------------- |
-| VITE_API_BASE_URL | No       | Backend API URL |
+### Frontend `.env` (optional)
 
-Example:
-
-```env
-VITE_API_BASE_URL=http://localhost:8000
-```
-
----
-
-# API Overview
-
-Interactive API documentation:
-
-* Swagger UI: `http://localhost:8000/docs`
-* ReDoc: `http://localhost:8000/redoc`
-
-## Core Endpoints
-
-| Method | Endpoint      | Description          |
-| ------ | ------------- | -------------------- |
-| POST   | /auth/login   | User login           |
-| POST   | /auth/refresh | Refresh access token |
-| GET    | /auth/me      | Current user         |
-| GET    | /employees    | Employee list        |
-| POST   | /employees    | Create employee      |
-| GET    | /departments  | Departments          |
-| GET    | /attendance   | Attendance records   |
-| GET    | /leave        | Leave requests       |
-| GET    | /payroll      | Payroll records      |
-| GET    | /performance  | Performance reviews  |
-| GET    | /dashboard    | Dashboard data       |
-| GET    | /reports      | Reports              |
-| GET    | /health       | Health check         |
+| Variable          | Default | Description         |
+| ----------------- | ------- | ------------------- |
+| VITE_API_BASE_URL | /api    | Backend API prefix  |
 
 ---
 
-# Roles & Permissions
+## API Reference
 
-| Role       | Access                              |
-| ---------- | ----------------------------------- |
-| Admin      | Full system access                  |
-| HR Manager | Employees, payroll, leave, reports  |
-| Manager    | Team management and reviews         |
-| Employee   | Personal dashboard and self-service |
+Interactive docs available at runtime:
 
-Default roles are automatically seeded during application startup.
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
 
----
+### Core Endpoints
 
-# CI/CD Pipeline
-
-GitHub Actions pipeline runs on:
-
-```text
-main
-dev
-feature/*
-```
-
-## Frontend CI
-
-```text
-npm ci
-npm run lint
-npm run build
-```
-
-## Backend CI
-
-```text
-pip install -r requirements.txt
-python -c "import app.main"
-```
-
-## Docker Build & Push
-
-Runs only on the `main` branch after successful CI.
-
-Images are pushed with:
-
-```text
-latest
-<git-sha>
-```
+| Method | Endpoint                     | Description              |
+| ------ | ---------------------------- | ------------------------ |
+| POST   | /auth/login                  | Login, returns JWT       |
+| POST   | /auth/refresh                | Refresh access token     |
+| GET    | /auth/me                     | Current user info        |
+| GET    | /employees                   | Paginated employee list  |
+| POST   | /employees                   | Create employee          |
+| POST   | /employees/{id}/photo        | Upload employee photo    |
+| PUT    | /employees/{id}              | Update employee          |
+| DELETE | /employees/{id}              | Delete employee          |
+| GET    | /departments                 | List departments         |
+| GET    | /attendance                  | Attendance records       |
+| GET    | /leave                       | Leave requests           |
+| GET    | /payroll                     | Payroll records          |
+| GET    | /performance                 | Performance reviews      |
+| GET    | /roles                       | List roles               |
+| PUT    | /roles/{name}                | Update role permissions  |
+| GET    | /dashboard/admin-stats       | Admin KPI stats          |
+| GET    | /reports                     | Generate reports         |
+| GET    | /health                      | Health check             |
 
 ---
 
-# Docker Images
+## Roles & Permissions
 
-Example image names:
+| Role       | Access Level                                    |
+| ---------- | ----------------------------------------------- |
+| Admin      | Full system access                              |
+| HR Manager | Employees, payroll, leave, reports, settings    |
+| Manager    | Team view, performance reviews                  |
+| Employee   | Personal dashboard, self-service profile, leave |
 
-```text
-docker.io/<username>/ems-frontend
-docker.io/<username>/ems-backend
-```
-
-Required GitHub Secrets:
-
-| Secret          | Description             |
-| --------------- | ----------------------- |
-| DOCKER_USERNAME | Docker Hub username     |
-| DOCKER_PASSWORD | Docker Hub access token |
+Roles are seeded automatically on startup. Additional custom roles can be created from the **Roles & Permissions** admin page.
 
 ---
 
-# Kubernetes Deployment
+## CI/CD Pipeline
 
-Apply namespace:
+GitHub Actions runs on pushes to `main`, `dev`, and `feature/*` branches.
+
+### Stages
+
+| Stage          | Trigger       | Steps                                        |
+| -------------- | ------------- | -------------------------------------------- |
+| Frontend CI    | All branches  | `npm ci` → lint → build                     |
+| Backend CI     | All branches  | `pip install` → import check                |
+| Docker Build   | `main` only   | Build + push images to Docker Hub           |
+
+### Required GitHub Secrets
+
+| Secret          | Description              |
+| --------------- | ------------------------ |
+| DOCKER_USERNAME | Docker Hub username      |
+| DOCKER_PASSWORD | Docker Hub access token  |
+
+Images are tagged `latest` and `<git-sha>`.
+
+---
+
+## Kubernetes Deployment
+
+### Prerequisites
+
+- A running Kubernetes cluster (Docker Desktop, minikube, or cloud)
+- `nginx-ingress` controller installed
+- `kubectl` configured
+
+### 1. Apply namespace first
 
 ```bash
-kubectl apply -f kubernetes/namespace.yaml
+kubectl apply -f kubernetes/00-namespace.yaml
 ```
 
-Deploy resources:
+### 2. Create secrets
+
+Fill in `kubernetes/secrets.yaml` with base64-encoded values:
+
+```bash
+# Encode a value
+echo -n "your-value" | base64
+```
+
+```bash
+kubectl apply -f kubernetes/secrets.yaml
+```
+
+> `secrets.yaml` is in `.gitignore` — never commit real credentials.
+
+### 3. Deploy everything
 
 ```bash
 kubectl apply -f kubernetes/
 ```
 
-Before deployment, update image references:
+### 4. Initialize the database schema
 
-```yaml
-image: your-dockerhub-username/ems-frontend:latest
+The Kubernetes postgres pod starts empty (no init scripts). Run the schema once:
+
+```bash
+kubectl cp database/init/01_schema.sql ems-ops/ems-ops-db-0:/tmp/01_schema.sql
+kubectl cp database/init/02_seed.sql   ems-ops/ems-ops-db-0:/tmp/02_seed.sql
+
+kubectl exec -n ems-ops ems-ops-db-0 -- psql -U postgres -d emsops -f /tmp/01_schema.sql
+kubectl exec -n ems-ops ems-ops-db-0 -- psql -U postgres -d emsops -f /tmp/02_seed.sql
 ```
 
-Current manifests include:
+### 5. Check status
 
-* Namespace
-* Deployment
-* Service
-* Ingress
-
----
-
-# Monitoring & Logging
-
-## Prometheus
-
-Prometheus scrapes:
-
-```text
-/backend/metrics
-node-exporter
-prometheus
+```bash
+kubectl get all -n ems-ops
 ```
 
-Configuration:
+All pods should show `Running` and `READY 1/1`.
 
-```text
-monitoring/prometheus.yml
+### 6. Access the app
+
+Add to your hosts file (`C:\Windows\System32\drivers\etc\hosts` on Windows):
+
+```
+127.0.0.1  ems-ops.local
 ```
 
----
+Open: `http://ems-ops.local`
 
-## Grafana
+### Teardown
 
-Dashboard location:
+```bash
+# Remove workloads only
+kubectl delete deployment ems-ops-frontend ems-ops-backend -n ems-ops
+kubectl delete statefulset ems-ops-db -n ems-ops
 
-```text
-monitoring/grafana/dashboards/backend.json
-```
-
-Import through:
-
-```text
-Grafana → Dashboards → Import
+# Full teardown
+kubectl delete namespace ems-ops
 ```
 
 ---
 
-# Security
+## Monitoring
 
-* JWT Authentication
-* Password hashing using bcrypt
-* Role-Based Access Control (RBAC)
-* Protected API endpoints
-* Environment-based secrets
-* CORS configuration support
+### Prometheus
 
-Recommended for production:
+Scrape targets configured in `monitoring/prometheus.yml`:
 
-* HTTPS/TLS
-* Reverse proxy (Nginx/Traefik)
-* Secret management solution
-* Database backups
+- `/backend/metrics` — FastAPI application metrics
+- `node-exporter` — host metrics
+- `prometheus` — self-metrics
 
----
+### Grafana
 
-# Known Limitations
+Dashboard file: `monitoring/grafana/dashboards/backend.json`
 
-* No Alembic migration support
-* Limited automated testing
-* Kubernetes backend manifests incomplete
-* Database health checks are basic
-* No centralized logging
-* No token revocation/blacklist system
+Import via: **Grafana → Dashboards → Import → Upload JSON**
 
 ---
 
-# Future Improvements
+## Security Notes
 
-* Alembic database migrations
-* Pytest backend test suite
-* Vitest frontend test suite
-* Full Kubernetes deployment stack
-* PostgreSQL backup automation
-* Centralized logging with ELK/Loki
-* Enhanced RBAC permissions
-* Audit logging
-* Email notifications
-* Multi-tenant support
+- Passwords are hashed with bcrypt (cost factor 12)
+- All API routes require a valid JWT Bearer token except `/auth/login`
+- Role guards enforced server-side (`require_admin`, `require_hr`)
+- CORS restricted to configured origins
+- `secrets.yaml` and all `.env` files are gitignored
+
+**Production checklist:**
+- [ ] Set strong, unique `SECRET_KEY` and `ADMIN_PASSWORD`
+- [ ] Enable HTTPS / TLS termination at the ingress
+- [ ] Use a secrets manager (Vault, AWS Secrets Manager) instead of plain env files
+- [ ] Schedule regular PostgreSQL backups
+- [ ] Restrict CORS to your actual domain
 
 ---
 
-# License
+## Known Limitations
 
-This project is provided for educational and portfolio purposes.
+- No Alembic migration support — schema changes on existing databases require manual `ALTER TABLE`
+- No token revocation / blacklist system
+- No automated test suite (unit or integration)
+- No centralized log aggregation
+- Kubernetes does not auto-seed the database on first deploy
 
-Modify and distribute according to your organization's licensing requirements.
+---
+
+## License
+
+Provided for educational and portfolio purposes. Modify and distribute according to your organization's requirements.

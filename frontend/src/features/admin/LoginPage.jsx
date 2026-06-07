@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../context/AuthContext'
-
-const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
+import { authService } from '../../api/auth.js'
 
 function Modal({ onClose, title, children, maxWidth = 'max-w-md' }) {
   return (
@@ -34,11 +33,7 @@ function ForgotPasswordModal({ onClose }) {
     e.preventDefault()
     setStatus('loading')
     try {
-      const res = await fetch(`${BASE}/auth/forgot-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
+      const res = await authService.forgotPassword(email)
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         throw new Error(err.detail ?? 'Request failed. Please try again.')

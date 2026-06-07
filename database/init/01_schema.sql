@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS employees (
     hire_date       DATE,
     employment_type VARCHAR(20),
     salary          NUMERIC(15, 2),
+    photo_path      VARCHAR(500),
     status          VARCHAR(20)    NOT NULL DEFAULT 'Active',
     created_at      TIMESTAMP      NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMP      NOT NULL DEFAULT NOW()

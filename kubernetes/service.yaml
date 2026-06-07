@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: EMS-Ops-frontend-svc
-  namespace: EMS-Ops
+  name: ems-ops-frontend-svc
+  namespace: ems-ops
   labels:
-    app: EMS-Ops-frontend
+    app: ems-ops-frontend
 spec:
   selector:
-    app: EMS-Ops-frontend
+    app: ems-ops-frontend
   type: ClusterIP
   ports:
     - name: http

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { api } from '../../lib/api.js'
+import { employeeService } from '../../api/employees.js'
+import { departmentService } from '../../api/departments.js'
 
 const statusStyle = {
   Active:     'bg-secondary-container text-on-secondary-container',
@@ -23,6 +24,9 @@ export default function EmployeeList() {
   const [form, setForm]                 = useState({})
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [toast, setToast]               = useState(null)
+  const [activeCount, setActiveCount]     = useState(0)
+  const [onLeaveCount, setOnLeaveCount]   = useState(0)
+  const [inactiveCount, setInactiveCount] = useState(0)
   const limit = 10
 
   const showToast = (message, type = 'success') => {
@@ -33,8 +37,7 @@ export default function EmployeeList() {
   const fetchEmployees = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ page, limit, search, dept: filterDept, status: filterStatus })
-      const res = await api.get(`/employees?${params}`)
+      const res = await employeeService.list({ page, limit, search, dept: filterDept, status: filterStatus })
       if (res.ok) {
         const d = await res.json()
         setEmployees(d.employees)
@@ -46,12 +49,25 @@ export default function EmployeeList() {
 
   const fetchDepartments = useCallback(async () => {
     try {
-      const res = await api.get('/departments?limit=100')
+      const res = await departmentService.list({ limit: 100 })
       if (res.ok) { const d = await res.json(); setDepartments(d.departments || []) }
     } catch { /* ignore */ }
   }, [])
 
-  useEffect(() => { fetchDepartments() }, [fetchDepartments])
+  const fetchCounts = useCallback(async () => {
+    try {
+      const [aRes, lRes, iRes] = await Promise.all([
+        employeeService.list({ limit: 1, status: 'Active' }),
+        employeeService.list({ limit: 1, status: 'On Leave' }),
+        employeeService.list({ limit: 1, status: 'Inactive' }),
+      ])
+      if (aRes.ok) { const d = await aRes.json(); setActiveCount(d.total) }
+      if (lRes.ok) { const d = await lRes.json(); setOnLeaveCount(d.total) }
+      if (iRes.ok) { const d = await iRes.json(); setInactiveCount(d.total) }
+    } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => { fetchDepartments(); fetchCounts() }, [fetchDepartments, fetchCounts])
 
   useEffect(() => {
     const timer = setTimeout(() => fetchEmployees(), search ? 300 : 0)
@@ -73,7 +89,7 @@ export default function EmployeeList() {
   const handleSave = async () => {
     if (!form.name?.trim()) return
     try {
-      const res = await api.put(`/employees/${editEmp.id}`, {
+      const res = await employeeService.update(editEmp.id, {
         name: form.name, phone: form.phone || null, gender: form.gender,
         department_id: form.department_id ? Number(form.department_id) : null,
         status: form.status,
@@ -82,6 +98,7 @@ export default function EmployeeList() {
         showToast(`${form.name} updated.`)
         closeModal()
         fetchEmployees()
+        fetchCounts()
       } else {
         const err = await res.json().catch(() => ({}))
         showToast(err.detail || 'Update failed.', 'error')
@@ -91,11 +108,12 @@ export default function EmployeeList() {
 
   const handleDelete = async () => {
     try {
-      const res = await api.delete(`/employees/${deleteTarget.id}`)
+      const res = await employeeService.remove(deleteTarget.id)
       if (res.ok || res.status === 204) {
         showToast(`${deleteTarget.name} removed.`, 'error')
         setDeleteTarget(null)
         fetchEmployees()
+        fetchCounts()
       } else {
         const err = await res.json().catch(() => ({}))
         showToast(err.detail || 'Delete failed.', 'error')
@@ -106,9 +124,6 @@ export default function EmployeeList() {
   const field = (key) => ({ value: form[key] ?? '', onChange: e => setForm(prev => ({ ...prev, [key]: e.target.value })) })
 
   const totalPages = Math.max(1, Math.ceil(total / limit))
-  const active   = employees.filter(e => e.status === 'Active').length
-  const onLeave  = employees.filter(e => e.status === 'On Leave').length
-  const inactive = employees.filter(e => e.status === 'Inactive').length
 
   return (
     <div className="p-margin-mobile md:p-margin-desktop">
@@ -198,10 +213,10 @@ export default function EmployeeList() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-gutter mb-lg">
         {[
-          { label: 'Total Headcount', val: total,    icon: 'group',        color: 'text-primary bg-primary/10' },
-          { label: 'Active',          val: active,   icon: 'person_check', color: 'text-secondary bg-secondary/10' },
-          { label: 'On Leave',        val: onLeave,  icon: 'event_busy',   color: 'text-tertiary bg-tertiary/10' },
-          { label: 'Inactive',        val: inactive, icon: 'person_off',   color: 'text-error bg-error/10' },
+          { label: 'Total Headcount', val: total,         icon: 'group',        color: 'text-primary bg-primary/10' },
+          { label: 'Active',          val: activeCount,   icon: 'person_check', color: 'text-secondary bg-secondary/10' },
+          { label: 'On Leave',        val: onLeaveCount,  icon: 'event_busy',   color: 'text-tertiary bg-tertiary/10' },
+          { label: 'Inactive',        val: inactiveCount, icon: 'person_off',   color: 'text-error bg-error/10' },
         ].map(s => (
           <div key={s.label} className="bg-surface-container-lowest border border-outline-variant p-lg rounded-xl flex items-center gap-md shadow-sm">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${s.color}`}><span className="material-symbols-outlined">{s.icon}</span></div>
@@ -261,7 +276,10 @@ export default function EmployeeList() {
                   <td className="px-md py-4 text-label-md font-bold">{emp.emp_id}</td>
                   <td className="px-md py-4">
                     <div className="flex items-center gap-sm">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm border border-outline-variant">{emp.name.split(' ').map(n => n[0]).join('')}</div>
+                      {emp.photo_path
+                        ? <img src={`/uploads/${emp.photo_path}`} alt={emp.name} className="w-10 h-10 rounded-full object-cover border border-outline-variant shrink-0" />
+                        : <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm border border-outline-variant shrink-0">{emp.name.split(' ').map(n => n[0]).join('')}</div>
+                      }
                       <div><p className="font-bold">{emp.name}</p><p className="text-label-sm text-on-surface-variant">{emp.work_email ?? emp.personal_email ?? '—'}</p></div>
                     </div>
                   </td>
