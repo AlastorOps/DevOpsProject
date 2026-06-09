@@ -60,6 +60,8 @@ def update_role_permissions(
     role = db.query(Role).filter(Role.name == role_name).first()
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
+    if role.is_system:
+        raise HTTPException(status_code=403, detail="System role permissions cannot be modified")
 
     for key, enabled in payload.permissions.items():
         parts = key.split("|", 1)

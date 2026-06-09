@@ -5,6 +5,9 @@ metadata:
   namespace: ems-ops
   labels:
     app: ems-ops-frontend
+    app.kubernetes.io/name: ems-ops-frontend
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: ems-ops
 spec:
   replicas: 2
   selector:
@@ -14,6 +17,9 @@ spec:
     metadata:
       labels:
         app: ems-ops-frontend
+        app.kubernetes.io/name: ems-ops-frontend
+        app.kubernetes.io/component: frontend
+        app.kubernetes.io/part-of: ems-ops
     spec:
       containers:
         - name: frontend
@@ -21,6 +27,7 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 80
+              name: http
               protocol: TCP
           resources:
             requests:

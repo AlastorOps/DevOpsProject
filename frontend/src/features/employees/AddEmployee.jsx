@@ -75,10 +75,24 @@ export default function AddEmployee() {
     { label: 'Welcome email sent',               done: false },
   ]
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
   const handleSave = async () => {
     if (!form.name.trim()) { showToast('Full name is required.', 'error'); return }
     if (!form.department_id) { showToast('Please select a department.', 'error'); return }
+    if (!form.phone.trim()) { showToast('Phone number is required.', 'error'); return }
+    if (!form.hire_date) { showToast('Hire date is required.', 'error'); return }
+    if (form.personal_email && !emailRegex.test(form.personal_email)) { showToast('Personal email format is invalid.', 'error'); return }
+    if (form.work_email && !emailRegex.test(form.work_email)) { showToast('Work email format is invalid.', 'error'); return }
     if (form.work_email && !form.user_password.trim()) { showToast('Password is required when creating an account.', 'error'); return }
+    if (form.dob) {
+      const dob = new Date(form.dob)
+      const today = new Date()
+      if (dob > today) { showToast('Date of birth cannot be in the future.', 'error'); return }
+      const age = (today - dob) / (1000 * 60 * 60 * 24 * 365.25)
+      if (age < 16) { showToast('Employee must be at least 16 years old.', 'error'); return }
+    }
+    if (form.salary !== '' && Number(form.salary) < 0) { showToast('Salary cannot be negative.', 'error'); return }
 
     setSaving(true)
     try {
@@ -179,7 +193,7 @@ export default function AddEmployee() {
                   <input className="w-full border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded-lg py-md px-md text-body-md outline-none" type="date" {...f('dob')} />
                 </div>
                 <div className="space-y-xs">
-                  <label className="text-label-md text-on-surface-variant ml-xs">Phone Number</label>
+                  <label className="text-label-md text-on-surface-variant ml-xs">Phone Number <span className="text-error">*</span></label>
                   <input className="w-full border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded-lg py-md px-md text-body-md outline-none" placeholder="+855 000-0000" type="tel" {...f('phone')} />
                 </div>
               </div>
@@ -222,7 +236,7 @@ export default function AddEmployee() {
                 </select>
               </div>
               <div className="space-y-xs">
-                <label className="text-label-md text-on-surface-variant ml-xs">Hire Date</label>
+                <label className="text-label-md text-on-surface-variant ml-xs">Hire Date <span className="text-error">*</span></label>
                 <input className="w-full border border-outline-variant focus:border-primary rounded-lg py-md px-md text-body-md outline-none" type="date" {...f('hire_date')} />
               </div>
               <div className="space-y-xs">
@@ -235,7 +249,7 @@ export default function AddEmployee() {
                 <label className="text-label-md text-on-surface-variant ml-xs">Basic Salary (Monthly)</label>
                 <div className="relative">
                   <span className="absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant">$</span>
-                  <input className="w-full border border-outline-variant focus:border-primary rounded-lg py-md pl-xl pr-md text-body-md outline-none" placeholder="0.00" type="number" {...f('salary')} />
+                  <input className="w-full border border-outline-variant focus:border-primary rounded-lg py-md pl-xl pr-md text-body-md outline-none" placeholder="0.00" type="number" min="0" {...f('salary')} />
                 </div>
               </div>
             </div>

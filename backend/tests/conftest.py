@@ -1,4 +1,5 @@
 import os
+import time
 
 # Must be set before any app module is imported — pydantic-settings reads env at import time.
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -16,6 +17,20 @@ if os.path.exists(_TEST_DB):
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
+from app.database import engine
+
+
+def _remove_test_db_files():
+    for path in [_TEST_DB, _TEST_DB + "-shm", _TEST_DB + "-wal"]:
+        for attempt in range(5):
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+                break
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                time.sleep(0.1)
 
 
 @pytest.fixture(scope="session")
@@ -23,10 +38,9 @@ def client():
     """Single TestClient for the whole test session; lifespan runs once."""
     with TestClient(app, raise_server_exceptions=True) as c:
         yield c
+    engine.dispose()
     # Cleanup test database file after all tests finish.
-    for path in [_TEST_DB, _TEST_DB + "-shm", _TEST_DB + "-wal"]:
-        if os.path.exists(path):
-            os.remove(path)
+    _remove_test_db_files()
 
 
 @pytest.fixture(scope="session")

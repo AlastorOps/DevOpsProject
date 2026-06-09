@@ -61,6 +61,7 @@ export default function PerformanceReviews() {
 
   const handleCreate = async () => {
     if (!form.employee_id) { showToast('Please select an employee.'); return }
+    if (!form.cycle.trim()) { showToast('Review cycle is required.'); return }
     setSaving(true)
     try {
       const res = await performanceService.create({

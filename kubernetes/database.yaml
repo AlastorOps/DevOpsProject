@@ -5,6 +5,9 @@ metadata:
   namespace: ems-ops
   labels:
     app: ems-ops-db
+    app.kubernetes.io/name: ems-ops-db
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: ems-ops
 spec:
   serviceName: db
   replicas: 1
@@ -15,12 +18,16 @@ spec:
     metadata:
       labels:
         app: ems-ops-db
+        app.kubernetes.io/name: ems-ops-db
+        app.kubernetes.io/component: database
+        app.kubernetes.io/part-of: ems-ops
     spec:
       containers:
         - name: postgres
           image: postgres:16-alpine
           ports:
             - containerPort: 5432
+              name: postgres
               protocol: TCP
           env:
             - name: POSTGRES_DB
@@ -72,6 +79,9 @@ metadata:
   namespace: ems-ops
   labels:
     app: ems-ops-db
+    app.kubernetes.io/name: ems-ops-db
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: ems-ops
 spec:
   selector:
     app: ems-ops-db

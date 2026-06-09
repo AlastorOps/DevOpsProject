@@ -36,6 +36,7 @@ export default function SystemSettings() {
   }, [])
 
   const handleSave = async () => {
+    if (!settings.org_name?.trim()) { showToast('Organization name is required.', 'error'); return }
     setSaving(true)
     try {
       const res = await settingsService.update({
