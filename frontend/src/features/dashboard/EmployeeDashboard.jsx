@@ -78,13 +78,13 @@ export default function EmployeeDashboard() {
 
   const recentPayroll = data.recent_payroll
 
-  const firstName = emp.name?.split(' ')[0] ?? 'there'
+  const fullName = emp.name ?? 'there'
 
   return (
     <div className="pt-8 pb-xl px-margin-mobile md:px-margin-desktop">
       <section className="flex flex-col md:flex-row md:items-end justify-between mb-xl">
         <div>
-          <h1 className="text-display text-on-surface">Good Morning, {firstName}.</h1>
+          <h1 className="text-display text-on-surface">Hello, {fullName}.</h1>
           <p className="text-body-lg text-outline mt-xs">Here is what's happening with your profile today.</p>
         </div>
         <div className="flex flex-wrap gap-sm mt-md md:mt-0">
@@ -190,7 +190,7 @@ export default function EmployeeDashboard() {
                   </div>
                   <div>
                     <p className="text-body-md font-bold leading-tight">{n.title}</p>
-                    <p className="text-label-sm text-outline leading-tight mt-1 truncate max-w-[180px]">{n.body}</p>
+                    <p className="text-label-sm text-outline leading-tight mt-1">{n.body}</p>
                   </div>
                 </div>
               ))}
@@ -203,8 +203,8 @@ export default function EmployeeDashboard() {
         <div className="col-span-12 lg:col-span-8 bg-surface-container-lowest rounded-xl p-lg border border-outline-variant shadow-sm">
           <h4 className="text-label-md uppercase tracking-wider text-outline mb-lg">Leave Balance</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-xl">
-            {(data.leave_balance || []).slice(0, 4).map((lb, i) => {
-              const colors = ['bg-primary', 'bg-secondary', 'bg-tertiary', 'bg-outline']
+            {(data.leave_balance || []).map((lb, i) => {
+              const colors = ['bg-primary', 'bg-secondary', 'bg-tertiary', 'bg-outline', 'bg-error']
               const pct = lb.total > 0 ? Math.round((lb.used / lb.total) * 100) : 0
               return (
                 <div key={lb.leave_type} className="space-y-md">

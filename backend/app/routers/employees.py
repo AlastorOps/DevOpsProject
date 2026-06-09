@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
@@ -21,13 +22,11 @@ LEAVE_DEFAULTS = {
 
 
 def _generate_emp_id(db: Session) -> str:
-    last = db.query(Employee.emp_id).filter(Employee.emp_id.like("EMP-%")).order_by(Employee.emp_id.desc()).first()
-    if not last:
+    rows = db.query(Employee.emp_id).filter(Employee.emp_id.ilike("EMP%")).all()
+    if not rows:
         return "EMP-001"
-    try:
-        num = int(last[0].split("-")[1]) + 1
-    except (IndexError, ValueError):
-        num = db.query(func.count(Employee.id)).scalar() + 1
+    nums = [int(m.group()) for row in rows if (m := re.search(r'\d+', row[0]))]
+    num = max(nums) + 1 if nums else 1
     return f"EMP-{str(num).zfill(3)}"
 
 

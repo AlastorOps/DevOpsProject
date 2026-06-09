@@ -1,14 +1,19 @@
+import asyncio
+import json
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from app.database import get_db
+from jose import JWTError
+from app.database import get_db, SessionLocal
 from app.models import (
     Employee, Attendance, LeaveRequest, Payroll,
     Department, Notification, User, LeaveBalance,
 )
 from app.dependencies import get_current_user
+from app import auth as auth_utils
 
 router = APIRouter(tags=["dashboard"])
 
@@ -109,10 +114,23 @@ def employee_dashboard(db: Session = Depends(get_db), current_user: User = Depen
     att = {row[0]: row[1] for row in attendance_rows}
     total_days = sum(att.values())
 
+    LEAVE_TYPES = [
+        ("Annual Leave", 14),
+        ("Sick Leave", 14),
+        ("Personal Leave", 5),
+        ("Emergency Leave", 3),
+        ("Maternity / Paternity Leave", 90),
+    ]
     balances = db.query(LeaveBalance).filter(LeaveBalance.employee_id == employee.id).all()
+    balance_map = {b.leave_type: b for b in balances}
     leave_balance = [
-        {"leave_type": b.leave_type, "used": b.used, "total": b.total, "remaining": max(b.total - b.used, 0)}
-        for b in balances
+        {
+            "leave_type": lt,
+            "used": balance_map[lt].used if lt in balance_map else 0,
+            "total": balance_map[lt].total if lt in balance_map else default,
+            "remaining": max(balance_map[lt].total - balance_map[lt].used, 0) if lt in balance_map else default,
+        }
+        for lt, default in LEAVE_TYPES
     ]
 
     recent_payroll = db.query(Payroll).filter(
@@ -158,7 +176,7 @@ def employee_dashboard(db: Session = Depends(get_db), current_user: User = Depen
                 "icon": n.icon,
                 "color": n.color,
                 "read": n.read,
-                "time": n.created_at.isoformat(),
+                "time": n.created_at.isoformat() + "Z",
             }
             for n in notifications
         ],
@@ -179,7 +197,7 @@ def list_notifications(db: Session = Depends(get_db), current_user: User = Depen
             "icon": n.icon,
             "color": n.color,
             "read": n.read,
-            "time": n.created_at.isoformat(),
+            "time": n.created_at.isoformat() + "Z",
         }
         for n in notifications
     ]
@@ -208,3 +226,66 @@ def mark_all_read(db: Session = Depends(get_db), current_user: User = Depends(ge
         Notification.read.is_(False),
     ).update({"read": True})
     db.commit()
+
+
+@router.get("/notifications/stream")
+async def notification_stream(token: str = Query(...)):
+    try:
+        payload = auth_utils.decode_token(token)
+        if payload.get("type") != "access":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    async def event_gen():
+        db = SessionLocal()
+        try:
+            last_id = db.query(func.max(Notification.id)).filter(
+                Notification.user_id == user_id
+            ).scalar() or 0
+        finally:
+            db.close()
+
+        while True:
+            await asyncio.sleep(3)
+            db = SessionLocal()
+            try:
+                new = (
+                    db.query(Notification)
+                    .filter(Notification.user_id == user_id, Notification.id > last_id)
+                    .order_by(Notification.id.asc())
+                    .all()
+                )
+                if new:
+                    last_id = new[-1].id
+                    data = [
+                        {
+                            "id": n.id,
+                            "title": n.title,
+                            "body": n.body,
+                            "icon": n.icon,
+                            "color": n.color,
+                            "read": n.read,
+                            "time": n.created_at.isoformat() + "Z",
+                        }
+                        for n in new
+                    ]
+                    yield f"data: {json.dumps(data)}\n\n"
+                else:
+                    yield ": heartbeat\n\n"
+            except Exception:
+                break
+            finally:
+                db.close()
+
+    return StreamingResponse(
+        event_gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )

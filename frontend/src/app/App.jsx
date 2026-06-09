@@ -22,10 +22,23 @@ import RolesPermissions from '../features/admin/RolesPermissions'
 import PersonalProfile from '../features/profile/PersonalProfile'
 import SystemSettings from '../features/admin/SystemSettings'
 
+const ROLE_FALLBACK = (role) => role === 'Employee' ? '/my-dashboard' : '/dashboard'
+
 function ProtectedLayout() {
   const { isAuthenticated } = useAuth()
   if (!isAuthenticated) return <Navigate to="/login" replace />
   return <Layout />
+}
+
+function RoleRoute({ roles, children }) {
+  const { user } = useAuth()
+  if (!roles.includes(user?.role)) return <Navigate to={ROLE_FALLBACK(user?.role)} replace />
+  return children
+}
+
+function DashboardRedirect() {
+  const { user } = useAuth()
+  return <Navigate to={ROLE_FALLBACK(user?.role)} replace />
 }
 
 export default function App() {
@@ -35,24 +48,82 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<ProtectedLayout />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route index element={<DashboardRedirect />} />
+
+            {/* Manager+ */}
+            <Route path="dashboard" element={
+              <RoleRoute roles={['Admin', 'HR Manager', 'Manager']}>
+                <AdminDashboard />
+              </RoleRoute>
+            } />
+
+            {/* Employee only */}
             <Route path="my-dashboard" element={<EmployeeDashboard />} />
-            <Route path="employees" element={<EmployeeList />} />
-            <Route path="employees/new" element={<AddEmployee />} />
-            <Route path="employees/:id" element={<EmployeeDetail />} />
-            <Route path="departments" element={<Departments />} />
-            <Route path="positions" element={<Positions />} />
+
+            {/* HR+ */}
+            <Route path="employees" element={
+              <RoleRoute roles={['Admin', 'HR Manager']}>
+                <EmployeeList />
+              </RoleRoute>
+            } />
+            <Route path="employees/new" element={
+              <RoleRoute roles={['Admin', 'HR Manager']}>
+                <AddEmployee />
+              </RoleRoute>
+            } />
+            <Route path="employees/:id" element={
+              <RoleRoute roles={['Admin', 'HR Manager']}>
+                <EmployeeDetail />
+              </RoleRoute>
+            } />
+            <Route path="departments" element={
+              <RoleRoute roles={['Admin', 'HR Manager']}>
+                <Departments />
+              </RoleRoute>
+            } />
+            <Route path="positions" element={
+              <RoleRoute roles={['Admin', 'HR Manager']}>
+                <Positions />
+              </RoleRoute>
+            } />
+
+            {/* All roles */}
             <Route path="attendance" element={<AttendanceManagement />} />
             <Route path="leave" element={<LeaveManagement />} />
             <Route path="leave/request" element={<RequestLeave />} />
             <Route path="payroll" element={<PayrollManagement />} />
             <Route path="payroll/payslip" element={<PayslipView />} />
-            <Route path="performance" element={<PerformanceReviews />} />
-            <Route path="reports" element={<SystemReports />} />
-            <Route path="users" element={<UserManagement />} />
-            <Route path="roles" element={<RolesPermissions />} />
-            <Route path="settings" element={<SystemSettings />} />
+
+            {/* Manager+ */}
+            <Route path="performance" element={
+              <RoleRoute roles={['Admin', 'HR Manager', 'Manager']}>
+                <PerformanceReviews />
+              </RoleRoute>
+            } />
+            <Route path="reports" element={
+              <RoleRoute roles={['Admin', 'HR Manager', 'Manager']}>
+                <SystemReports />
+              </RoleRoute>
+            } />
+
+            {/* Admin only */}
+            <Route path="users" element={
+              <RoleRoute roles={['Admin']}>
+                <UserManagement />
+              </RoleRoute>
+            } />
+            <Route path="roles" element={
+              <RoleRoute roles={['Admin']}>
+                <RolesPermissions />
+              </RoleRoute>
+            } />
+            <Route path="settings" element={
+              <RoleRoute roles={['Admin']}>
+                <SystemSettings />
+              </RoleRoute>
+            } />
+
+            {/* All roles */}
             <Route path="profile" element={<PersonalProfile />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />

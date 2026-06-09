@@ -1,22 +1,28 @@
 import { NavLink, useLocation } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 const navItems = [
-  { icon: 'dashboard', label: 'Dashboard', to: '/dashboard' },
-  { icon: 'badge', label: 'Employees', to: '/employees' },
-  { icon: 'domain', label: 'Departments', to: '/departments' },
-  { icon: 'work_outline', label: 'Positions', to: '/positions' },
-  { icon: 'event_available', label: 'Attendance', to: '/attendance' },
-  { icon: 'event_busy', label: 'Leave Requests', to: '/leave' },
-  { icon: 'payments', label: 'Payroll', to: '/payroll' },
-  { icon: 'speed', label: 'Performance', to: '/performance' },
-  { icon: 'assessment', label: 'Reports', to: '/reports' },
-  { icon: 'group', label: 'Users', to: '/users' },
-  { icon: 'lock_person', label: 'Roles & Permissions', to: '/roles' },
-  { icon: 'settings', label: 'Settings', to: '/settings' },
+  { icon: 'dashboard',       label: 'Dashboard',           to: '/dashboard',    roles: ['Admin', 'HR Manager', 'Manager'] },
+  { icon: 'space_dashboard', label: 'My Dashboard',        to: '/my-dashboard', roles: ['Employee'] },
+  { icon: 'badge',           label: 'Employees',           to: '/employees',    roles: ['Admin', 'HR Manager'] },
+  { icon: 'domain',          label: 'Departments',         to: '/departments',  roles: ['Admin', 'HR Manager'] },
+  { icon: 'work_outline',    label: 'Positions',           to: '/positions',    roles: ['Admin', 'HR Manager'] },
+  { icon: 'event_available', label: 'Attendance',          to: '/attendance',   roles: ['Admin', 'HR Manager', 'Manager'] },
+  { icon: 'event_busy',      label: 'Leave Requests',      to: '/leave',        roles: ['Admin', 'HR Manager', 'Manager'] },
+  { icon: 'payments',        label: 'Payroll',             to: '/payroll',      roles: ['Admin', 'HR Manager'] },
+  { icon: 'speed',           label: 'Performance',         to: '/performance',  roles: ['Admin', 'HR Manager', 'Manager'] },
+  { icon: 'assessment',      label: 'Reports',             to: '/reports',      roles: ['Admin', 'HR Manager', 'Manager'] },
+  { icon: 'group',           label: 'Users',               to: '/users',        roles: ['Admin'] },
+  { icon: 'lock_person',     label: 'Roles & Permissions', to: '/roles',        roles: ['Admin'] },
+  { icon: 'settings',        label: 'Settings',            to: '/settings',     roles: ['Admin'] },
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation()
+  const { user } = useAuth()
+  const role = user?.role ?? ''
+
+  const visible = navItems.filter(item => item.roles.includes(role))
 
   return (
     <>
@@ -40,7 +46,7 @@ export default function Sidebar({ isOpen, onClose }) {
           </button>
         </div>
         <nav className="flex-1 space-y-1 py-md">
-          {navItems.map(item => (
+          {visible.map(item => (
             <NavLink
               key={item.to}
               to={item.to}
