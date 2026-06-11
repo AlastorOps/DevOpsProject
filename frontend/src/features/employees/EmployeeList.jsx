@@ -78,7 +78,7 @@ export default function EmployeeList() {
     setEditEmp(emp)
     setForm({
       name: emp.name, phone: emp.phone ?? '', gender: emp.gender ?? 'Male',
-      department_id: emp.department_id ?? '', position_id: emp.position_id ?? '',
+      department_id: emp.department_id ? String(emp.department_id) : '', position_id: emp.position_id ?? '',
       status: emp.status, work_email: emp.work_email ?? '',
     })
     setShowModal(true)
@@ -178,7 +178,7 @@ export default function EmployeeList() {
                   <label className="text-label-md text-on-surface">Department</label>
                   <select className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary" {...field('department_id')}>
                     <option value="">None</option>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    {departments.map(d => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
                   </select>
                 </div>
                 <div className="space-y-xs">

@@ -25,7 +25,8 @@ export default function PayrollManagement() {
   const [toast, setToast]       = useState(null)
   const [saving, setSaving]     = useState(false)
   const [page, setPage]         = useState(1)
-  const limit = 20
+  const [search, setSearch]     = useState('')
+  const limit = 10
 
   const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3000) }
 
@@ -34,14 +35,14 @@ export default function PayrollManagement() {
     try {
       const status = activeTab === 'paid' ? 'Paid' : activeTab === 'pending' ? 'Pending' : ''
       const [rRes, sRes] = await Promise.all([
-        payrollService.list({ page, limit, status }),
+        payrollService.list({ page, limit, status, search }),
         payrollService.stats(),
       ])
       if (rRes.ok) { const d = await rRes.json(); setRecords(d.records || []); setTotal(d.total || 0) }
       if (sRes.ok) setStats(await sRes.json())
     } catch { /* ignore */ }
     setLoading(false)
-  }, [page, activeTab])
+  }, [page, activeTab, search])
 
   const fetchEmployees = useCallback(async () => {
     setEmpLoading(true)
@@ -60,7 +61,7 @@ export default function PayrollManagement() {
     }
   }, [])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { const t = setTimeout(fetchData, search ? 300 : 0); return () => clearTimeout(t) }, [fetchData, search])
   useEffect(() => { fetchEmployees() }, [fetchEmployees])
 
   // Re-fetch employees when modal opens in case the initial fetch failed
@@ -199,6 +200,14 @@ export default function PayrollManagement() {
           ))}
         </div>
       )}
+
+      {/* Filters */}
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md mb-lg shadow-sm flex flex-wrap gap-md">
+        <div className="flex-1 min-w-[200px] relative">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+          <input className="w-full bg-background border border-outline-variant rounded-lg py-2 pl-10 pr-4 text-body-md focus:ring-2 focus:ring-primary outline-none" placeholder="Search by employee name…" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
+        </div>
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-sm mb-lg">

@@ -92,6 +92,7 @@ def list_payroll(
     status: str = Query(""),
     dept: str = Query(""),
     month: str = Query(""),
+    search: str = Query(""),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -108,6 +109,8 @@ def list_payroll(
         q = q.filter(Payroll.month == month)
     if dept:
         q = q.filter(Payroll.employee.has(Employee.department.has(Department.name == dept)))
+    if search:
+        q = q.filter(Payroll.employee.has(Employee.name.ilike(f"%{search}%")))
 
     total = q.count()
     records = q.order_by(Payroll.payroll_id.asc()).offset((page - 1) * limit).limit(limit).all()

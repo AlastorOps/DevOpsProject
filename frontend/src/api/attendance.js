@@ -1,6 +1,9 @@
 import { client } from './client.js'
 
 export const attendanceService = {
+  getToday: () => client.get('/attendance/today'),
+  checkIn: () => client.post('/attendance/check-in', {}),
+  checkOut: () => client.post('/attendance/check-out', {}),
   stats: (targetDate) => {
     const p = new URLSearchParams()
     if (targetDate) p.set('target_date', targetDate)
