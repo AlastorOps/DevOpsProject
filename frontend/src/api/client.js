@@ -44,7 +44,10 @@ async function request(path, options = {}) {
 
   let res = await fetch(`${BASE}${path}`, { ...options, headers })
 
-  if (res.status === 401) {
+  // Only intercept 401 when a token was sent (session expiry).
+  // If no token was sent (e.g. the login request itself), return the 401
+  // directly so the caller can surface the "Invalid credentials" error.
+  if (res.status === 401 && token) {
     const refreshed = await tryRefresh()
     if (refreshed) {
       headers['Authorization'] = `Bearer ${getToken()}`

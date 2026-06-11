@@ -29,17 +29,54 @@ SYSTEM_ROLES = [
     ("Employee", "Personal profile and attendance"),
 ]
 
+SYSTEM_ROLE_PERMS = {
+    "Admin": {
+        "Dashboard Module": {"View Analytics": True, "Edit Widgets": True},
+        "Employee Module": {"View Directory": True, "Add/Delete": True, "Modify Records": True, "Document Access": True},
+        "Payroll Module": {"Process Salaries": True, "Tax Reporting": True, "Bonus Management": True},
+        "Attendance & Leave": {"View Attendance": True, "Approve Leaves": True, "Overtime Control": True},
+    },
+    "HR Manager": {
+        "Dashboard Module": {"View Analytics": True, "Edit Widgets": False},
+        "Employee Module": {"View Directory": True, "Add/Delete": True, "Modify Records": True, "Document Access": True},
+        "Payroll Module": {"Process Salaries": True, "Tax Reporting": True, "Bonus Management": False},
+        "Attendance & Leave": {"View Attendance": True, "Approve Leaves": True, "Overtime Control": True},
+    },
+    "Manager": {
+        "Dashboard Module": {"View Analytics": True, "Edit Widgets": False},
+        "Employee Module": {"View Directory": True, "Add/Delete": False, "Modify Records": True, "Document Access": False},
+        "Payroll Module": {"Process Salaries": False, "Tax Reporting": False, "Bonus Management": True},
+        "Attendance & Leave": {"View Attendance": True, "Approve Leaves": True, "Overtime Control": True},
+    },
+    "Employee": {
+        "Dashboard Module": {"View Analytics": True, "Edit Widgets": False},
+        "Employee Module": {"View Directory": True, "Add/Delete": False, "Modify Records": False, "Document Access": False},
+        "Payroll Module": {"Process Salaries": False, "Tax Reporting": False, "Bonus Management": False},
+        "Attendance & Leave": {"View Attendance": True, "Approve Leaves": False, "Overtime Control": False},
+    },
+}
+
 
 def _seed(db):
     for role_name, description in SYSTEM_ROLES:
-        if not db.query(Role).filter(Role.name == role_name).first():
+        role = db.query(Role).filter(Role.name == role_name).first()
+        if not role:
             role = Role(name=role_name, description=description, is_system=True)
             db.add(role)
             db.flush()
-            for module, perms in DEFAULT_MODULES.items():
-                all_enabled = role_name == "Admin"
-                for perm in perms:
-                    db.add(RolePermission(role_id=role.id, module=module, permission=perm, enabled=all_enabled))
+
+        role_perms = SYSTEM_ROLE_PERMS.get(role_name, {})
+        for module, perm_map in role_perms.items():
+            for perm_name, enabled in perm_map.items():
+                existing = db.query(RolePermission).filter(
+                    RolePermission.role_id == role.id,
+                    RolePermission.module == module,
+                    RolePermission.permission == perm_name,
+                ).first()
+                if existing:
+                    existing.enabled = enabled
+                else:
+                    db.add(RolePermission(role_id=role.id, module=module, permission=perm_name, enabled=enabled))
 
     if not db.query(User).filter(User.email == "admin@company.com").first():
         db.add(User(

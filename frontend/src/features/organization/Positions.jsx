@@ -105,7 +105,7 @@ export default function Positions() {
                 <label className="text-label-md text-on-surface-variant">Department</label>
                 <select className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary" {...f('department_id')}>
                   <option value="">None</option>
-                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  {departments.map(d => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
                 </select>
               </div>
               <div className="flex flex-col gap-xs">

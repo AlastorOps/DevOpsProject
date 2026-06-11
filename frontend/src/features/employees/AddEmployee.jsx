@@ -24,6 +24,7 @@ export default function AddEmployee() {
   const [roles, setRoles]               = useState([])
   const [recentEmps, setRecentEmps]     = useState([])
   const [saving, setSaving]             = useState(false)
+  const [errors, setErrors]             = useState({})
   const photoRef                        = useRef(null)
   const navigate                        = useNavigate()
 
@@ -52,7 +53,13 @@ export default function AddEmployee() {
     })
   }, [form.department_id, departments])
 
-  const f = (key) => ({ value: form[key], onChange: e => setForm(prev => ({ ...prev, [key]: e.target.value })) })
+  const f = (key) => ({
+    value: form[key],
+    onChange: e => {
+      setForm(prev => ({ ...prev, [key]: e.target.value }))
+      if (errors[key]) setErrors(prev => ({ ...prev, [key]: '' }))
+    },
+  })
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type })
@@ -75,10 +82,62 @@ export default function AddEmployee() {
     { label: 'Welcome email sent',               done: false },
   ]
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
   const handleSave = async () => {
+    setErrors({})
+
     if (!form.name.trim()) { showToast('Full name is required.', 'error'); return }
     if (!form.department_id) { showToast('Please select a department.', 'error'); return }
+    if (!form.phone.trim()) { showToast('Phone number is required.', 'error'); return }
+    if (form.personal_email && !emailRegex.test(form.personal_email)) { showToast('Personal email format is invalid.', 'error'); return }
+    if (form.work_email && !emailRegex.test(form.work_email)) { showToast('Work email format is invalid.', 'error'); return }
     if (form.work_email && !form.user_password.trim()) { showToast('Password is required when creating an account.', 'error'); return }
+    if (form.salary !== '' && Number(form.salary) < 0) { showToast('Salary cannot be negative.', 'error'); return }
+
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+
+    // — DOB validation —
+    if (form.dob) {
+      const dob = new Date(form.dob)
+      if (dob >= today) {
+        const msg = 'Date of birth must be in the past.'
+        setErrors(prev => ({ ...prev, dob: msg })); showToast(msg, 'error'); return
+      }
+      const ageYears = (today - dob) / (1000 * 60 * 60 * 24 * 365.25)
+      if (ageYears < 16) {
+        const msg = 'Employee must be at least 16 years old.'
+        setErrors(prev => ({ ...prev, dob: msg })); showToast(msg, 'error'); return
+      }
+      if (ageYears > 100) {
+        const msg = 'Please verify the date of birth — age exceeds 100 years.'
+        setErrors(prev => ({ ...prev, dob: msg })); showToast(msg, 'error'); return
+      }
+    }
+
+    // — Hire Date validation —
+    if (!form.hire_date) {
+      const msg = 'Hire date is required.'
+      setErrors(prev => ({ ...prev, hire_date: msg })); showToast(msg, 'error'); return
+    }
+    const hireDate = new Date(form.hire_date)
+    const maxPast = new Date(today); maxPast.setFullYear(maxPast.getFullYear() - 60)
+    if (hireDate < maxPast) {
+      const msg = 'Hire date is too far in the past — please verify.'
+      setErrors(prev => ({ ...prev, hire_date: msg })); showToast(msg, 'error'); return
+    }
+    if (form.dob) {
+      const dob = new Date(form.dob)
+      if (hireDate <= dob) {
+        const msg = 'Hire date must be after the date of birth.'
+        setErrors(prev => ({ ...prev, hire_date: msg })); showToast(msg, 'error'); return
+      }
+      const ageAtHire = (hireDate - dob) / (1000 * 60 * 60 * 24 * 365.25)
+      if (ageAtHire < 16) {
+        const msg = 'Employee must be at least 16 years old at the time of hiring.'
+        setErrors(prev => ({ ...prev, hire_date: msg })); showToast(msg, 'error'); return
+      }
+    }
 
     setSaving(true)
     try {
@@ -176,10 +235,11 @@ export default function AddEmployee() {
                 </div>
                 <div className="space-y-xs">
                   <label className="text-label-md text-on-surface-variant ml-xs">Date of Birth</label>
-                  <input className="w-full border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded-lg py-md px-md text-body-md outline-none" type="date" {...f('dob')} />
+                  <input className={`w-full border rounded-lg py-md px-md text-body-md outline-none focus:ring-1 ${errors.dob ? 'border-error focus:border-error focus:ring-error' : 'border-outline-variant focus:border-primary focus:ring-primary'}`} type="date" {...f('dob')} />
+                  {errors.dob && <p className="text-label-sm text-error ml-xs flex items-center gap-xs"><span className="material-symbols-outlined text-[14px]">error</span>{errors.dob}</p>}
                 </div>
                 <div className="space-y-xs">
-                  <label className="text-label-md text-on-surface-variant ml-xs">Phone Number</label>
+                  <label className="text-label-md text-on-surface-variant ml-xs">Phone Number <span className="text-error">*</span></label>
                   <input className="w-full border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded-lg py-md px-md text-body-md outline-none" placeholder="+855 000-0000" type="tel" {...f('phone')} />
                 </div>
               </div>
@@ -209,21 +269,26 @@ export default function AddEmployee() {
               </div>
               <div className="space-y-xs">
                 <label className="text-label-md text-on-surface-variant ml-xs">Department <span className="text-error">*</span></label>
-                <select className="w-full border border-outline-variant focus:border-primary rounded-lg py-md px-md text-body-md" {...f('department_id')}>
+                <select
+                  className="w-full border border-outline-variant focus:border-primary rounded-lg py-md px-md text-body-md"
+                  value={form.department_id}
+                  onChange={e => setForm(prev => ({ ...prev, department_id: e.target.value, position_id: '' }))}
+                >
                   <option value="" disabled hidden>Select Department</option>
-                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  {departments.map(d => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
                 </select>
               </div>
               <div className="space-y-xs">
                 <label className="text-label-md text-on-surface-variant ml-xs">Position</label>
                 <select className="w-full border border-outline-variant focus:border-primary rounded-lg py-md px-md text-body-md" {...f('position_id')} disabled={!form.department_id}>
                   <option value="">Select Position</option>
-                  {positions.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                  {positions.map(p => <option key={p.id} value={String(p.id)}>{p.title}</option>)}
                 </select>
               </div>
               <div className="space-y-xs">
-                <label className="text-label-md text-on-surface-variant ml-xs">Hire Date</label>
-                <input className="w-full border border-outline-variant focus:border-primary rounded-lg py-md px-md text-body-md outline-none" type="date" {...f('hire_date')} />
+                <label className="text-label-md text-on-surface-variant ml-xs">Hire Date <span className="text-error">*</span></label>
+                <input className={`w-full border rounded-lg py-md px-md text-body-md outline-none focus:ring-1 ${errors.hire_date ? 'border-error focus:border-error focus:ring-error' : 'border-outline-variant focus:border-primary focus:ring-primary'}`} type="date" {...f('hire_date')} />
+                {errors.hire_date && <p className="text-label-sm text-error ml-xs flex items-center gap-xs"><span className="material-symbols-outlined text-[14px]">error</span>{errors.hire_date}</p>}
               </div>
               <div className="space-y-xs">
                 <label className="text-label-md text-on-surface-variant ml-xs">Employment Type</label>
@@ -235,7 +300,7 @@ export default function AddEmployee() {
                 <label className="text-label-md text-on-surface-variant ml-xs">Basic Salary (Monthly)</label>
                 <div className="relative">
                   <span className="absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant">$</span>
-                  <input className="w-full border border-outline-variant focus:border-primary rounded-lg py-md pl-xl pr-md text-body-md outline-none" placeholder="0.00" type="number" {...f('salary')} />
+                  <input className="w-full border border-outline-variant focus:border-primary rounded-lg py-md pl-xl pr-md text-body-md outline-none" placeholder="0.00" type="number" min="0" {...f('salary')} />
                 </div>
               </div>
             </div>

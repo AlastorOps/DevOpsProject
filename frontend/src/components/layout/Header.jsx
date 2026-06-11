@@ -94,7 +94,7 @@ export default function Header({ onMenuClick }) {
 
     connect()
     return () => { es?.close(); clearTimeout(retryTimer) }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   const markRead = async (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))

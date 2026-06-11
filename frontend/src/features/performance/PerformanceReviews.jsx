@@ -29,7 +29,7 @@ export default function PerformanceReviews() {
   const [filterRating, setFilterRating] = useState('')
   const [page, setPage]               = useState(1)
   const [saving, setSaving]           = useState(false)
-  const limit = 20
+  const limit = 10
 
   const showToast = (message) => { setToast(message); setTimeout(() => setToast(null), 3000) }
 
@@ -61,6 +61,7 @@ export default function PerformanceReviews() {
 
   const handleCreate = async () => {
     if (!form.employee_id) { showToast('Please select an employee.'); return }
+    if (!form.cycle.trim()) { showToast('Review cycle is required.'); return }
     setSaving(true)
     try {
       const res = await performanceService.create({

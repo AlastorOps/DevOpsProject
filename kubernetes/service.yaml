@@ -5,6 +5,9 @@ metadata:
   namespace: ems-ops
   labels:
     app: ems-ops-frontend
+    app.kubernetes.io/name: ems-ops-frontend
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: ems-ops
 spec:
   selector:
     app: ems-ops-frontend

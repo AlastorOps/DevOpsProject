@@ -169,10 +169,11 @@ export default function RolesPermissions() {
     setDeleting(false)
   }
 
-  const activeRoleObj  = roles.find(r => r.name === activeRole) ?? null
+  const activeRoleObj   = roles.find(r => r.name === activeRole) ?? null
+  const isSystemRole    = activeRoleObj?.is_system ?? false
   const canDeleteActive = activeRoleObj && !activeRoleObj.is_system && roles.length > 1
-  const activePerms    = activeRole ? (permissions[activeRole] ?? emptyPerms()) : emptyPerms()
-  const enabledCount   = Object.values(activePerms).filter(Boolean).length
+  const activePerms     = activeRole ? (permissions[activeRole] ?? emptyPerms()) : emptyPerms()
+  const enabledCount    = Object.values(activePerms).filter(Boolean).length
 
   return (
     <div className="p-margin-mobile md:p-margin-desktop">
@@ -311,17 +312,26 @@ export default function RolesPermissions() {
                   </div>
                 </div>
                 <div className="flex items-center gap-sm flex-wrap">
-                  {canDeleteActive && (
-                    <button
-                      onClick={() => setDeleteTarget(activeRole)}
-                      className="px-lg py-md rounded-lg text-error text-label-md border border-error/30 hover:bg-error/10 active:scale-95 transition-all flex items-center gap-xs"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">delete</span>
-                      Delete Role
-                    </button>
+                  {isSystemRole ? (
+                    <span className="flex items-center gap-xs px-lg py-md rounded-lg text-label-md bg-surface-container border border-outline-variant text-on-surface-variant">
+                      <span className="material-symbols-outlined text-[18px]">lock</span>
+                      Read-only
+                    </span>
+                  ) : (
+                    <>
+                      {canDeleteActive && (
+                        <button
+                          onClick={() => setDeleteTarget(activeRole)}
+                          className="px-lg py-md rounded-lg text-error text-label-md border border-error/30 hover:bg-error/10 active:scale-95 transition-all flex items-center gap-xs"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">delete</span>
+                          Delete Role
+                        </button>
+                      )}
+                      <button onClick={handleReset} disabled={!activeRole} className="px-lg py-md rounded-lg text-outline text-label-md border border-outline-variant hover:bg-surface-container active:scale-95 transition-all disabled:opacity-40">Reset</button>
+                      <button onClick={handleSave} disabled={saving || !activeRole} className="bg-primary text-on-primary px-xl py-md rounded-lg text-label-md shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
+                    </>
                   )}
-                  <button onClick={handleReset} disabled={!activeRole} className="px-lg py-md rounded-lg text-outline text-label-md border border-outline-variant hover:bg-surface-container active:scale-95 transition-all disabled:opacity-40">Reset</button>
-                  <button onClick={handleSave} disabled={saving || !activeRole} className="bg-primary text-on-primary px-xl py-md rounded-lg text-label-md shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
                 </div>
               </div>
               <div className="p-lg space-y-xl overflow-y-auto" style={{ maxHeight: 'calc(100vh - 320px)' }}>
@@ -338,8 +348,8 @@ export default function RolesPermissions() {
                         const k = key(mod.title, perm.label)
                         const checked = activePerms[k] ?? false
                         return (
-                          <label key={perm.label} className={`flex items-start gap-md p-md rounded-lg border cursor-pointer transition-all ${checked ? 'border-primary/40 bg-primary/5' : 'border-outline-variant hover:bg-surface-container-low'} ${!activeRole ? 'pointer-events-none opacity-40' : ''}`}>
-                            <input checked={checked} onChange={() => togglePerm(mod.title, perm.label)} disabled={!activeRole} className="mt-1 w-5 h-5 rounded border-outline text-primary focus:ring-primary cursor-pointer" type="checkbox" />
+                          <label key={perm.label} className={`flex items-start gap-md p-md rounded-lg border transition-all ${checked ? 'border-primary/40 bg-primary/5' : 'border-outline-variant'} ${!activeRole || isSystemRole ? 'pointer-events-none opacity-60 cursor-default' : 'cursor-pointer hover:bg-surface-container-low'}`}>
+                            <input checked={checked} onChange={() => togglePerm(mod.title, perm.label)} disabled={!activeRole || isSystemRole} className="mt-1 w-5 h-5 rounded border-outline text-primary focus:ring-primary cursor-pointer" type="checkbox" />
                             <div>
                               <p className={`font-bold text-body-md ${checked ? 'text-primary' : ''}`}>{perm.label}</p>
                               <p className="text-label-sm text-on-surface-variant">{perm.desc}</p>
@@ -351,9 +361,11 @@ export default function RolesPermissions() {
                   </div>
                 ))}
               </div>
-              <div className="p-lg border-t border-outline-variant bg-surface-container-low flex justify-end">
-                <button onClick={handleSave} disabled={saving || !activeRole} className="bg-primary text-on-primary px-xl py-md rounded-lg text-label-md shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-50">{saving ? 'Saving…' : 'Save Permission'}</button>
-              </div>
+              {!isSystemRole && (
+                <div className="p-lg border-t border-outline-variant bg-surface-container-low flex justify-end">
+                  <button onClick={handleSave} disabled={saving || !activeRole} className="bg-primary text-on-primary px-xl py-md rounded-lg text-label-md shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-50">{saving ? 'Saving…' : 'Save Permission'}</button>
+                </div>
+              )}
             </section>
           </div>
         </div>

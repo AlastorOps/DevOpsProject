@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { dashboardService } from '../../api/dashboard.js'
 import { attendanceService } from '../../api/attendance.js'
@@ -18,13 +18,31 @@ const leaveStatusStyle = {
   Rejected: 'bg-error-container text-on-error-container border border-error/20',
 }
 
+const fmtTime = (t) => t ? t.slice(0, 5) : '—'
+
+const formatSeconds = (s) => {
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+}
+
 export default function EmployeeDashboard() {
-  const [data, setData]     = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [data, setData]               = useState(null)
+  const [loading, setLoading]         = useState(true)
   const [recentLeave, setRecentLeave] = useState([])
   const [attendanceLogs, setAttendanceLogs] = useState([])
+
+  // Today's attendance widget
+  const [todayAtt, setTodayAtt]   = useState(null)
+  const [attLoading, setAttLoading] = useState(true)
+  const [attBusy, setAttBusy]     = useState(false)
+  const [attError, setAttError]   = useState('')
+  const [seconds, setSeconds]     = useState(0)
+
   const navigate = useNavigate()
 
+  // Load dashboard data + attendance log
   useEffect(() => {
     const load = async () => {
       try {
@@ -32,7 +50,6 @@ export default function EmployeeDashboard() {
         if (res.ok) {
           const d = await res.json()
           setData(d)
-
           if (d.employee?.id) {
             const [attRes, leaveRes] = await Promise.all([
               attendanceService.listByEmployee(d.employee.id, { limit: 3 }),
@@ -47,6 +64,63 @@ export default function EmployeeDashboard() {
     }
     load()
   }, [])
+
+  // Load today's check-in state
+  const loadTodayAtt = useCallback(async () => {
+    try {
+      const res = await attendanceService.getToday()
+      if (res.ok) {
+        const d = await res.json()
+        setTodayAtt(d)
+        if (d.check_in && !d.check_out && d.elapsed_seconds != null) {
+          setSeconds(d.elapsed_seconds)
+        }
+      }
+    } catch { /* ignore */ }
+    setAttLoading(false)
+  }, [])
+
+  useEffect(() => { loadTodayAtt() }, [loadTodayAtt])
+
+  // Live timer — only runs while checked in but not checked out
+  useEffect(() => {
+    if (!todayAtt?.check_in || todayAtt?.check_out) return
+    const interval = setInterval(() => setSeconds(s => s + 1), 1000)
+    return () => clearInterval(interval)
+  }, [todayAtt?.check_in, todayAtt?.check_out])
+
+  const handleCheckIn = async () => {
+    setAttBusy(true)
+    setAttError('')
+    try {
+      const res = await attendanceService.checkIn()
+      if (res.ok || res.status === 201) {
+        const d = await res.json()
+        setTodayAtt(d)
+        setSeconds(0)
+      } else {
+        const err = await res.json().catch(() => ({}))
+        setAttError(err.detail || 'Check-in failed.')
+      }
+    } catch { setAttError('Network error. Please try again.') }
+    setAttBusy(false)
+  }
+
+  const handleCheckOut = async () => {
+    setAttBusy(true)
+    setAttError('')
+    try {
+      const res = await attendanceService.checkOut()
+      if (res.ok) {
+        const d = await res.json()
+        setTodayAtt(d)
+      } else {
+        const err = await res.json().catch(() => ({}))
+        setAttError(err.detail || 'Check-out failed.')
+      }
+    } catch { setAttError('Network error. Please try again.') }
+    setAttBusy(false)
+  }
 
   const markNotificationRead = async (id) => {
     await notificationService.markRead(id)
@@ -75,10 +149,11 @@ export default function EmployeeDashboard() {
   const att = data.attendance_this_month
   const totalDays = att.total_days || 1
   const presentPct = Math.round(((att.present + att.late) / totalDays) * 100)
-
   const recentPayroll = data.recent_payroll
-
   const fullName = emp.name ?? 'there'
+
+  const checkedIn  = !!todayAtt?.check_in
+  const checkedOut = !!todayAtt?.check_out
 
   return (
     <div className="pt-8 pb-xl px-margin-mobile md:px-margin-desktop">
@@ -134,7 +209,7 @@ export default function EmployeeDashboard() {
           </div>
         </div>
 
-        {/* Attendance Circle */}
+        {/* Monthly Attendance Circle */}
         <div className="col-span-12 md:col-span-6 lg:col-span-4 bg-surface-container-lowest rounded-xl p-lg border border-outline-variant shadow-sm flex flex-col">
           <div className="flex items-center justify-between mb-md">
             <h4 className="text-label-md uppercase tracking-wider text-outline">Monthly Attendance</h4>
@@ -199,6 +274,129 @@ export default function EmployeeDashboard() {
           </div>
         </div>
 
+        {/* ── Check In / Check Out Widget ─────────────────────────────────────── */}
+        <div className="col-span-12 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+          <div className="p-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-lg gap-xs">
+              <h4 className="text-label-md uppercase tracking-wider text-outline">Today's Attendance</h4>
+              <div className="flex items-center gap-xs">
+                {attLoading ? null : !checkedIn ? (
+                  <span className="flex items-center gap-xs text-label-sm text-on-surface-variant">
+                    <span className="w-2 h-2 rounded-full bg-outline"></span>
+                    Not checked in
+                  </span>
+                ) : !checkedOut ? (
+                  <span className="flex items-center gap-xs text-label-sm text-secondary font-bold">
+                    <span className="w-2 h-2 rounded-full bg-secondary" style={{ animation: 'ping 1.5s cubic-bezier(0,0,0.2,1) infinite' }}></span>
+                    Checked In
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-xs text-label-sm text-on-surface-variant font-bold">
+                    <span className="w-2 h-2 rounded-full bg-outline"></span>
+                    Shift complete
+                  </span>
+                )}
+                <span className="text-label-sm text-on-surface-variant ml-md hidden sm:block">
+                  {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                </span>
+              </div>
+            </div>
+
+            {attLoading ? (
+              <div className="flex items-center justify-center h-20">
+                <span className="material-symbols-outlined text-primary text-[32px]" style={{ animation: 'spin 1s linear infinite' }}>progress_activity</span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-gutter">
+
+                {/* Check In column */}
+                <div className="flex flex-col gap-sm">
+                  <span className="text-label-sm text-on-surface-variant uppercase tracking-wider flex items-center gap-xs">
+                    <span className="material-symbols-outlined text-[16px]">login</span>
+                    Check In
+                  </span>
+                  <p className="text-headline-lg font-bold font-mono text-on-surface">
+                    {checkedIn ? fmtTime(todayAtt.check_in) : '—'}
+                  </p>
+                  {!checkedIn && (
+                    <button
+                      onClick={handleCheckIn}
+                      disabled={attBusy}
+                      className="mt-xs flex items-center gap-xs px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 w-fit shadow-sm"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">login</span>
+                      {attBusy ? 'Checking in…' : 'Check In'}
+                    </button>
+                  )}
+                  {checkedIn && (
+                    <span className={`text-label-sm font-bold ${todayAtt.status === 'Late' ? 'text-error' : 'text-secondary'}`}>
+                      {todayAtt.status}
+                    </span>
+                  )}
+                </div>
+
+                {/* Working Time column */}
+                <div className="flex flex-col gap-sm items-center justify-center text-center border-t border-outline-variant sm:border-t-0 sm:border-x sm:border-outline-variant pt-md sm:pt-0 sm:px-gutter">
+                  <span className="text-label-sm text-on-surface-variant uppercase tracking-wider flex items-center gap-xs">
+                    <span className="material-symbols-outlined text-[16px]">timer</span>
+                    {checkedOut ? 'Total Time' : 'Working Time'}
+                  </span>
+                  {!checkedIn ? (
+                    <p className="text-display font-mono font-bold text-on-surface-variant opacity-30">00:00:00</p>
+                  ) : checkedOut ? (
+                    <>
+                      <p className="text-display font-mono font-bold text-on-surface">{formatSeconds(seconds)}</p>
+                      {todayAtt.hours && (
+                        <span className="text-label-sm text-on-surface-variant">{todayAtt.hours}</span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-display font-mono font-bold text-primary">{formatSeconds(seconds)}</p>
+                      <span className="flex items-center gap-xs text-label-sm text-secondary">
+                        <span className="w-1.5 h-1.5 rounded-full bg-secondary" style={{ animation: 'ping 1.5s cubic-bezier(0,0,0.2,1) infinite' }}></span>
+                        Live
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Check Out column */}
+                <div className="flex flex-col gap-sm items-end border-t border-outline-variant sm:border-t-0 pt-md sm:pt-0">
+                  <span className="text-label-sm text-on-surface-variant uppercase tracking-wider flex items-center gap-xs">
+                    Check Out
+                    <span className="material-symbols-outlined text-[16px]">logout</span>
+                  </span>
+                  <p className="text-headline-lg font-bold font-mono text-on-surface">
+                    {checkedOut ? fmtTime(todayAtt.check_out) : '—'}
+                  </p>
+                  {checkedIn && !checkedOut && (
+                    <button
+                      onClick={handleCheckOut}
+                      disabled={attBusy}
+                      className="mt-xs flex items-center gap-xs px-lg py-sm bg-error text-on-error rounded-lg text-label-md hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 w-fit shadow-sm"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">logout</span>
+                      {attBusy ? 'Checking out…' : 'Check Out'}
+                    </button>
+                  )}
+                  {checkedOut && (
+                    <span className="text-label-sm text-on-surface-variant">Shift complete</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {attError && (
+              <div className="mt-md flex items-center gap-sm p-md bg-error/10 border border-error/20 rounded-lg text-body-sm text-error">
+                <span className="material-symbols-outlined text-[18px] shrink-0">error</span>
+                {attError}
+              </div>
+            )}
+          </div>
+        </div>
+        {/* ── End Check In / Check Out Widget ─────────────────────────────────── */}
+
         {/* Leave Balance */}
         <div className="col-span-12 lg:col-span-8 bg-surface-container-lowest rounded-xl p-lg border border-outline-variant shadow-sm">
           <h4 className="text-label-md uppercase tracking-wider text-outline mb-lg">Leave Balance</h4>
@@ -238,8 +436,8 @@ export default function EmployeeDashboard() {
                       <span className="text-[10px] text-outline uppercase">{d.toLocaleString('en-US', { month: 'short' })}</span>
                     </div>
                     <div>
-                      <p className="text-body-md font-bold">In: {log.check_in ?? '—'}</p>
-                      <p className="text-label-sm text-outline">Out: {log.check_out ?? '—'}</p>
+                      <p className="text-body-md font-bold">In: {fmtTime(log.check_in)}</p>
+                      <p className="text-label-sm text-outline">Out: {fmtTime(log.check_out)}</p>
                     </div>
                   </div>
                   <span className={`text-label-sm px-2 py-0.5 rounded-full ${statusStyle[log.status] ?? 'bg-surface-container text-on-surface-variant'}`}>{log.status}</span>

@@ -46,6 +46,17 @@ class AttendanceResponse(BaseModel):
     updated_at: datetime
 
 
+class TodayAttendanceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: Optional[str] = None
+    date: date
+    check_in: Optional[str] = None
+    check_out: Optional[str] = None
+    status: Optional[str] = None
+    elapsed_seconds: Optional[int] = None
+    hours: Optional[str] = None
+
+
 class AttendanceStats(BaseModel):
     present: int
     late: int

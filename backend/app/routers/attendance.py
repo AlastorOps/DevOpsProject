@@ -6,11 +6,20 @@ from app.database import get_db
 from app.models import Attendance, Employee, Department, User
 from app.schemas.attendance import (
     AttendanceCreate, AttendanceUpdate, AttendanceResponse,
-    AttendanceStats, AttendanceListResponse,
+    AttendanceStats, AttendanceListResponse, TodayAttendanceResponse,
 )
 from app.dependencies import get_current_user, require_hr
 
 router = APIRouter(prefix="/attendance", tags=["attendance"])
+
+
+def _parse_time_str(t: str) -> datetime | None:
+    for fmt in ("%H:%M:%S", "%H:%M"):
+        try:
+            return datetime.strptime(t, fmt)
+        except ValueError:
+            continue
+    return None
 
 
 def _calc_hours(check_in: str, check_out: str) -> str | None:
@@ -18,17 +27,123 @@ def _calc_hours(check_in: str, check_out: str) -> str | None:
         return None
     try:
         from datetime import timedelta
-        fmt = "%H:%M"
-        ci = datetime.strptime(check_in, fmt)
-        co = datetime.strptime(check_out, fmt)
+        ci = _parse_time_str(check_in)
+        co = _parse_time_str(check_out)
+        if ci is None or co is None:
+            return None
         diff = co - ci
         if diff.total_seconds() < 0:
-            diff += timedelta(days=1)  # overnight shift (e.g. 22:00 → 06:00)
+            diff += timedelta(days=1)
         h, rem = divmod(int(diff.total_seconds()), 3600)
         m = rem // 60
         return f"{h}h {m}m"
-    except ValueError:
+    except Exception:
         return None
+
+
+@router.get("/today", response_model=TodayAttendanceResponse)
+def get_today(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not current_user.employee_id:
+        raise HTTPException(status_code=400, detail="No employee profile linked to this account")
+
+    today = date_type.today()
+    now = datetime.now()
+
+    record = db.query(Attendance).filter(
+        and_(Attendance.employee_id == current_user.employee_id, Attendance.date == today)
+    ).first()
+
+    if not record:
+        return TodayAttendanceResponse(date=today)
+
+    elapsed_seconds = None
+    if record.check_in and not record.check_out:
+        ci_dt = _parse_time_str(record.check_in)
+        if ci_dt:
+            from datetime import datetime as _dt
+            ci_full = _dt.combine(today, ci_dt.time())
+            elapsed_seconds = max(0, int((now - ci_full).total_seconds()))
+
+    return TodayAttendanceResponse(
+        id=record.id,
+        date=record.date,
+        check_in=record.check_in,
+        check_out=record.check_out,
+        status=record.status,
+        elapsed_seconds=elapsed_seconds,
+        hours=_calc_hours(record.check_in, record.check_out),
+    )
+
+
+@router.post("/check-in", response_model=TodayAttendanceResponse, status_code=201)
+def check_in(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not current_user.employee_id:
+        raise HTTPException(status_code=400, detail="No employee profile linked to this account")
+
+    today = date_type.today()
+    existing = db.query(Attendance).filter(
+        and_(Attendance.employee_id == current_user.employee_id, Attendance.date == today)
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Already checked in today")
+
+    now = datetime.now()
+    status = "Late" if now.hour >= 9 else "Present"
+    record = Attendance(
+        employee_id=current_user.employee_id,
+        date=today,
+        check_in=now.strftime("%H:%M:%S"),
+        status=status,
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+
+    return TodayAttendanceResponse(
+        id=record.id,
+        date=record.date,
+        check_in=record.check_in,
+        status=record.status,
+        elapsed_seconds=0,
+    )
+
+
+@router.post("/check-out", response_model=TodayAttendanceResponse)
+def check_out(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not current_user.employee_id:
+        raise HTTPException(status_code=400, detail="No employee profile linked to this account")
+
+    today = date_type.today()
+    record = db.query(Attendance).filter(
+        and_(Attendance.employee_id == current_user.employee_id, Attendance.date == today)
+    ).first()
+
+    if not record or not record.check_in:
+        raise HTTPException(status_code=400, detail="You have not checked in today")
+    if record.check_out:
+        raise HTTPException(status_code=409, detail="Already checked out today")
+
+    record.check_out = datetime.now().strftime("%H:%M:%S")
+    db.commit()
+    db.refresh(record)
+
+    return TodayAttendanceResponse(
+        id=record.id,
+        date=record.date,
+        check_in=record.check_in,
+        check_out=record.check_out,
+        status=record.status,
+        hours=_calc_hours(record.check_in, record.check_out),
+    )
 
 
 @router.get("/stats", response_model=AttendanceStats)

@@ -1,487 +1,327 @@
-# EMS-Ops — Employee Management System
+# EMS-Ops
 
-A full-stack HR and Employee Management System for managing employees, departments, attendance, leave, payroll, performance reviews, and role-based access control.
+Employee Management System for HR operations, employee records, attendance, leave, payroll, performance reviews, roles, reporting, and system settings.
 
-Built on a modern DevOps architecture: FastAPI · React · PostgreSQL · Docker · Kubernetes · GitHub Actions CI/CD.
+The project is built as a full-stack DevOps application:
 
----
-
-## Features
-
-| Module              | Capabilities                                                  |
-| ------------------- | ------------------------------------------------------------- |
-| Authentication      | JWT login, refresh tokens, role-based access control          |
-| Employee Management | Create, update, view, deactivate employees, photo upload      |
-| Organization        | Department and position management                            |
-| Attendance          | Daily check-in/check-out tracking and reporting               |
-| Leave Management    | Leave requests, manager approvals, balance tracking           |
-| Payroll             | Salary processing, payslip generation, approval workflow      |
-| Performance Reviews | Employee evaluations with ratings and cycles                  |
-| User Management     | User accounts, role assignments, status control, CSV export   |
-| Profile Management  | Self-service profile updates and password changes             |
-| Roles & Permissions | Fully configurable module-level access control                |
-| Dashboard           | Admin KPIs and employee self-service dashboard                |
-| Reports             | System reporting and analytics with export                    |
-| Settings            | Organization profile, logo upload, notification preferences   |
-| Monitoring          | Prometheus metrics and Grafana dashboards                     |
-
----
-
-## Tech Stack
-
-| Layer            | Technology                              |
-| ---------------- | --------------------------------------- |
-| Backend          | FastAPI 0.115, Python 3.12              |
-| Database         | PostgreSQL 16                           |
-| Frontend         | React 19, Vite, Tailwind CSS            |
-| Authentication   | JWT — python-jose + passlib/bcrypt      |
-| ORM              | SQLAlchemy 2.0 (mapped_column API)      |
-| Validation       | Pydantic v2                             |
-| Containerization | Docker + Docker Compose                 |
-| Orchestration    | Kubernetes (nginx-ingress)              |
-| Monitoring       | Prometheus + Grafana                    |
-| CI/CD            | GitHub Actions                          |
-
----
-
-## Architecture
-
-```
-Browser
-  │
-  ▼
-React (Vite)  ──npm run dev──►  Vite proxy  ──►  FastAPI :8000
-  │                                                    │
-  │   Docker / Kubernetes                              ▼
-  └──► Nginx :80  ──/api/──►  FastAPI :8000       PostgreSQL :5432
-                                   │
-                                   ▼
-                            /uploads  (static files)
-
-Monitoring:
-Prometheus ──► Grafana
-```
-
----
+- Backend: FastAPI, SQLAlchemy, Pydantic, PostgreSQL
+- Frontend: React, Vite, Tailwind CSS
+- Runtime: Docker Compose or Kubernetes
+- CI/CD: GitHub Actions
+- Monitoring: Prometheus and Grafana starter configuration
 
 ## Project Structure
 
-```
-EMS-Ops/
-├── backend/
-│   ├── app/
-│   │   ├── main.py               # App entry point, lifespan, static mounts
-│   │   ├── config.py             # Settings from environment
-│   │   ├── database.py           # SQLAlchemy engine + session
-│   │   ├── models.py             # ORM models
-│   │   ├── auth.py               # JWT helpers
-│   │   ├── dependencies.py       # Auth guards (require_admin, require_hr …)
-│   │   ├── routers/              # One file per domain
-│   │   └── schemas/              # Pydantic request/response models
-│   ├── requirements.txt
-│   └── Dockerfile
-│
-├── frontend/
-│   ├── src/
-│   │   ├── api/                  # Centralized service layer (one file per domain)
-│   │   ├── components/           # Shared UI components
-│   │   ├── context/              # AuthContext (JWT + user state)
-│   │   ├── features/             # Page-level components by domain
-│   │   └── lib/                  # Legacy shim (re-exports api client)
-│   ├── nginx.conf                # Nginx reverse-proxy config (Docker)
-│   ├── Dockerfile
-│   └── package.json
-│
-├── database/
-│   └── init/
-│       ├── 01_schema.sql         # Full schema — runs once on empty volume
-│       ├── 02_seed.sql           # Roles, settings, admin account
-│       └── 03_fake_data.sql      # 15 demo employees (password: Employee@123)
-│
-├── kubernetes/
-│   ├── 00-namespace.yaml         # Must be applied first
-│   ├── secrets.yaml              # Base64 credentials — gitignored
-│   ├── database.yaml             # Postgres StatefulSet + Service + PVC
-│   ├── backend.yaml              # FastAPI Deployment + Service + PVC
-│   ├── deployment.yaml           # React/Nginx Deployment
-│   ├── service.yaml              # Frontend ClusterIP Service
-│   └── ingress.yaml              # nginx-ingress → frontend
-│
-├── monitoring/
-│   ├── prometheus.yml
-│   └── grafana/dashboards/
-│
-├── .github/workflows/
-│   └── main.yml                  # CI/CD pipeline
-│
+```text
+.
+├── backend/                  FastAPI app, tests, Dockerfile
+├── database/                 SQL schema, seed data, demo data, Alembic files
+├── frontend/                 React/Vite app and nginx Docker config
+├── kubernetes/               Namespace, database, backend, frontend, ingress
+├── monitoring/               Prometheus config and Grafana dashboard starter
+├── .github/workflows/        CI/CD workflow
 ├── docker-compose.yml
-├── .env.example
+├── package.json              Root dev orchestration scripts
 └── README.md
 ```
 
----
-
 ## Prerequisites
 
-| Tool            | Version  | Notes                          |
-| --------------- | -------- | ------------------------------ |
-| Docker Desktop  | Latest   | Required for all Docker flows  |
-| Node.js         | 22+      | Frontend local dev only        |
-| Python          | 3.12+    | Backend local dev only         |
-| kubectl         | Latest   | Kubernetes deployment only     |
+| Tool | Version |
+| ---- | ------- |
+| Docker Desktop | Current |
+| Node.js | 22+ |
+| Python | 3.12 |
+| kubectl | Current, for Kubernetes only |
 
----
+Use Python 3.12 for the backend. Python 3.14 can fail with the pinned native dependencies because compatible wheels may not be available.
 
-## Quick Start — Docker Compose
+## Quick Start With Docker Compose
 
-### 1. Clone
-
-```bash
-git clone <repo-url>
-cd EMS-Ops
-```
-
-### 2. Create environment file
-
-Create a `.env` file in the project root:
+Create a root `.env` file:
 
 ```env
-POSTGRES_PASSWORD=your-postgres-password
-SECRET_KEY=your-jwt-secret-key
-ADMIN_PASSWORD=Admin@1234
+POSTGRES_PASSWORD=replace-with-strong-postgres-password
+SECRET_KEY=replace-with-64-character-random-hex-string
+ADMIN_PASSWORD=replace-with-strong-admin-password
 DOCKER_USERNAME=your-dockerhub-username
 ```
 
-> Generate a strong `SECRET_KEY`:
-> ```bash
-> python -c "import secrets; print(secrets.token_hex(32))"
-> ```
+Generate a strong secret key:
 
-### 3. Build and start
-
-```bash
-docker-compose up --build -d
+```powershell
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-On first boot, PostgreSQL automatically runs the init scripts in `database/init/`:
-- Creates all tables
-- Seeds roles, system settings, and the admin account
-- Loads 15 demo employees with fake data
+Start the stack:
 
-### 4. Open the app
-
-| Service     | URL                        |
-| ----------- | -------------------------- |
-| Frontend    | http://localhost:8080      |
-| Backend API | http://localhost:8000      |
-| Swagger UI  | http://localhost:8000/docs |
-| PostgreSQL  | localhost:5433             |
-
-### 5. Log in
-
-| Role       | Email                   | Password       |
-| ---------- | ----------------------- | -------------- |
-| Admin      | admin@company.com       | *(ADMIN_PASSWORD from .env)* |
-| Any demo employee | *(work email from employee list)* | Employee@123 |
-
----
-
-## Stopping and Resetting
-
-```bash
-# Stop containers (keeps data)
-docker-compose down
-
-# Stop and delete all data volumes (full reset)
-docker-compose down -v
+```powershell
+docker compose up --build -d
 ```
 
----
+Open:
 
-## Database Migrations
+| Service | URL |
+| ------- | --- |
+| Frontend | http://localhost:8080 |
+| Backend API | http://localhost:8000 |
+| Swagger UI | http://localhost:8000/docs |
+| PostgreSQL | localhost:5433 |
 
-This project uses `Base.metadata.create_all()` — it creates tables on first boot but does **not** run ALTER TABLE on existing databases.
+Stop the stack:
 
-If you added the `photo_path` column after your database was already created, run this once:
-
-```bash
-docker exec ems-db psql -U postgres -d emsops -c \
-  "ALTER TABLE employees ADD COLUMN IF NOT EXISTS photo_path VARCHAR(500);"
+```powershell
+docker compose down
 ```
 
----
+Reset all Docker data:
+
+```powershell
+docker compose down -v
+```
 
 ## Local Development
 
 ### Backend
 
-```bash
+```powershell
 cd backend
-
-python -m venv .venv
-
-# Windows
-.venv\Scripts\activate
-
-# macOS / Linux
-source .venv/bin/activate
-
-pip install -r requirements.txt
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
-Create `backend/.env`:
+Create `backend/.env` for local backend development:
 
 ```env
-DATABASE_URL=postgresql://postgres:your-password@localhost:5433/emsops
-SECRET_KEY=your-secret-key
-ADMIN_PASSWORD=Admin@1234
+DATABASE_URL=postgresql://postgres:replace-with-password@localhost:5433/emsops
+SECRET_KEY=replace-with-64-character-random-hex-string
+ADMIN_PASSWORD=replace-with-strong-admin-password
 CORS_ORIGINS=["http://localhost:5173","http://localhost:8080"]
 UPLOAD_DIR=uploads
 ```
 
-Start the backend:
-
-```bash
-uvicorn app.main:app --reload --port 8000
-```
-
 ### Frontend
 
-```bash
+```powershell
 cd frontend
 npm install
 npm run dev
 ```
 
-Vite proxies `/api` and `/uploads` to `http://localhost:8000` automatically via `vite.config.js`.
+The frontend dev server runs at `http://localhost:5173`. Vite proxies `/api` and `/uploads` to `http://localhost:8000`.
 
-Frontend runs at: `http://localhost:5173`
+### Root Dev Script
 
----
+After installing backend and frontend dependencies, the root script can run both apps:
+
+```powershell
+npm install
+npm run dev
+```
+
+## Testing And Validation
+
+Backend tests:
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Current verified result:
+
+```text
+38 passed
+```
+
+Frontend checks:
+
+```powershell
+cd frontend
+npm run lint
+npm run build
+```
+
+Docker Compose static validation:
+
+```powershell
+docker compose config
+```
 
 ## Environment Variables
 
-### Root `.env` (Docker Compose)
+### Root `.env`
 
-| Variable          | Required | Description                       |
-| ----------------- | -------- | --------------------------------- |
-| POSTGRES_PASSWORD | Yes      | PostgreSQL password               |
-| SECRET_KEY        | Yes      | JWT signing key (32+ random chars)|
-| ADMIN_PASSWORD    | Yes      | Initial admin account password    |
-| DOCKER_USERNAME   | No       | Docker Hub username for image tags|
+Used by Docker Compose.
 
-### Backend `backend/.env` (local dev)
+| Variable | Required | Description |
+| -------- | -------- | ----------- |
+| POSTGRES_PASSWORD | Yes | PostgreSQL password |
+| SECRET_KEY | Yes | JWT signing secret, 32+ random characters |
+| ADMIN_PASSWORD | Yes | Initial admin password |
+| DOCKER_USERNAME | No | Docker Hub namespace for image tags |
 
-| Variable                    | Required | Description                    |
-| --------------------------- | -------- | ------------------------------ |
-| DATABASE_URL                | Yes      | PostgreSQL connection string   |
-| SECRET_KEY                  | Yes      | JWT signing key                |
-| ADMIN_PASSWORD              | Yes      | Initial admin password         |
-| ALGORITHM                   | No       | Default: HS256                 |
-| ACCESS_TOKEN_EXPIRE_MINUTES | No       | Default: 30                    |
-| REFRESH_TOKEN_EXPIRE_DAYS   | No       | Default: 7                     |
-| CORS_ORIGINS                | No       | JSON array of allowed origins  |
-| UPLOAD_DIR                  | No       | Default: uploads               |
+### Backend `.env`
 
-### Frontend `.env` (optional)
+Used by local FastAPI development.
 
-| Variable          | Default | Description         |
-| ----------------- | ------- | ------------------- |
-| VITE_API_BASE_URL | /api    | Backend API prefix  |
+| Variable | Required | Description |
+| -------- | -------- | ----------- |
+| DATABASE_URL | Yes | Database connection string |
+| SECRET_KEY | Yes | JWT signing secret |
+| ADMIN_PASSWORD | Yes | Initial admin password |
+| ALGORITHM | No | Defaults to `HS256` |
+| ACCESS_TOKEN_EXPIRE_MINUTES | No | Defaults to `30` |
+| REFRESH_TOKEN_EXPIRE_DAYS | No | Defaults to `7` |
+| CORS_ORIGINS | No | JSON array of allowed origins |
+| UPLOAD_DIR | No | Defaults to `uploads` |
 
----
+### Frontend `.env`
 
-## API Reference
+Optional for local frontend development.
 
-Interactive docs available at runtime:
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| VITE_API_BASE_URL | `/api` | Backend API prefix |
 
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+## Kubernetes
 
-### Core Endpoints
+The `kubernetes/` folder contains:
 
-| Method | Endpoint                     | Description              |
-| ------ | ---------------------------- | ------------------------ |
-| POST   | /auth/login                  | Login, returns JWT       |
-| POST   | /auth/refresh                | Refresh access token     |
-| GET    | /auth/me                     | Current user info        |
-| GET    | /employees                   | Paginated employee list  |
-| POST   | /employees                   | Create employee          |
-| POST   | /employees/{id}/photo        | Upload employee photo    |
-| PUT    | /employees/{id}              | Update employee          |
-| DELETE | /employees/{id}              | Delete employee          |
-| GET    | /departments                 | List departments         |
-| GET    | /attendance                  | Attendance records       |
-| GET    | /leave                       | Leave requests           |
-| GET    | /payroll                     | Payroll records          |
-| GET    | /performance                 | Performance reviews      |
-| GET    | /roles                       | List roles               |
-| PUT    | /roles/{name}                | Update role permissions  |
-| GET    | /dashboard/admin-stats       | Admin KPI stats          |
-| GET    | /reports                     | Generate reports         |
-| GET    | /health                      | Health check             |
+| File | Purpose |
+| ---- | ------- |
+| `00-namespace.yaml` | Namespace |
+| `secrets.example.yaml` | Safe template for required secrets |
+| `secrets.yaml` | Local real secret file, ignored by Git |
+| `database.yaml` | PostgreSQL StatefulSet and Service |
+| `backend.yaml` | FastAPI Deployment, Service, and uploads PVC |
+| `deployment.yaml` | Frontend nginx Deployment |
+| `service.yaml` | Frontend ClusterIP Service |
+| `ingress.yaml` | nginx ingress route |
+| `kustomization.yaml` | Applies non-secret Kubernetes resources |
 
----
+Create the namespace:
 
-## Roles & Permissions
-
-| Role       | Access Level                                    |
-| ---------- | ----------------------------------------------- |
-| Admin      | Full system access                              |
-| HR Manager | Employees, payroll, leave, reports, settings    |
-| Manager    | Team view, performance reviews                  |
-| Employee   | Personal dashboard, self-service profile, leave |
-
-Roles are seeded automatically on startup. Additional custom roles can be created from the **Roles & Permissions** admin page.
-
----
-
-## CI/CD Pipeline
-
-GitHub Actions runs on pushes to `main`, `dev`, and `feature/*` branches.
-
-### Stages
-
-| Stage          | Trigger       | Steps                                        |
-| -------------- | ------------- | -------------------------------------------- |
-| Frontend CI    | All branches  | `npm ci` → lint → build                     |
-| Backend CI     | All branches  | `pip install` → import check                |
-| Docker Build   | `main` only   | Build + push images to Docker Hub           |
-
-### Required GitHub Secrets
-
-| Secret          | Description              |
-| --------------- | ------------------------ |
-| DOCKER_USERNAME | Docker Hub username      |
-| DOCKER_PASSWORD | Docker Hub access token  |
-
-Images are tagged `latest` and `<git-sha>`.
-
----
-
-## Kubernetes Deployment
-
-### Prerequisites
-
-- A running Kubernetes cluster (Docker Desktop, minikube, or cloud)
-- `nginx-ingress` controller installed
-- `kubectl` configured
-
-### 1. Apply namespace first
-
-```bash
+```powershell
 kubectl apply -f kubernetes/00-namespace.yaml
 ```
 
-### 2. Create secrets
+Create real secrets from the template:
 
-Fill in `kubernetes/secrets.yaml` with base64-encoded values:
-
-```bash
-# Encode a value
-echo -n "your-value" | base64
+```powershell
+Copy-Item kubernetes/secrets.example.yaml kubernetes/secrets.yaml
 ```
 
-```bash
+Edit `kubernetes/secrets.yaml`, then apply it:
+
+```powershell
 kubectl apply -f kubernetes/secrets.yaml
 ```
 
-> `secrets.yaml` is in `.gitignore` — never commit real credentials.
+Deploy the app resources:
 
-### 3. Deploy everything
-
-```bash
-kubectl apply -f kubernetes/
+```powershell
+kubectl apply -k kubernetes
 ```
 
-### 4. Initialize the database schema
+Initialize the database on first Kubernetes deploy:
 
-The Kubernetes postgres pod starts empty (no init scripts). Run the schema once:
-
-```bash
+```powershell
 kubectl cp database/init/01_schema.sql ems-ops/ems-ops-db-0:/tmp/01_schema.sql
-kubectl cp database/init/02_seed.sql   ems-ops/ems-ops-db-0:/tmp/02_seed.sql
-
+kubectl cp database/init/02_seed.sql ems-ops/ems-ops-db-0:/tmp/02_seed.sql
 kubectl exec -n ems-ops ems-ops-db-0 -- psql -U postgres -d emsops -f /tmp/01_schema.sql
 kubectl exec -n ems-ops ems-ops-db-0 -- psql -U postgres -d emsops -f /tmp/02_seed.sql
 ```
 
-### 5. Check status
+Check status:
 
-```bash
+```powershell
 kubectl get all -n ems-ops
 ```
 
-All pods should show `Running` and `READY 1/1`.
+For local ingress, add this hosts entry:
 
-### 6. Access the app
-
-Add to your hosts file (`C:\Windows\System32\drivers\etc\hosts` on Windows):
-
-```
-127.0.0.1  ems-ops.local
+```text
+127.0.0.1 ems-ops.local
 ```
 
-Open: `http://ems-ops.local`
-
-### Teardown
-
-```bash
-# Remove workloads only
-kubectl delete deployment ems-ops-frontend ems-ops-backend -n ems-ops
-kubectl delete statefulset ems-ops-db -n ems-ops
-
-# Full teardown
-kubectl delete namespace ems-ops
-```
-
----
+Then open `http://ems-ops.local`.
 
 ## Monitoring
 
-### Prometheus
+`monitoring/prometheus.yml` currently scrapes:
 
-Scrape targets configured in `monitoring/prometheus.yml`:
+- Prometheus self-metrics
+- Optional `node-exporter`
 
-- `/backend/metrics` — FastAPI application metrics
-- `node-exporter` — host metrics
-- `prometheus` — self-metrics
+The backend Prometheus scrape is commented out because the FastAPI app does not currently expose a Prometheus-format `/metrics` endpoint. Add a FastAPI metrics exporter before enabling that target.
 
-### Grafana
+Grafana dashboard starter:
 
-Dashboard file: `monitoring/grafana/dashboards/backend.json`
+```text
+monitoring/grafana/dashboards/backend.json
+```
 
-Import via: **Grafana → Dashboards → Import → Upload JSON**
+See `monitoring/README.md` for import notes.
 
----
+## CI/CD
+
+GitHub Actions workflow:
+
+```text
+.github/workflows/main.yml
+```
+
+Pipeline stages:
+
+- Frontend: install, lint, build
+- Backend: install dependencies, run pytest with Python 3.12
+- Docker: build and push frontend/backend images on `main` and `dev`
+
+Required GitHub secrets for Docker publishing:
+
+| Secret | Description |
+| ------ | ----------- |
+| DOCKER_USERNAME | Docker Hub username |
+| DOCKER_PASSWORD | Docker Hub access token |
 
 ## Security Notes
 
-- Passwords are hashed with bcrypt (cost factor 12)
-- All API routes require a valid JWT Bearer token except `/auth/login`
-- Role guards enforced server-side (`require_admin`, `require_hr`)
-- CORS restricted to configured origins
-- `secrets.yaml` and all `.env` files are gitignored
-
-**Production checklist:**
-- [ ] Set strong, unique `SECRET_KEY` and `ADMIN_PASSWORD`
-- [ ] Enable HTTPS / TLS termination at the ingress
-- [ ] Use a secrets manager (Vault, AWS Secrets Manager) instead of plain env files
-- [ ] Schedule regular PostgreSQL backups
-- [ ] Restrict CORS to your actual domain
-
----
+- `.env`, `backend/.env`, and `kubernetes/secrets.yaml` are ignored by Git.
+- Do not commit real secrets, passwords, kubeconfigs, or local certificates.
+- Use strong unique values for `SECRET_KEY`, `ADMIN_PASSWORD`, and `POSTGRES_PASSWORD`.
+- Restrict `CORS_ORIGINS` to real production domains.
+- Use TLS at ingress in production.
+- Use a managed secret store for production deployments.
 
 ## Known Limitations
 
-- No Alembic migration support — schema changes on existing databases require manual `ALTER TABLE`
-- No token revocation / blacklist system
-- No automated test suite (unit or integration)
-- No centralized log aggregation
-- Kubernetes does not auto-seed the database on first deploy
+- Kubernetes database schema is initialized manually.
+- The app creates tables on startup, but existing database schema changes still need migrations or manual SQL.
+- Backend Prometheus metrics are not exposed yet.
+- Token revocation/blacklisting is not implemented.
 
----
+## Useful Commands
 
-## License
+```powershell
+# Frontend
+cd frontend
+npm run lint
+npm run build
 
-Provided for educational and portfolio purposes. Modify and distribute according to your organization's requirements.
+# Backend
+cd backend
+.\.venv\Scripts\python.exe -m pytest
+
+# Docker
+docker compose config
+docker compose up --build -d
+docker compose down
+
+# Kubernetes
+kubectl apply -k kubernetes
+kubectl get all -n ems-ops
+```

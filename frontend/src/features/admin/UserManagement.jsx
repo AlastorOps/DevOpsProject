@@ -33,7 +33,7 @@ export default function UserManagement() {
   const [deleteId, setDeleteId]         = useState(null)
   const [page, setPage]                 = useState(1)
   const [saving, setSaving]             = useState(false)
-  const limit = 20
+  const limit = 10
 
   const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3000) }
 
@@ -121,7 +121,6 @@ export default function UserManagement() {
   }
 
   const totalPages = Math.max(1, Math.ceil(total / limit))
-  const activeCount = users.filter(u => u.status === 'Active').length
 
   return (
     <div className="p-margin-mobile md:p-margin-desktop">
@@ -210,45 +209,21 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-sm bg-surface-container-lowest border border-outline-variant rounded-xl px-md py-sm shadow-sm focus-within:border-primary transition-all">
-        <span className="material-symbols-outlined text-on-surface-variant text-[20px]">search</span>
-        <input className="flex-1 bg-transparent outline-none text-body-md placeholder:text-on-surface-variant" placeholder="Search by name or email…" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
-        {search && <button onClick={() => { setSearch(''); setPage(1) }} className="text-on-surface-variant hover:text-on-surface"><span className="material-symbols-outlined text-[18px]">close</span></button>}
-      </div>
-      <br />
-
-      {/* Stats & Filters */}
-      <div className="grid grid-cols-12 gap-gutter mb-xl">
-        <div className="col-span-12 lg:col-span-8 bg-surface-container-lowest rounded-xl border border-outline-variant p-md shadow-sm">
-          <div className="flex flex-wrap items-center gap-md">
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-label-sm text-on-surface-variant mb-xs ml-1">Filter by Role</label>
-              <div className="flex flex-wrap gap-xs">
-                {['', ...roles].map(r => (
-                  <button key={r || 'all'} onClick={() => { setRoleFilter(r); setPage(1) }} className={`px-sm py-1 rounded-full text-label-sm font-bold cursor-pointer transition-colors ${roleFilter === r ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 text-on-surface-variant'}`}>
-                    {r || 'All Roles'}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="h-10 w-px bg-outline-variant mx-xs hidden md:block" />
-            <div className="w-full md:w-48">
-              <label className="block text-label-sm text-on-surface-variant mb-xs ml-1">Status</label>
-              <select className="w-full bg-surface-container border-none rounded-lg text-body-md py-1.5 focus:ring-primary/20" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}>
-                <option value="">All Status</option><option>Active</option><option>Inactive</option>
-              </select>
-            </div>
-          </div>
+      {/* Filters */}
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md mb-lg shadow-sm flex flex-wrap gap-md">
+        <div className="flex-1 min-w-[200px] relative">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+          <input className="w-full bg-background border border-outline-variant rounded-lg py-2 pl-10 pr-4 text-body-md focus:ring-2 focus:ring-primary outline-none" placeholder="Search by name or email…" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
         </div>
-        <div className="col-span-12 lg:col-span-4 bg-primary rounded-xl border border-primary-container p-md shadow-md text-on-primary flex items-center justify-between overflow-hidden relative">
-          <div className="relative z-10">
-            <p className="text-label-sm font-bold opacity-80 uppercase tracking-widest mb-xs">Active Users</p>
-            <p className="text-display leading-none">{activeCount}</p>
-            <div className="flex items-center mt-sm text-secondary-container"><span className="material-symbols-outlined text-sm mr-xs">group</span><span className="text-label-md">{total} total users</span></div>
-          </div>
-          <div className="absolute -right-4 -bottom-6 opacity-20"><span className="material-symbols-outlined text-[120px]" style={{ fontVariationSettings: "'FILL' 1" }}>group</span></div>
-        </div>
+        <select className="bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md" value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setPage(1) }}>
+          <option value="">All Roles</option>
+          {roles.map(r => <option key={r}>{r}</option>)}
+        </select>
+        <select className="bg-background border border-outline-variant rounded-lg py-2 px-3 text-body-md" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}>
+          <option value="">All Status</option>
+          <option>Active</option>
+          <option>Inactive</option>
+        </select>
       </div>
 
       {/* Table */}
@@ -279,7 +254,7 @@ export default function UserManagement() {
                     </td>
                     <td className="px-lg py-md"><span className={`inline-flex items-center px-sm py-1 rounded-full text-label-sm font-bold ${roleStyle[u.role] ?? 'bg-surface-container text-on-surface-variant'}`}>{u.role}</span></td>
                     <td className="px-lg py-md"><div className={`flex items-center gap-xs font-bold text-label-sm ${sc.text}`}><span className={`w-2 h-2 rounded-full ${sc.dot}`} />{u.status}</div></td>
-                    <td className="px-lg py-md text-body-md text-on-surface-variant">{u.last_login ? new Date(u.last_login).toLocaleString() : 'Never'}</td>
+                    <td className="px-lg py-md text-body-md text-on-surface-variant">{u.last_login ? new Date(u.last_login.endsWith('Z') ? u.last_login : u.last_login + 'Z').toLocaleString() : 'Never'}</td>
                     <td className="px-lg py-md">
                       <div className="flex items-center justify-end gap-xs">
                         <button onClick={() => openEdit(u)} className="p-1.5 hover:bg-surface-container rounded-lg text-outline hover:text-primary transition-all"><span className="material-symbols-outlined text-[18px]">edit</span></button>

@@ -4,3 +4,5 @@ metadata:
   name: ems-ops
   labels:
     app: ems-ops
+    app.kubernetes.io/name: ems-ops
+    app.kubernetes.io/part-of: ems-ops
