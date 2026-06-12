@@ -3,13 +3,23 @@ import { useState, useEffect, useRef } from 'react'
 /**
  * Searchable employee combobox.
  * Props:
- *   employees  – array of { id, name, emp_id }
- *   value      – selected employee_id string ('' for none)
- *   onChange   – (id: string) => void
- *   error      – optional error message string
- *   placeholder
+ *   employees    – array of { id, name, emp_id, position? }
+ *   value        – selected employee_id string ('' for none)
+ *   onChange     – (id: string) => void
+ *   error        – optional error message string
+ *   loading      – show loading state
+ *   placeholder  – input placeholder
+ *   showPosition – when true, show position title in dropdown items
  */
-export default function EmployeeCombobox({ employees, value, onChange, error, loading = false, placeholder = 'Search employee…' }) {
+export default function EmployeeCombobox({
+  employees,
+  value,
+  onChange,
+  error,
+  loading = false,
+  placeholder = 'Search employee…',
+  showPosition = false,
+}) {
   const [search, setSearch] = useState('')
   const [open, setOpen]     = useState(false)
   const ref                 = useRef(null)
@@ -21,7 +31,9 @@ export default function EmployeeCombobox({ employees, value, onChange, error, lo
   }, [])
 
   const filtered = search.trim()
-    ? employees.filter(e => `${e.name} ${e.emp_id}`.toLowerCase().includes(search.toLowerCase()))
+    ? employees.filter(e =>
+        `${e.name} ${e.emp_id} ${e.position?.title ?? ''}`.toLowerCase().includes(search.toLowerCase())
+      )
     : employees
 
   const selected = employees.find(e => e.id === value)
@@ -51,7 +63,11 @@ export default function EmployeeCombobox({ employees, value, onChange, error, lo
               className={`px-md py-sm text-body-md cursor-pointer hover:bg-surface-container transition-colors ${value === emp.id ? 'bg-primary/10 text-primary font-bold' : ''}`}
               onMouseDown={() => { onChange(emp.id); setSearch(''); setOpen(false) }}
             >
-              {emp.name} <span className="text-on-surface-variant text-label-sm">({emp.emp_id})</span>
+              <span>{emp.name}</span>
+              <span className="text-on-surface-variant text-label-sm"> ({emp.emp_id})</span>
+              {showPosition && emp.position?.title && (
+                <span className="text-on-surface-variant text-label-sm"> · {emp.position.title}</span>
+              )}
             </li>
           ))}
         </ul>

@@ -233,7 +233,7 @@ export default function UserManagement() {
             <thead>
               <tr className="bg-surface-container-low border-b border-outline-variant">
                 {['Full Name', 'Role', 'Status', 'Last Login', 'Actions'].map((h, i) => (
-                  <th key={h} className={`px-lg py-md text-label-sm font-bold text-on-surface-variant uppercase tracking-wider ${i === 4 ? 'text-right' : ''}`}>{h}</th>
+                  <th key={h} className={`px-lg py-md text-label-sm font-bold text-on-surface-variant uppercase tracking-wider${i === 4 ? ' w-32 text-center' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -255,13 +255,13 @@ export default function UserManagement() {
                     <td className="px-lg py-md"><span className={`inline-flex items-center px-sm py-1 rounded-full text-label-sm font-bold ${roleStyle[u.role] ?? 'bg-surface-container text-on-surface-variant'}`}>{u.role}</span></td>
                     <td className="px-lg py-md"><div className={`flex items-center gap-xs font-bold text-label-sm ${sc.text}`}><span className={`w-2 h-2 rounded-full ${sc.dot}`} />{u.status}</div></td>
                     <td className="px-lg py-md text-body-md text-on-surface-variant">{u.last_login ? new Date(u.last_login.endsWith('Z') ? u.last_login : u.last_login + 'Z').toLocaleString() : 'Never'}</td>
-                    <td className="px-lg py-md">
-                      <div className="flex items-center justify-end gap-xs">
-                        <button onClick={() => openEdit(u)} className="p-1.5 hover:bg-surface-container rounded-lg text-outline hover:text-primary transition-all"><span className="material-symbols-outlined text-[18px]">edit</span></button>
+                    <td className="px-lg py-md w-32">
+                      <div className="flex items-center justify-center gap-xs">
+                        <button onClick={() => openEdit(u)} className="p-1.5 flex items-center justify-center hover:bg-surface-container rounded-lg text-outline hover:text-primary transition-all"><span className="material-symbols-outlined text-[18px]">edit</span></button>
                         {u.id !== currentUser?.id && (
                           <>
-                            <button onClick={() => toggleStatus(u)} className={`p-1.5 rounded-lg transition-all ${u.status === 'Active' ? 'hover:bg-error/10 text-outline hover:text-error' : 'hover:bg-secondary/10 text-outline hover:text-secondary'}`}><span className="material-symbols-outlined text-[18px]">{u.status === 'Active' ? 'person_off' : 'person_check'}</span></button>
-                            <button onClick={() => setDeleteId(u.id)} className="p-1.5 hover:bg-error/10 rounded-lg text-outline hover:text-error transition-all"><span className="material-symbols-outlined text-[18px]">delete</span></button>
+                            <button onClick={() => toggleStatus(u)} className={`p-1.5 flex items-center justify-center rounded-lg transition-all ${u.status === 'Active' ? 'hover:bg-error/10 text-outline hover:text-error' : 'hover:bg-secondary/10 text-outline hover:text-secondary'}`}><span className="material-symbols-outlined text-[18px]">{u.status === 'Active' ? 'person_off' : 'person_check'}</span></button>
+                            <button onClick={() => setDeleteId(u.id)} className="p-1.5 flex items-center justify-center hover:bg-error/10 rounded-lg text-outline hover:text-error transition-all"><span className="material-symbols-outlined text-[18px]">delete</span></button>
                           </>
                         )}
                       </div>

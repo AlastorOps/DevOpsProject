@@ -197,10 +197,10 @@ export default function SystemReports() {
 
       {/* Report Output */}
       {reportData && (
-        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
+        <div id="report-print-area" className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
           <div className="flex items-center justify-between mb-lg">
             <h3 className="text-headline-md">{selectedType?.name} — Results</h3>
-            <button onClick={() => window.print()} className="flex items-center gap-xs px-md py-sm border border-outline-variant rounded-lg text-label-md hover:bg-surface-container-low">
+            <button onClick={() => window.print()} className="no-print flex items-center gap-xs px-md py-sm border border-outline-variant rounded-lg text-label-md hover:bg-surface-container-low">
               <span className="material-symbols-outlined text-[18px]">print</span>
               Print
             </button>

@@ -225,6 +225,24 @@ def get_payslip(
     )
 
 
+@router.delete("/{payroll_id}", status_code=204)
+def delete_payroll(
+    payroll_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_hr),
+):
+    record = db.query(Payroll).filter(Payroll.id == payroll_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Payroll record not found")
+    if record.status == "Paid":
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete a paid payroll record. Only pending records can be removed."
+        )
+    db.delete(record)
+    db.commit()
+
+
 @router.get("/employee/{employee_id}", response_model=PayrollListResponse)
 def employee_payroll_history(
     employee_id: str,

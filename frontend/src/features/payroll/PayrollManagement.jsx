@@ -12,20 +12,21 @@ const statusStyle = {
 const fmt = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })
 
 export default function PayrollManagement() {
-  const [records, setRecords]   = useState([])
-  const [stats, setStats]       = useState(null)
-  const [employees, setEmployees] = useState([])
-  const [empLoading, setEmpLoading] = useState(false)
-  const [total, setTotal]       = useState(0)
-  const [loading, setLoading]   = useState(true)
-  const [activeTab, setActiveTab] = useState('all')
-  const [showModal, setShowModal] = useState(false)
-  const [form, setForm]         = useState({ employee_id: '', month: '', basic: '', bonus: '0', deductions: '0' })
-  const [formErrors, setFormErrors] = useState({})
-  const [toast, setToast]       = useState(null)
-  const [saving, setSaving]     = useState(false)
-  const [page, setPage]         = useState(1)
-  const [search, setSearch]     = useState('')
+  const [records, setRecords]         = useState([])
+  const [stats, setStats]             = useState(null)
+  const [employees, setEmployees]     = useState([])
+  const [empLoading, setEmpLoading]   = useState(false)
+  const [total, setTotal]             = useState(0)
+  const [loading, setLoading]         = useState(true)
+  const [activeTab, setActiveTab]     = useState('all')
+  const [showModal, setShowModal]     = useState(false)
+  const [form, setForm]               = useState({ employee_id: '', month: '', basic: '', bonus: '0', deductions: '0' })
+  const [formErrors, setFormErrors]   = useState({})
+  const [toast, setToast]             = useState(null)
+  const [saving, setSaving]           = useState(false)
+  const [page, setPage]               = useState(1)
+  const [search, setSearch]           = useState('')
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const limit = 10
 
   const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3000) }
@@ -64,18 +65,49 @@ export default function PayrollManagement() {
   useEffect(() => { const t = setTimeout(fetchData, search ? 300 : 0); return () => clearTimeout(t) }, [fetchData, search])
   useEffect(() => { fetchEmployees() }, [fetchEmployees])
 
-  // Re-fetch employees when modal opens in case the initial fetch failed
   useEffect(() => {
     if (showModal && employees.length === 0) fetchEmployees()
   }, [showModal]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const closeModal = () => { setShowModal(false); setForm({ employee_id: '', month: '', basic: '', bonus: '0', deductions: '0' }); setFormErrors({}) }
+  const closeModal = () => {
+    setShowModal(false)
+    setForm({ employee_id: '', month: '', basic: '', bonus: '0', deductions: '0' })
+    setFormErrors({})
+  }
 
-  const handleRunPayroll = async () => {
+  // Real-time validation helpers
+  const basic     = Number(form.basic) || 0
+  const bonus     = Number(form.bonus) || 0
+  const deductions = Number(form.deductions) || 0
+  const net       = basic + bonus - deductions
+
+  const validateForm = () => {
     const errs = {}
     if (!form.employee_id) errs.employee_id = 'Select an employee.'
     if (!form.month) errs.month = 'Month is required.'
-    if (!form.basic || Number(form.basic) <= 0) errs.basic = 'Basic salary is required.'
+    if (!form.basic || basic <= 0) errs.basic = 'Basic salary must be greater than zero.'
+    if (Number(form.bonus) < 0) errs.bonus = 'Bonus cannot be negative.'
+    if (Number(form.deductions) < 0) errs.deductions = 'Deductions cannot be negative.'
+    if (net < 0) errs.net = 'Net pay is negative — deductions exceed basic + bonus.'
+    return errs
+  }
+
+  const formValid = (() => {
+    if (!form.employee_id || !form.month || basic <= 0) return false
+    if (bonus < 0 || deductions < 0 || net < 0) return false
+    return true
+  })()
+
+  const ff = (key) => ({
+    value: form[key],
+    onChange: e => {
+      setForm(p => ({ ...p, [key]: e.target.value }))
+      setFormErrors(p => ({ ...p, [key]: '', net: '' }))
+    },
+  })
+
+  const handleRunPayroll = async () => {
+    const errs = validateForm()
     if (Object.keys(errs).length) { setFormErrors(errs); return }
 
     setSaving(true)
@@ -83,9 +115,9 @@ export default function PayrollManagement() {
       const payload = {
         employee_id: form.employee_id,
         month: form.month,
-        basic: Number(form.basic),
-        bonus: Number(form.bonus) || 0,
-        deductions: Number(form.deductions) || 0,
+        basic,
+        bonus,
+        deductions,
       }
       const res = await payrollService.create(payload)
       if (res.ok || res.status === 201) {
@@ -107,10 +139,21 @@ export default function PayrollManagement() {
     } catch { showToast('Network error.', 'error') }
   }
 
-  const ff = (key) => ({ value: form[key], onChange: e => { setForm(p => ({ ...p, [key]: e.target.value })); setFormErrors(p => ({ ...p, [key]: '' })) } })
-  const totalPages = Math.max(1, Math.ceil(total / limit))
+  const handleDelete = async () => {
+    try {
+      const res = await payrollService.remove(deleteTarget.id)
+      if (res.ok || res.status === 204) {
+        showToast(`Payroll record ${deleteTarget.payroll_id} deleted.`)
+        setDeleteTarget(null)
+        fetchData()
+      } else {
+        const err = await res.json().catch(() => ({}))
+        showToast(err.detail || 'Delete failed.', 'error')
+      }
+    } catch { showToast('Network error.', 'error') }
+  }
 
-  const net = (Number(form.basic) || 0) + (Number(form.bonus) || 0) - (Number(form.deductions) || 0)
+  const totalPages = Math.max(1, Math.ceil(total / limit))
 
   return (
     <div className="p-margin-mobile md:p-margin-desktop">
@@ -121,6 +164,7 @@ export default function PayrollManagement() {
         </div>
       )}
 
+      {/* Run Payroll Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-on-background/40 backdrop-blur-sm flex items-center justify-center p-margin-mobile">
           <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-xl shadow-2xl w-full max-w-md">
@@ -139,34 +183,102 @@ export default function PayrollManagement() {
               </div>
               <div className="flex flex-col gap-xs">
                 <label className="text-label-md text-on-surface-variant">Month <span className="text-error">*</span></label>
-                <input type="month" className={`bg-surface border rounded-lg p-md text-body-md focus:ring-1 outline-none ${formErrors.month ? 'border-error focus:ring-error' : 'border-outline-variant focus:ring-primary'}`} {...ff('month')} />
+                <input
+                  type="month"
+                  className={`bg-surface border rounded-lg p-md text-body-md focus:ring-1 outline-none ${formErrors.month ? 'border-error focus:ring-error' : 'border-outline-variant focus:ring-primary'}`}
+                  {...ff('month')}
+                />
                 {formErrors.month && <p className="text-label-sm text-error">{formErrors.month}</p>}
               </div>
               <div className="grid grid-cols-3 gap-md">
                 <div className="flex flex-col gap-xs">
                   <label className="text-label-md text-on-surface-variant">Basic <span className="text-error">*</span></label>
-                  <input type="number" className={`bg-surface border rounded-lg p-md text-body-md focus:ring-1 outline-none ${formErrors.basic ? 'border-error' : 'border-outline-variant focus:ring-primary'}`} placeholder="0" {...ff('basic')} />
+                  <input
+                    type="number"
+                    min="0"
+                    className={`bg-surface border rounded-lg p-md text-body-md focus:ring-1 outline-none ${formErrors.basic ? 'border-error focus:ring-error' : 'border-outline-variant focus:ring-primary'}`}
+                    placeholder="0"
+                    {...ff('basic')}
+                  />
                   {formErrors.basic && <p className="text-label-sm text-error">{formErrors.basic}</p>}
                 </div>
                 <div className="flex flex-col gap-xs">
                   <label className="text-label-md text-on-surface-variant">Bonus</label>
-                  <input type="number" className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0" {...ff('bonus')} />
+                  <input
+                    type="number"
+                    min="0"
+                    className={`bg-surface border rounded-lg p-md text-body-md focus:ring-1 outline-none ${formErrors.bonus ? 'border-error focus:ring-error' : 'border-outline-variant focus:ring-primary'}`}
+                    placeholder="0"
+                    {...ff('bonus')}
+                  />
+                  {formErrors.bonus && <p className="text-label-sm text-error">{formErrors.bonus}</p>}
                 </div>
                 <div className="flex flex-col gap-xs">
                   <label className="text-label-md text-on-surface-variant">Deductions</label>
-                  <input type="number" className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0" {...ff('deductions')} />
+                  <input
+                    type="number"
+                    min="0"
+                    className={`bg-surface border rounded-lg p-md text-body-md focus:ring-1 outline-none ${formErrors.deductions ? 'border-error focus:ring-error' : 'border-outline-variant focus:ring-primary'}`}
+                    placeholder="0"
+                    {...ff('deductions')}
+                  />
+                  {formErrors.deductions && <p className="text-label-sm text-error">{formErrors.deductions}</p>}
                 </div>
               </div>
-              {(Number(form.basic) > 0) && (
-                <div className="bg-surface-container-low rounded-lg p-md flex justify-between items-center">
+
+              {/* Net pay preview */}
+              {basic > 0 && (
+                <div className={`rounded-lg p-md flex justify-between items-center ${net < 0 ? 'bg-error/10 border border-error/30' : 'bg-surface-container-low'}`}>
                   <span className="text-label-md text-on-surface-variant">Net Pay</span>
-                  <span className="text-headline-md font-bold text-secondary">{fmt(net)}</span>
+                  <span className={`text-headline-md font-bold ${net < 0 ? 'text-error' : 'text-secondary'}`}>{fmt(net)}</span>
+                </div>
+              )}
+              {formErrors.net && (
+                <div className="flex items-center gap-xs bg-error/10 border border-error/20 rounded-lg px-md py-sm">
+                  <span className="material-symbols-outlined text-error text-[18px]">error</span>
+                  <p className="text-label-sm text-error">{formErrors.net}</p>
                 </div>
               )}
             </div>
             <div className="flex gap-sm justify-end mt-xl">
               <button onClick={closeModal} className="px-lg py-sm bg-surface-container border border-outline-variant text-on-surface rounded-lg text-label-md">Cancel</button>
-              <button onClick={handleRunPayroll} disabled={saving} className="px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md disabled:opacity-50">{saving ? 'Creating…' : 'Create Record'}</button>
+              <button
+                onClick={handleRunPayroll}
+                disabled={saving || !formValid}
+                className="px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? 'Creating…' : 'Create Record'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 bg-on-background/40 backdrop-blur-sm flex items-center justify-center p-margin-mobile">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-xl shadow-2xl max-w-md w-full">
+            <div className="flex items-center gap-md mb-md">
+              <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-error">warning</span>
+              </div>
+              <h3 className="text-headline-md">Delete Payroll Record?</h3>
+            </div>
+            <div className="space-y-sm mb-xl">
+              <p className="text-body-md text-on-surface-variant">
+                You are about to permanently delete payroll record <strong>{deleteTarget.payroll_id}</strong>.
+                This action cannot be undone.
+              </p>
+              <div className="bg-surface-container rounded-lg p-md space-y-xs text-body-md">
+                <div className="flex justify-between"><span className="text-on-surface-variant">Employee</span><span className="font-bold">{deleteTarget.employee?.name ?? '—'}</span></div>
+                <div className="flex justify-between"><span className="text-on-surface-variant">Month</span><span className="font-bold">{deleteTarget.month}</span></div>
+                <div className="flex justify-between"><span className="text-on-surface-variant">Net Pay</span><span className="font-bold text-secondary">{fmt(deleteTarget.net)}</span></div>
+                <div className="flex justify-between"><span className="text-on-surface-variant">Status</span><span className={`font-bold ${statusStyle[deleteTarget.status] ?? ''} inline-flex px-2 py-0.5 rounded-full text-label-sm`}>{deleteTarget.status}</span></div>
+              </div>
+            </div>
+            <div className="flex gap-sm justify-end">
+              <button onClick={() => setDeleteTarget(null)} className="px-lg py-sm bg-surface-container border border-outline-variant text-on-surface rounded-lg text-label-md">Cancel</button>
+              <button onClick={handleDelete} className="px-lg py-sm bg-error text-on-error rounded-lg text-label-md hover:opacity-90">Delete</button>
             </div>
           </div>
         </div>
@@ -254,6 +366,11 @@ export default function PayrollManagement() {
                       {rec.status === 'Pending' && (
                         <button onClick={() => handleApprove(rec)} className="p-1 hover:bg-secondary/10 rounded-lg text-secondary transition-all" title="Mark as Paid">
                           <span className="material-symbols-outlined text-[20px]">check_circle</span>
+                        </button>
+                      )}
+                      {rec.status === 'Pending' && (
+                        <button onClick={() => setDeleteTarget(rec)} className="p-1 hover:bg-error-container/20 rounded-lg text-error transition-all" title="Delete Record">
+                          <span className="material-symbols-outlined text-[20px]">delete</span>
                         </button>
                       )}
                     </div>

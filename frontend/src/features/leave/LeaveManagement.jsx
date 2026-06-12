@@ -103,7 +103,9 @@ export default function LeaveManagement() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-surface-container-low text-on-surface-variant text-label-md uppercase tracking-wider">
-                {['Employee', 'Leave Type', 'Duration', 'Days', 'Reason', 'Status', 'Actions'].map(h => <th key={h} className="px-lg py-md font-bold">{h}</th>)}
+                {['Employee', 'Leave Type', 'Duration', 'Days', 'Reason', 'Status', 'Actions'].map(h => (
+                  <th key={h} className={`px-lg py-md font-bold${h === 'Actions' ? ' w-44 text-center' : ''}`}>{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant text-body-md">
@@ -122,17 +124,19 @@ export default function LeaveManagement() {
                   <td className="px-lg py-md">{req.leave_type}</td>
                   <td className="px-lg py-md text-on-surface-variant">{req.from_date} – {req.to_date}</td>
                   <td className="px-lg py-md font-bold">{req.days}</td>
-                  <td className="px-lg py-md text-on-surface-variant">{req.reason}</td>
+                  <td className="px-lg py-md text-on-surface-variant max-w-[12rem]"><p className="truncate" title={req.reason}>{req.reason}</p></td>
                   <td className="px-lg py-md"><span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-label-sm font-bold ${statusStyle[req.status] ?? ''}`}>{req.status}</span></td>
-                  <td className="px-lg py-md">
-                    {req.status === 'Pending' ? (
-                      <div className="flex items-center justify-center gap-sm">
-                        <button onClick={() => handleAction(req, 'approve')} className="px-md py-xs bg-secondary-container text-on-secondary-container rounded-lg text-label-md font-bold hover:opacity-90">Approve</button>
-                        <button onClick={() => handleAction(req, 'reject')} className="px-md py-xs bg-error-container text-on-error-container rounded-lg text-label-md font-bold hover:opacity-90">Reject</button>
-                      </div>
-                    ) : (
-                      <span className="text-label-sm text-on-surface-variant pl-4">{req.status}</span>
-                    )}
+                  <td className="px-lg py-md whitespace-nowrap w-44">
+                    <div className="flex items-center justify-center gap-sm">
+                      {req.status === 'Pending' ? (
+                        <>
+                          <button onClick={() => handleAction(req, 'approve')} className="px-md py-xs bg-secondary-container text-on-secondary-container rounded-lg text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">Approve</button>
+                          <button onClick={() => handleAction(req, 'reject')} className="px-md py-xs bg-error-container text-on-error-container rounded-lg text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">Reject</button>
+                        </>
+                      ) : (
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-label-sm font-bold ${statusStyle[req.status] ?? ''}`}>{req.status}</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 from typing import Optional
 from datetime import date, datetime
 from decimal import Decimal
@@ -10,6 +10,13 @@ class PayslipItemSchema(BaseModel):
     label: str
     amount: Decimal
 
+    @field_validator('amount')
+    @classmethod
+    def amount_non_negative(cls, v):
+        if v < 0:
+            raise ValueError('Item amount cannot be negative')
+        return v
+
 
 class PayrollCreate(BaseModel):
     employee_id: str
@@ -19,6 +26,36 @@ class PayrollCreate(BaseModel):
     month: str
     earnings_items: Optional[list[PayslipItemSchema]] = None
     deduction_items: Optional[list[PayslipItemSchema]] = None
+
+    @field_validator('basic')
+    @classmethod
+    def basic_non_negative(cls, v):
+        if v < 0:
+            raise ValueError('Basic salary cannot be negative')
+        return v
+
+    @field_validator('bonus')
+    @classmethod
+    def bonus_non_negative(cls, v):
+        if v < 0:
+            raise ValueError('Bonus cannot be negative')
+        return v
+
+    @field_validator('deductions')
+    @classmethod
+    def deductions_non_negative(cls, v):
+        if v < 0:
+            raise ValueError('Deductions cannot be negative')
+        return v
+
+    @model_validator(mode='after')
+    def net_pay_non_negative(self):
+        net = self.basic + self.bonus - self.deductions
+        if net < 0:
+            raise ValueError(
+                'Net pay cannot be negative — deductions exceed basic salary plus bonus'
+            )
+        return self
 
 
 class EmployeeBrief(BaseModel):
