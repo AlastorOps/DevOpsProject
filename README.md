@@ -10,6 +10,72 @@ The project is built as a full-stack DevOps application:
 - CI/CD: GitHub Actions
 - Monitoring: Prometheus and Grafana starter configuration
 
+---
+
+## Setup
+
+The fastest path is Docker Compose — Docker Desktop is the only requirement.
+
+**1. Clone the repository**
+
+```powershell
+git clone <repo-url>
+cd <project-folder>
+```
+
+**2. Create the root `.env` file**
+
+```env
+POSTGRES_PASSWORD=replace-with-strong-postgres-password
+SECRET_KEY=replace-with-64-character-random-hex-string
+ADMIN_PASSWORD=replace-with-strong-admin-password
+DOCKER_USERNAME=your-dockerhub-username
+```
+
+Generate a secure secret key:
+
+```powershell
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+**3. Build and start**
+
+```powershell
+docker compose up --build -d
+```
+
+**4. Open the app**
+
+| Service | URL |
+| ------- | --- |
+| Frontend | http://localhost:8080 |
+| Backend API | http://localhost:8000 |
+| Swagger UI | http://localhost:8000/docs |
+| PostgreSQL | localhost:5433 |
+
+**5. Log in**
+
+| Account | Email | Password |
+| ------- | ----- | -------- |
+| Admin | `admin@ems-ops.com` | Your `ADMIN_PASSWORD` |
+| Demo employees | `firstname.lastname@ems-ops.com` | `Employee@123` |
+
+Demo accounts: `alice.johnson@ems-ops.com`, `bob.williams@ems-ops.com`, etc. See `database/init/03_fake_data.sql` for the full list.
+
+**6. Stop / reset**
+
+```powershell
+# Stop
+docker compose down
+
+# Stop and delete all data volumes
+docker compose down -v
+```
+
+For local development without Docker or Kubernetes deployment, see the [Local Development](#local-development) section below.
+
+---
+
 ## Project Structure
 
 ```text
