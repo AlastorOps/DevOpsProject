@@ -1,5 +1,6 @@
 import os
 import re
+from datetime import date, timedelta
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
@@ -56,6 +57,28 @@ def list_employees(
     total = q.count()
     employees = q.order_by(Employee.emp_id.asc()).offset((page - 1) * limit).limit(limit).all()
     return EmployeeListResponse(employees=employees, total=total, page=page, limit=limit)
+
+
+@router.get("/eligible-managers", response_model=EmployeeListResponse)
+def get_eligible_managers(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return active employees hired at least 1 year ago — eligible to be department managers."""
+    cutoff = date.today() - timedelta(days=365)
+    employees = (
+        db.query(Employee)
+        .options(joinedload(Employee.department), joinedload(Employee.position))
+        .filter(
+            Employee.status == "Active",
+            Employee.hire_date.isnot(None),
+            Employee.hire_date <= cutoff,
+        )
+        .order_by(Employee.name.asc())
+        .all()
+    )
+    count = len(employees)
+    return EmployeeListResponse(employees=employees, total=count, page=1, limit=max(count, 1))
 
 
 @router.get("/{employee_id}", response_model=EmployeeResponse)

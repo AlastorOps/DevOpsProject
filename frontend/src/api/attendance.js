@@ -18,6 +18,7 @@ export const attendanceService = {
   },
   create: (data) => client.post('/attendance', data),
   update: (id, data) => client.put(`/attendance/${id}`, data),
+  remove: (id) => client.delete(`/attendance/${id}`),
   listByEmployee: (employeeId, { limit = 20 } = {}) =>
     client.get(`/attendance/employee/${employeeId}?limit=${limit}`),
 }

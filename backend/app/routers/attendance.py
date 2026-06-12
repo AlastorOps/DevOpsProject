@@ -256,6 +256,19 @@ def update_attendance(
     return resp
 
 
+@router.delete("/{record_id}", status_code=204)
+def delete_attendance(
+    record_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_hr),
+):
+    record = db.query(Attendance).filter(Attendance.id == record_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Attendance record not found")
+    db.delete(record)
+    db.commit()
+
+
 @router.get("/employee/{employee_id}", response_model=AttendanceListResponse)
 def employee_attendance(
     employee_id: str,

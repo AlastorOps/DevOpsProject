@@ -30,6 +30,7 @@ export default function AttendanceManagement() {
   const [page, setPage]               = useState(1)
   const [total, setTotal]             = useState(0)
   const [saving, setSaving]           = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const limit = 20
 
   const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3000) }
@@ -124,6 +125,22 @@ export default function AttendanceManagement() {
     setSaving(false)
   }
 
+  const handleDeleteAttendance = async () => {
+    try {
+      const res = await attendanceService.remove(deleteTarget.id)
+      if (res.ok || res.status === 204) {
+        showToast('Attendance record deleted.')
+        setDeleteTarget(null)
+        fetchStats()
+        fetchRecords()
+      } else {
+        const err = await res.json().catch(() => ({}))
+        showToast(err.detail || 'Delete failed.', 'error')
+        setDeleteTarget(null)
+      }
+    } catch { showToast('Network error.', 'error') }
+  }
+
   const needsTimes = form.status === 'Present' || form.status === 'Late'
   const totalPages = Math.max(1, Math.ceil(total / limit))
   const availableEmployees = employees.filter(e => !markedIds.has(e.id))
@@ -180,6 +197,33 @@ export default function AttendanceManagement() {
             <div className="flex justify-end gap-md pt-sm">
               <button onClick={closeModal} className="px-lg py-md text-on-surface-variant hover:bg-surface-container rounded-lg text-label-md">Cancel</button>
               <button onClick={handleMarkAttendance} disabled={saving} className="px-xl py-md bg-primary text-on-primary text-label-md rounded-lg shadow-md hover:opacity-90 disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Attendance Confirm */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[70] bg-on-background/40 backdrop-blur-sm flex items-center justify-center p-margin-mobile">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-xl shadow-2xl max-w-md w-full">
+            <div className="flex items-center gap-md mb-md">
+              <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-error">event_busy</span>
+              </div>
+              <h3 className="text-headline-md">Delete Attendance Record?</h3>
+            </div>
+            <div className="bg-surface-container rounded-lg p-md space-y-xs text-body-md mb-md">
+              <div className="flex justify-between"><span className="text-on-surface-variant">Employee</span><span className="font-bold">{deleteTarget.employee?.name ?? '—'}</span></div>
+              <div className="flex justify-between"><span className="text-on-surface-variant">Date</span><span className="font-bold">{deleteTarget.date}</span></div>
+              <div className="flex justify-between"><span className="text-on-surface-variant">Check In</span><span className="font-bold">{deleteTarget.check_in ?? '—'}</span></div>
+              <div className="flex justify-between"><span className="text-on-surface-variant">Status</span><span className="font-bold">{deleteTarget.status}</span></div>
+            </div>
+            <p className="text-body-md text-on-surface-variant mb-xl">
+              This attendance record will be permanently deleted. The employee will be able to have attendance re-recorded for this date.
+            </p>
+            <div className="flex gap-sm justify-end">
+              <button onClick={() => setDeleteTarget(null)} className="px-lg py-sm bg-surface-container border border-outline-variant text-on-surface rounded-lg text-label-md">Cancel</button>
+              <button onClick={handleDeleteAttendance} className="px-lg py-sm bg-error text-on-error rounded-lg text-label-md hover:opacity-90">Delete</button>
             </div>
           </div>
         </div>
@@ -262,14 +306,14 @@ export default function AttendanceManagement() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface-container-low text-on-surface-variant text-label-md uppercase tracking-wider">
-                  {['Employee', 'Check In', 'Check Out', 'Hours', 'Status'].map(h => <th key={h} className="px-lg py-md font-bold">{h}</th>)}
+                  {['Employee', 'Check In', 'Check Out', 'Hours', 'Status', ''].map(h => <th key={h} className="px-lg py-md font-bold">{h}</th>)}
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant text-body-md">
                 {loading ? (
-                  <tr><td colSpan={5} className="px-lg py-xl text-center text-on-surface-variant">Loading…</td></tr>
+                  <tr><td colSpan={6} className="px-lg py-xl text-center text-on-surface-variant">Loading…</td></tr>
                 ) : filteredRecords.length === 0 ? (
-                  <tr><td colSpan={5} className="px-lg py-xl text-center text-on-surface-variant">No attendance records for this date.</td></tr>
+                  <tr><td colSpan={6} className="px-lg py-xl text-center text-on-surface-variant">No attendance records for this date.</td></tr>
                 ) : filteredRecords.map(rec => (
                   <tr key={rec.id} className="hover:bg-surface-container-low transition-colors">
                     <td className="px-lg py-md">
@@ -282,6 +326,11 @@ export default function AttendanceManagement() {
                     <td className="px-lg py-md">{rec.check_out ?? '—'}</td>
                     <td className="px-lg py-md">{rec.hours ?? '—'}</td>
                     <td className="px-lg py-md"><span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-label-sm font-bold ${statusStyle[rec.status] ?? 'bg-surface-container text-on-surface-variant'}`}>{rec.status}</span></td>
+                    <td className="px-lg py-md">
+                      <button onClick={() => setDeleteTarget(rec)} className="p-1 hover:bg-error-container/20 rounded-lg text-error transition-all" title="Delete record">
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
