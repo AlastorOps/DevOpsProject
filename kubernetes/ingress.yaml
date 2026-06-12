@@ -10,8 +10,17 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "20m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    # Uncomment the lines below when cert-manager is installed in the cluster:
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   ingressClassName: nginx
+  # TLS — replace the host and secretName, then apply secrets.yaml with the cert.
+  # If using cert-manager, it will auto-provision the secret named below.
+  # tls:
+  #   - hosts:
+  #       - your-domain.com
+  #     secretName: ems-ops-tls
   rules:
     - host: ems-ops.local  # Replace with your actual domain
       http:

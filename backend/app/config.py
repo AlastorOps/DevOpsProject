@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
     cors_origins: List[str] = ["http://localhost:5173", "http://localhost:3000"]
     upload_dir: str = "uploads"
+    enable_docs: bool = False
 
     @field_validator("secret_key")
     @classmethod

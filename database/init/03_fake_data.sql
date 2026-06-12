@@ -41,21 +41,21 @@ SELECT
     v.dob::DATE, v.phone, v.hire_date::DATE, v.employment_type,
     v.salary::NUMERIC(15,2), v.status, d.id, p.id
 FROM (VALUES
-    ('aaaaaaaa-0001-0000-0000-aaaaaaaaaaaa','EMP-001','Alice Johnson', 'alice.j@gmail.com',  'alice.johnson@kinetichr.com', 'Female','1990-03-15','+1-555-0101','2021-01-10','Full-time','95000', 'Active',  'Engineering',     'Senior Software Engineer'),
-    ('aaaaaaaa-0002-0000-0000-aaaaaaaaaaaa','EMP-002','Bob Williams',  'bob.w@gmail.com',    'bob.williams@kinetichr.com',  'Male',  '1993-07-22','+1-555-0102','2022-03-14','Full-time','75000', 'Active',  'Engineering',     'Software Engineer'),
-    ('aaaaaaaa-0003-0000-0000-aaaaaaaaaaaa','EMP-003','Carol Smith',   'carol.s@gmail.com',  'carol.smith@kinetichr.com',   'Female','1991-11-08','+1-555-0103','2021-06-01','Full-time','82000', 'Active',  'Engineering',     'DevOps Engineer'),
-    ('aaaaaaaa-0004-0000-0000-aaaaaaaaaaaa','EMP-004','David Brown',   'david.b@gmail.com',  'david.brown@kinetichr.com',   'Male',  '1985-04-30','+1-555-0104','2019-05-15','Full-time','88000', 'Active',  'Human Resources', 'HR Manager'),
-    ('aaaaaaaa-0005-0000-0000-aaaaaaaaaaaa','EMP-005','Emma Davis',    'emma.d@gmail.com',   'emma.davis@kinetichr.com',    'Female','1995-09-12','+1-555-0105','2023-02-20','Full-time','58000', 'Active',  'Human Resources', 'HR Specialist'),
-    ('aaaaaaaa-0006-0000-0000-aaaaaaaaaaaa','EMP-006','Frank Miller',  'frank.m@gmail.com',  'frank.miller@kinetichr.com',  'Male',  '1982-12-05','+1-555-0106','2018-11-01','Full-time','105000','Active',  'Finance',         'Finance Manager'),
-    ('aaaaaaaa-0007-0000-0000-aaaaaaaaaaaa','EMP-007','Grace Wilson',  'grace.w@gmail.com',  'grace.wilson@kinetichr.com',  'Female','1994-06-18','+1-555-0107','2022-08-08','Full-time','65000', 'Active',  'Finance',         'Financial Analyst'),
-    ('aaaaaaaa-0008-0000-0000-aaaaaaaaaaaa','EMP-008','Henry Moore',   'henry.m@gmail.com',  'henry.moore@kinetichr.com',   'Male',  '1987-02-25','+1-555-0108','2020-04-12','Full-time','92000', 'Active',  'Marketing',       'Marketing Manager'),
-    ('aaaaaaaa-0009-0000-0000-aaaaaaaaaaaa','EMP-009','Isla Taylor',   'isla.t@gmail.com',   'isla.taylor@kinetichr.com',   'Female','1996-08-03','+1-555-0109','2023-07-17','Full-time','60000', 'Active',  'Marketing',       'Digital Marketing Specialist'),
-    ('aaaaaaaa-0010-0000-0000-aaaaaaaaaaaa','EMP-010','James Anderson','james.a@gmail.com',  'james.anderson@kinetichr.com','Male',  '1983-01-14','+1-555-0110','2017-09-03','Full-time','98000', 'Active',  'Operations',      'Operations Manager'),
-    ('aaaaaaaa-0011-0000-0000-aaaaaaaaaaaa','EMP-011','Kate Martinez', 'kate.m@gmail.com',   'kate.martinez@kinetichr.com', 'Female','1997-05-27','+1-555-0111','2024-01-08','Full-time','57000', 'Active',  'Operations',      'Operations Analyst'),
-    ('aaaaaaaa-0012-0000-0000-aaaaaaaaaaaa','EMP-012','Liam Garcia',   'liam.g@gmail.com',   'liam.garcia@kinetichr.com',   'Male',  '1998-10-19','+1-555-0112','2024-06-01','Full-time','70000', 'Active',  'Engineering',     'Software Engineer'),
-    ('aaaaaaaa-0013-0000-0000-aaaaaaaaaaaa','EMP-013','Mia Robinson',  'mia.r@gmail.com',    'mia.robinson@kinetichr.com',  'Female','1989-03-07','+1-555-0113','2020-10-15','Full-time','110000','Active',  'Engineering',     'Product Manager'),
-    ('aaaaaaaa-0014-0000-0000-aaaaaaaaaaaa','EMP-014','Noah Clark',    'noah.c@gmail.com',   'noah.clark@kinetichr.com',    'Male',  '1992-07-31','+1-555-0114','2021-11-22','Full-time','67000', 'Active',  'Finance',         'Financial Analyst'),
-    ('aaaaaaaa-0015-0000-0000-aaaaaaaaaaaa','EMP-015','Olivia Lewis',  'olivia.l@gmail.com', 'olivia.lewis@kinetichr.com',  'Female','1999-12-24','+1-555-0115','2024-03-11','Full-time','55000', 'Inactive','Human Resources', 'HR Specialist')
+    ('aaaaaaaa-0001-0000-0000-aaaaaaaaaaaa','EMP-001','Alice Johnson', 'alice.j@gmail.com',  'alice.johnson@ems-ops.com', 'Female','1990-03-15','+1-555-0101','2021-01-10','Full-time','95000', 'Active',  'Engineering',     'Senior Software Engineer'),
+    ('aaaaaaaa-0002-0000-0000-aaaaaaaaaaaa','EMP-002','Bob Williams',  'bob.w@gmail.com',    'bob.williams@ems-ops.com',  'Male',  '1993-07-22','+1-555-0102','2022-03-14','Full-time','75000', 'Active',  'Engineering',     'Software Engineer'),
+    ('aaaaaaaa-0003-0000-0000-aaaaaaaaaaaa','EMP-003','Carol Smith',   'carol.s@gmail.com',  'carol.smith@ems-ops.com',   'Female','1991-11-08','+1-555-0103','2021-06-01','Full-time','82000', 'Active',  'Engineering',     'DevOps Engineer'),
+    ('aaaaaaaa-0004-0000-0000-aaaaaaaaaaaa','EMP-004','David Brown',   'david.b@gmail.com',  'david.brown@ems-ops.com',   'Male',  '1985-04-30','+1-555-0104','2019-05-15','Full-time','88000', 'Active',  'Human Resources', 'HR Manager'),
+    ('aaaaaaaa-0005-0000-0000-aaaaaaaaaaaa','EMP-005','Emma Davis',    'emma.d@gmail.com',   'emma.davis@ems-ops.com',    'Female','1995-09-12','+1-555-0105','2023-02-20','Full-time','58000', 'Active',  'Human Resources', 'HR Specialist'),
+    ('aaaaaaaa-0006-0000-0000-aaaaaaaaaaaa','EMP-006','Frank Miller',  'frank.m@gmail.com',  'frank.miller@ems-ops.com',  'Male',  '1982-12-05','+1-555-0106','2018-11-01','Full-time','105000','Active',  'Finance',         'Finance Manager'),
+    ('aaaaaaaa-0007-0000-0000-aaaaaaaaaaaa','EMP-007','Grace Wilson',  'grace.w@gmail.com',  'grace.wilson@ems-ops.com',  'Female','1994-06-18','+1-555-0107','2022-08-08','Full-time','65000', 'Active',  'Finance',         'Financial Analyst'),
+    ('aaaaaaaa-0008-0000-0000-aaaaaaaaaaaa','EMP-008','Henry Moore',   'henry.m@gmail.com',  'henry.moore@ems-ops.com',   'Male',  '1987-02-25','+1-555-0108','2020-04-12','Full-time','92000', 'Active',  'Marketing',       'Marketing Manager'),
+    ('aaaaaaaa-0009-0000-0000-aaaaaaaaaaaa','EMP-009','Isla Taylor',   'isla.t@gmail.com',   'isla.taylor@ems-ops.com',   'Female','1996-08-03','+1-555-0109','2023-07-17','Full-time','60000', 'Active',  'Marketing',       'Digital Marketing Specialist'),
+    ('aaaaaaaa-0010-0000-0000-aaaaaaaaaaaa','EMP-010','James Anderson','james.a@gmail.com',  'james.anderson@ems-ops.com','Male',  '1983-01-14','+1-555-0110','2017-09-03','Full-time','98000', 'Active',  'Operations',      'Operations Manager'),
+    ('aaaaaaaa-0011-0000-0000-aaaaaaaaaaaa','EMP-011','Kate Martinez', 'kate.m@gmail.com',   'kate.martinez@ems-ops.com', 'Female','1997-05-27','+1-555-0111','2024-01-08','Full-time','57000', 'Active',  'Operations',      'Operations Analyst'),
+    ('aaaaaaaa-0012-0000-0000-aaaaaaaaaaaa','EMP-012','Liam Garcia',   'liam.g@gmail.com',   'liam.garcia@ems-ops.com',   'Male',  '1998-10-19','+1-555-0112','2024-06-01','Full-time','70000', 'Active',  'Engineering',     'Software Engineer'),
+    ('aaaaaaaa-0013-0000-0000-aaaaaaaaaaaa','EMP-013','Mia Robinson',  'mia.r@gmail.com',    'mia.robinson@ems-ops.com',  'Female','1989-03-07','+1-555-0113','2020-10-15','Full-time','110000','Active',  'Engineering',     'Product Manager'),
+    ('aaaaaaaa-0014-0000-0000-aaaaaaaaaaaa','EMP-014','Noah Clark',    'noah.c@gmail.com',   'noah.clark@ems-ops.com',    'Male',  '1992-07-31','+1-555-0114','2021-11-22','Full-time','67000', 'Active',  'Finance',         'Financial Analyst'),
+    ('aaaaaaaa-0015-0000-0000-aaaaaaaaaaaa','EMP-015','Olivia Lewis',  'olivia.l@gmail.com', 'olivia.lewis@ems-ops.com',  'Female','1999-12-24','+1-555-0115','2024-03-11','Full-time','55000', 'Inactive','Human Resources', 'HR Specialist')
 ) AS v(id, emp_id, name, personal_email, work_email, gender, dob, phone, hire_date, employment_type, salary, status, dept_name, pos_title)
 JOIN departments d ON d.name = v.dept_name
 JOIN positions   p ON p.title = v.pos_title
@@ -63,21 +63,21 @@ ON CONFLICT (emp_id) DO NOTHING;
 
 -- ── Users (password for all: Employee@123) ────────────────────
 INSERT INTO users (id, name, email, password_hash, role, status, employee_id) VALUES
-    ('bbbbbbbb-0001-0000-0000-bbbbbbbbbbbb','Alice Johnson', 'alice.johnson@kinetichr.com', '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','HR Manager','Active',  'aaaaaaaa-0001-0000-0000-aaaaaaaaaaaa'),
-    ('bbbbbbbb-0002-0000-0000-bbbbbbbbbbbb','Bob Williams',  'bob.williams@kinetichr.com',  '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Active',  'aaaaaaaa-0002-0000-0000-aaaaaaaaaaaa'),
-    ('bbbbbbbb-0003-0000-0000-bbbbbbbbbbbb','Carol Smith',   'carol.smith@kinetichr.com',   '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Active',  'aaaaaaaa-0003-0000-0000-aaaaaaaaaaaa'),
-    ('bbbbbbbb-0004-0000-0000-bbbbbbbbbbbb','David Brown',   'david.brown@kinetichr.com',   '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','HR Manager','Active', 'aaaaaaaa-0004-0000-0000-aaaaaaaaaaaa'),
-    ('bbbbbbbb-0005-0000-0000-bbbbbbbbbbbb','Emma Davis',    'emma.davis@kinetichr.com',    '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Active',  'aaaaaaaa-0005-0000-0000-aaaaaaaaaaaa'),
-    ('bbbbbbbb-0006-0000-0000-bbbbbbbbbbbb','Frank Miller',  'frank.miller@kinetichr.com',  '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Manager',  'Active',  'aaaaaaaa-0006-0000-0000-aaaaaaaaaaaa'),
-    ('bbbbbbbb-0007-0000-0000-bbbbbbbbbbbb','Grace Wilson',  'grace.wilson@kinetichr.com',  '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Active',  'aaaaaaaa-0007-0000-0000-aaaaaaaaaaaa'),
-    ('bbbbbbbb-0008-0000-0000-bbbbbbbbbbbb','Henry Moore',   'henry.moore@kinetichr.com',   '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Manager',  'Active',  'aaaaaaaa-0008-0000-0000-aaaaaaaaaaaa'),
-    ('bbbbbbbb-0009-0000-0000-bbbbbbbbbbbb','Isla Taylor',   'isla.taylor@kinetichr.com',   '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Active',  'aaaaaaaa-0009-0000-0000-aaaaaaaaaaaa'),
-    ('bbbbbbbb-0010-0000-0000-bbbbbbbbbbbb','James Anderson','james.anderson@kinetichr.com','$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Manager',  'Active',  'aaaaaaaa-0010-0000-0000-aaaaaaaaaaaa'),
-    ('bbbbbbbb-0011-0000-0000-bbbbbbbbbbbb','Kate Martinez', 'kate.martinez@kinetichr.com', '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Active',  'aaaaaaaa-0011-0000-0000-aaaaaaaaaaaa'),
-    ('bbbbbbbb-0012-0000-0000-bbbbbbbbbbbb','Liam Garcia',   'liam.garcia@kinetichr.com',   '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Active',  'aaaaaaaa-0012-0000-0000-aaaaaaaaaaaa'),
-    ('bbbbbbbb-0013-0000-0000-bbbbbbbbbbbb','Mia Robinson',  'mia.robinson@kinetichr.com',  '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Manager',  'Active',  'aaaaaaaa-0013-0000-0000-aaaaaaaaaaaa'),
-    ('bbbbbbbb-0014-0000-0000-bbbbbbbbbbbb','Noah Clark',    'noah.clark@kinetichr.com',    '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Active',  'aaaaaaaa-0014-0000-0000-aaaaaaaaaaaa'),
-    ('bbbbbbbb-0015-0000-0000-bbbbbbbbbbbb','Olivia Lewis',  'olivia.lewis@kinetichr.com',  '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Inactive','aaaaaaaa-0015-0000-0000-aaaaaaaaaaaa')
+    ('bbbbbbbb-0001-0000-0000-bbbbbbbbbbbb','Alice Johnson', 'alice.johnson@ems-ops.com', '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','HR Manager','Active',  'aaaaaaaa-0001-0000-0000-aaaaaaaaaaaa'),
+    ('bbbbbbbb-0002-0000-0000-bbbbbbbbbbbb','Bob Williams',  'bob.williams@ems-ops.com',  '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Active',  'aaaaaaaa-0002-0000-0000-aaaaaaaaaaaa'),
+    ('bbbbbbbb-0003-0000-0000-bbbbbbbbbbbb','Carol Smith',   'carol.smith@ems-ops.com',   '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Active',  'aaaaaaaa-0003-0000-0000-aaaaaaaaaaaa'),
+    ('bbbbbbbb-0004-0000-0000-bbbbbbbbbbbb','David Brown',   'david.brown@ems-ops.com',   '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','HR Manager','Active', 'aaaaaaaa-0004-0000-0000-aaaaaaaaaaaa'),
+    ('bbbbbbbb-0005-0000-0000-bbbbbbbbbbbb','Emma Davis',    'emma.davis@ems-ops.com',    '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Active',  'aaaaaaaa-0005-0000-0000-aaaaaaaaaaaa'),
+    ('bbbbbbbb-0006-0000-0000-bbbbbbbbbbbb','Frank Miller',  'frank.miller@ems-ops.com',  '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Manager',  'Active',  'aaaaaaaa-0006-0000-0000-aaaaaaaaaaaa'),
+    ('bbbbbbbb-0007-0000-0000-bbbbbbbbbbbb','Grace Wilson',  'grace.wilson@ems-ops.com',  '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Active',  'aaaaaaaa-0007-0000-0000-aaaaaaaaaaaa'),
+    ('bbbbbbbb-0008-0000-0000-bbbbbbbbbbbb','Henry Moore',   'henry.moore@ems-ops.com',   '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Manager',  'Active',  'aaaaaaaa-0008-0000-0000-aaaaaaaaaaaa'),
+    ('bbbbbbbb-0009-0000-0000-bbbbbbbbbbbb','Isla Taylor',   'isla.taylor@ems-ops.com',   '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Active',  'aaaaaaaa-0009-0000-0000-aaaaaaaaaaaa'),
+    ('bbbbbbbb-0010-0000-0000-bbbbbbbbbbbb','James Anderson','james.anderson@ems-ops.com','$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Manager',  'Active',  'aaaaaaaa-0010-0000-0000-aaaaaaaaaaaa'),
+    ('bbbbbbbb-0011-0000-0000-bbbbbbbbbbbb','Kate Martinez', 'kate.martinez@ems-ops.com', '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Active',  'aaaaaaaa-0011-0000-0000-aaaaaaaaaaaa'),
+    ('bbbbbbbb-0012-0000-0000-bbbbbbbbbbbb','Liam Garcia',   'liam.garcia@ems-ops.com',   '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Active',  'aaaaaaaa-0012-0000-0000-aaaaaaaaaaaa'),
+    ('bbbbbbbb-0013-0000-0000-bbbbbbbbbbbb','Mia Robinson',  'mia.robinson@ems-ops.com',  '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Manager',  'Active',  'aaaaaaaa-0013-0000-0000-aaaaaaaaaaaa'),
+    ('bbbbbbbb-0014-0000-0000-bbbbbbbbbbbb','Noah Clark',    'noah.clark@ems-ops.com',    '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Active',  'aaaaaaaa-0014-0000-0000-aaaaaaaaaaaa'),
+    ('bbbbbbbb-0015-0000-0000-bbbbbbbbbbbb','Olivia Lewis',  'olivia.lewis@ems-ops.com',  '$2b$12$rze6vLUmzI56Z7HXMKR80Oi83ebHCr75FOqrkA44/dfPjckb918zC','Employee', 'Inactive','aaaaaaaa-0015-0000-0000-aaaaaaaaaaaa')
 ON CONFLICT (email) DO NOTHING;
 
 -- ── Leave Balances ────────────────────────────────────────────
@@ -221,20 +221,20 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO notifications (user_id, title, body, icon, color, read)
 SELECT v.user_id, v.title, v.body, v.icon, v.color, v.read::BOOLEAN
 FROM (VALUES
-    ('bbbbbbbb-0001-0000-0000-bbbbbbbbbbbb','Welcome to Kinetic HR',       'Your account is ready. Explore the HR dashboard to get started.',                   'waving_hand',    'primary',   'false'),
+    ('bbbbbbbb-0001-0000-0000-bbbbbbbbbbbb','Welcome to EMS Ops',       'Your account is ready. Explore the HR dashboard to get started.',                   'waving_hand',    'primary',   'false'),
     ('bbbbbbbb-0001-0000-0000-bbbbbbbbbbbb','Pending Leave Requests',      '2 leave requests are awaiting your approval.',                                        'pending_actions','tertiary',  'false'),
-    ('bbbbbbbb-0002-0000-0000-bbbbbbbbbbbb','Welcome to Kinetic HR',       'Your employee account has been set up successfully.',                                 'waving_hand',    'primary',   'true'),
+    ('bbbbbbbb-0002-0000-0000-bbbbbbbbbbbb','Welcome to EMS Ops',       'Your employee account has been set up successfully.',                                 'waving_hand',    'primary',   'true'),
     ('bbbbbbbb-0002-0000-0000-bbbbbbbbbbbb','Leave Approved',              'Your Annual Leave (LV-2026-001) for May 19-21 has been approved.',                    'check_circle',   'secondary', 'false'),
     ('bbbbbbbb-0002-0000-0000-bbbbbbbbbbbb','Payslip Ready',               'Your April 2026 payslip is now available to view.',                                   'receipt_long',   'primary',   'false'),
-    ('bbbbbbbb-0003-0000-0000-bbbbbbbbbbbb','Welcome to Kinetic HR',       'Your employee account has been set up successfully.',                                 'waving_hand',    'primary',   'false'),
-    ('bbbbbbbb-0004-0000-0000-bbbbbbbbbbbb','Welcome to Kinetic HR',       'Your HR Manager account is ready. You can now manage employee operations.',           'waving_hand',    'primary',   'true'),
+    ('bbbbbbbb-0003-0000-0000-bbbbbbbbbbbb','Welcome to EMS Ops',       'Your employee account has been set up successfully.',                                 'waving_hand',    'primary',   'false'),
+    ('bbbbbbbb-0004-0000-0000-bbbbbbbbbbbb','Welcome to EMS Ops',       'Your HR Manager account is ready. You can now manage employee operations.',           'waving_hand',    'primary',   'true'),
     ('bbbbbbbb-0004-0000-0000-bbbbbbbbbbbb','New Leave Request',           'Carol Smith submitted a Personal Leave request for Jun 10.',                          'mail',           'tertiary',  'false'),
     ('bbbbbbbb-0004-0000-0000-bbbbbbbbbbbb','New Leave Request',           'Grace Wilson submitted an Annual Leave request for Jun 15-19.',                       'mail',           'tertiary',  'false'),
     ('bbbbbbbb-0005-0000-0000-bbbbbbbbbbbb','Leave Approved',              'Your Sick Leave (LV-2026-002) for May 8-9 has been approved.',                        'check_circle',   'secondary', 'true'),
     ('bbbbbbbb-0006-0000-0000-bbbbbbbbbbbb','Payroll Pending Approval',    'June 2026 payroll for your team has been submitted for review.',                      'payments',       'primary',   'false'),
     ('bbbbbbbb-0006-0000-0000-bbbbbbbbbbbb','Mid-Year Reviews',            'You have 1 team member pending mid-year review.',                                     'rate_review',    'tertiary',  'false'),
     ('bbbbbbbb-0008-0000-0000-bbbbbbbbbbbb','Payroll Pending Approval',    'June 2026 payroll for your team has been submitted for review.',                      'payments',       'primary',   'false'),
-    ('bbbbbbbb-0010-0000-0000-bbbbbbbbbbbb','Welcome to Kinetic HR',       'Your Manager account is ready.',                                                      'waving_hand',    'primary',   'true'),
+    ('bbbbbbbb-0010-0000-0000-bbbbbbbbbbbb','Welcome to EMS Ops',       'Your Manager account is ready.',                                                      'waving_hand',    'primary',   'true'),
     ('bbbbbbbb-0013-0000-0000-bbbbbbbbbbbb','Mid-Year Reviews Complete',   'You have completed mid-year reviews for all Engineering team members.',               'task_alt',       'secondary', 'false')
 ) AS v(user_id, title, body, icon, color, read)
 WHERE NOT EXISTS (

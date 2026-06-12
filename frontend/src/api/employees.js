@@ -13,4 +13,5 @@ export const employeeService = {
   update: (id, data) => client.put(`/employees/${id}`, data),
   remove: (id) => client.delete(`/employees/${id}`),
   uploadPhoto: (id, formData) => client.upload(`/employees/${id}/photo`, formData),
+  eligibleManagers: () => client.get('/employees/eligible-managers'),
 }

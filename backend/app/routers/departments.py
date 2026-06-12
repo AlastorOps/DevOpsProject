@@ -99,5 +99,14 @@ def delete_department(
     dept = db.query(Department).filter(Department.id == dept_id).first()
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
+
+    employee_count = db.query(func.count(Employee.id)).filter(Employee.department_id == dept_id).scalar() or 0
+    if employee_count > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot delete '{dept.name}': {employee_count} employee(s) are still assigned. "
+                   "Reassign or remove them before deleting this department."
+        )
+
     db.delete(dept)
     db.commit()

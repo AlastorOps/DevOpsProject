@@ -138,13 +138,35 @@ export default function EmployeeList() {
         <div className="fixed inset-0 z-50 bg-on-background/40 backdrop-blur-sm flex items-center justify-center p-margin-mobile">
           <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-xl shadow-2xl max-w-md w-full">
             <div className="flex items-center gap-md mb-md">
-              <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center shrink-0"><span className="material-symbols-outlined text-error">warning</span></div>
-              <h3 className="text-headline-md">Remove Employee?</h3>
+              <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center shrink-0"><span className="material-symbols-outlined text-error">person_off</span></div>
+              <div>
+                <h3 className="text-headline-md">Remove Employee?</h3>
+                <p className="text-label-sm text-on-surface-variant">{deleteTarget.emp_id}</p>
+              </div>
             </div>
-            <p className="text-body-md text-on-surface-variant mb-xl">Are you sure you want to remove <strong>{deleteTarget.name}</strong>? This cannot be undone.</p>
+            <div className="bg-surface-container rounded-lg p-md space-y-xs text-body-md mb-md">
+              <div className="flex justify-between"><span className="text-on-surface-variant">Name</span><span className="font-bold">{deleteTarget.name}</span></div>
+              <div className="flex justify-between"><span className="text-on-surface-variant">Department</span><span className="font-bold">{deleteTarget.department?.name ?? '—'}</span></div>
+              <div className="flex justify-between"><span className="text-on-surface-variant">Position</span><span className="font-bold">{deleteTarget.position?.title ?? '—'}</span></div>
+              <div className="flex justify-between"><span className="text-on-surface-variant">Status</span><span className="font-bold">{deleteTarget.status}</span></div>
+            </div>
+            <div className="bg-error/10 border border-error/20 rounded-lg p-md mb-xl flex gap-sm">
+              <span className="material-symbols-outlined text-error shrink-0 text-[20px]">warning</span>
+              <div className="text-label-sm text-on-surface-variant space-y-xs">
+                <p className="font-bold text-error">This action is permanent and cannot be undone.</p>
+                <p>All records associated with this employee will be deleted, including:</p>
+                <ul className="list-disc list-inside space-y-0.5 mt-xs">
+                  <li>Attendance history</li>
+                  <li>Payroll records</li>
+                  <li>Leave requests &amp; balances</li>
+                  <li>Performance reviews</li>
+                  <li>Login account (if linked)</li>
+                </ul>
+              </div>
+            </div>
             <div className="flex gap-sm justify-end">
               <button onClick={() => setDeleteTarget(null)} className="px-lg py-sm bg-surface-container border border-outline-variant text-on-surface rounded-lg text-label-md hover:bg-surface-container-high transition-all">Cancel</button>
-              <button onClick={handleDelete} className="px-lg py-sm bg-error text-on-error rounded-lg text-label-md hover:opacity-90 transition-all">Remove</button>
+              <button onClick={handleDelete} className="px-lg py-sm bg-error text-on-error rounded-lg text-label-md hover:opacity-90 transition-all">Remove Permanently</button>
             </div>
           </div>
         </div>
@@ -262,7 +284,7 @@ export default function EmployeeList() {
             <thead>
               <tr className="bg-surface-container text-on-surface-variant text-label-md uppercase tracking-wider">
                 {['ID', 'Employee', 'Gender', 'Department', 'Position', 'Contact', 'Status', 'Action'].map(h => (
-                  <th key={h} className="px-md py-4 font-bold border-b border-outline-variant">{h}</th>
+                  <th key={h} className={`px-md py-4 font-bold border-b border-outline-variant${h === 'Action' ? ' w-32 text-center' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -290,11 +312,11 @@ export default function EmployeeList() {
                   <td className="px-md py-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-label-sm font-bold ${statusStyle[emp.status] ?? 'bg-surface-container text-on-surface-variant'}`}>{emp.status}</span>
                   </td>
-                  <td className="px-md py-4">
+                  <td className="px-md py-4 w-32">
                     <div className="flex items-center justify-center gap-2">
-                      <Link to={`/employees/${emp.id}`} className="p-1 hover:bg-surface-container rounded-lg text-primary transition-all"><span className="material-symbols-outlined text-[20px]">visibility</span></Link>
-                      <button onClick={() => openEdit(emp)} className="p-1 hover:bg-surface-container rounded-lg text-outline transition-all"><span className="material-symbols-outlined text-[20px]">edit</span></button>
-                      <button onClick={() => setDeleteTarget(emp)} className="p-1 hover:bg-error-container/20 rounded-lg text-error transition-all"><span className="material-symbols-outlined text-[20px]">delete</span></button>
+                      <Link to={`/employees/${emp.id}`} className="p-1 flex items-center justify-center hover:bg-surface-container rounded-lg text-primary transition-all"><span className="material-symbols-outlined text-[20px]">visibility</span></Link>
+                      <button onClick={() => openEdit(emp)} className="p-1 flex items-center justify-center hover:bg-surface-container rounded-lg text-outline transition-all"><span className="material-symbols-outlined text-[20px]">edit</span></button>
+                      <button onClick={() => setDeleteTarget(emp)} className="p-1 flex items-center justify-center hover:bg-error-container/20 rounded-lg text-error transition-all"><span className="material-symbols-outlined text-[20px]">delete</span></button>
                     </div>
                   </td>
                 </tr>

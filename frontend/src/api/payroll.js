@@ -12,6 +12,7 @@ export const payrollService = {
   },
   create: (data) => client.post('/payroll', data),
   approve: (id) => client.put(`/payroll/${id}/approve`, {}),
+  remove: (id) => client.delete(`/payroll/${id}`),
   getPayslip: (id) => client.get(`/payroll/${id}/payslip`),
   listByEmployee: (employeeId, { limit = 20 } = {}) =>
     client.get(`/payroll/employee/${employeeId}?limit=${limit}`),
