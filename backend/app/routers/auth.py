@@ -93,8 +93,8 @@ def forgot_password(request: Request, payload: ForgotPasswordRequest, db: Sessio
         user.reset_token_expires = datetime.utcnow() + timedelta(hours=1)
         db.commit()
         logger.info("Password reset token generated for user_id=%s", user.id)
-        # TODO: send token via email. For now it is returned in the response for testing.
-        return {"message": "If that email exists, a reset link has been sent.", "debug_token": token}
+        # TODO: send token via email (e.g. via SMTP or a transactional email service).
+        return {"message": "If that email exists, a reset link has been sent."}
     return {"message": "If that email exists, a reset link has been sent."}
 
 

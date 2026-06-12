@@ -252,12 +252,11 @@ Then open `http://ems-ops.local`.
 
 ## Monitoring
 
-`monitoring/prometheus.yml` currently scrapes:
+`monitoring/prometheus.yml` scrapes:
 
 - Prometheus self-metrics
 - Optional `node-exporter`
-
-The backend Prometheus scrape is commented out because the FastAPI app does not currently expose a Prometheus-format `/metrics` endpoint. Add a FastAPI metrics exporter before enabling that target.
+- Backend `/metrics` endpoint (via `prometheus-fastapi-instrumentator`)
 
 Grafana dashboard starter:
 
@@ -301,7 +300,6 @@ Required GitHub secrets for Docker publishing:
 
 - Kubernetes database schema is initialized manually.
 - The app creates tables on startup, but existing database schema changes still need migrations or manual SQL.
-- Backend Prometheus metrics are not exposed yet.
 - Token revocation/blacklisting is not implemented.
 
 ## Useful Commands
