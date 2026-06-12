@@ -4,6 +4,7 @@ import { dashboardService } from '../../api/dashboard.js'
 import { attendanceService } from '../../api/attendance.js'
 import { leaveService } from '../../api/leave.js'
 import { notificationService } from '../../api/notifications.js'
+import { useAttendance } from '../../context/AttendanceContext.jsx'
 
 const statusStyle = {
   'On Time': 'bg-secondary-container text-on-secondary-container',
@@ -18,7 +19,15 @@ const leaveStatusStyle = {
   Rejected: 'bg-error-container text-on-error-container border border-error/20',
 }
 
+const TZ = 'Asia/Bangkok'
+
 const fmtTime = (t) => t ? t.slice(0, 5) : '—'
+
+const fmtLiveClock = (date) =>
+  date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: TZ })
+
+const fmtLiveDate = (date) =>
+  date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: TZ })
 
 const formatSeconds = (s) => {
   const h = Math.floor(s / 3600)
@@ -28,19 +37,22 @@ const formatSeconds = (s) => {
 }
 
 export default function EmployeeDashboard() {
+  const [now, setNow]                 = useState(new Date())
   const [data, setData]               = useState(null)
   const [loading, setLoading]         = useState(true)
   const [recentLeave, setRecentLeave] = useState([])
   const [attendanceLogs, setAttendanceLogs] = useState([])
 
-  // Today's attendance widget
-  const [todayAtt, setTodayAtt]   = useState(null)
-  const [attLoading, setAttLoading] = useState(true)
-  const [attBusy, setAttBusy]     = useState(false)
-  const [attError, setAttError]   = useState('')
-  const [seconds, setSeconds]     = useState(0)
+  // Today's attendance — shared with FloatingCheckout via context
+  const { todayAtt, seconds, attLoading, busy: attBusy, checkIn: ctxCheckIn, checkOut: ctxCheckOut } = useAttendance()
+  const [attError, setAttError] = useState('')
 
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
 
   // Load dashboard data + attendance log
   useEffect(() => {
@@ -65,61 +77,16 @@ export default function EmployeeDashboard() {
     load()
   }, [])
 
-  // Load today's check-in state
-  const loadTodayAtt = useCallback(async () => {
-    try {
-      const res = await attendanceService.getToday()
-      if (res.ok) {
-        const d = await res.json()
-        setTodayAtt(d)
-        if (d.check_in && !d.check_out && d.elapsed_seconds != null) {
-          setSeconds(d.elapsed_seconds)
-        }
-      }
-    } catch { /* ignore */ }
-    setAttLoading(false)
-  }, [])
-
-  useEffect(() => { loadTodayAtt() }, [loadTodayAtt])
-
-  // Live timer — only runs while checked in but not checked out
-  useEffect(() => {
-    if (!todayAtt?.check_in || todayAtt?.check_out) return
-    const interval = setInterval(() => setSeconds(s => s + 1), 1000)
-    return () => clearInterval(interval)
-  }, [todayAtt?.check_in, todayAtt?.check_out])
-
   const handleCheckIn = async () => {
-    setAttBusy(true)
     setAttError('')
-    try {
-      const res = await attendanceService.checkIn()
-      if (res.ok || res.status === 201) {
-        const d = await res.json()
-        setTodayAtt(d)
-        setSeconds(0)
-      } else {
-        const err = await res.json().catch(() => ({}))
-        setAttError(err.detail || 'Check-in failed.')
-      }
-    } catch { setAttError('Network error. Please try again.') }
-    setAttBusy(false)
+    const result = await ctxCheckIn()
+    if (!result.ok) setAttError(result.error)
   }
 
   const handleCheckOut = async () => {
-    setAttBusy(true)
     setAttError('')
-    try {
-      const res = await attendanceService.checkOut()
-      if (res.ok) {
-        const d = await res.json()
-        setTodayAtt(d)
-      } else {
-        const err = await res.json().catch(() => ({}))
-        setAttError(err.detail || 'Check-out failed.')
-      }
-    } catch { setAttError('Network error. Please try again.') }
-    setAttBusy(false)
+    const result = await ctxCheckOut()
+    if (!result.ok) setAttError(result.error)
   }
 
   const markNotificationRead = async (id) => {
@@ -185,8 +152,11 @@ export default function EmployeeDashboard() {
           <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-150 duration-700"></div>
           <div className="relative z-10 flex flex-col h-full">
             <div className="flex items-start justify-between">
-              <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border-4 border-surface shadow-md">
-                <span className="material-symbols-outlined text-[48px]" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
+              <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border-4 border-surface shadow-md overflow-hidden">
+                {emp.photo_path
+                  ? <img src={`/uploads/${emp.photo_path}`} alt={emp.name} className="w-full h-full object-cover" />
+                  : <span className="material-symbols-outlined text-[48px]" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
+                }
               </div>
               <button onClick={() => navigate('/profile')} className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors">
                 <span className="material-symbols-outlined">edit</span>
@@ -296,8 +266,9 @@ export default function EmployeeDashboard() {
                     Shift complete
                   </span>
                 )}
-                <span className="text-label-sm text-on-surface-variant ml-md hidden sm:block">
-                  {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                <span className="text-label-sm text-on-surface-variant ml-md hidden sm:flex sm:flex-col sm:items-end">
+                  <span className="font-mono font-bold">{fmtLiveClock(now)}</span>
+                  <span>{fmtLiveDate(now)}</span>
                 </span>
               </div>
             </div>

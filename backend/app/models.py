@@ -100,6 +100,10 @@ class User(Base):
     employee: Mapped[Optional["Employee"]] = relationship("Employee", back_populates="user")
     notifications: Mapped[list["Notification"]] = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
 
+    @property
+    def photo_path(self) -> Optional[str]:
+        return self.employee.photo_path if self.employee else None
+
 
 class Attendance(Base):
     __tablename__ = "attendance"

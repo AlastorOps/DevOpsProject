@@ -283,9 +283,10 @@ export default function Header({ onMenuClick }) {
           to="/profile"
           className="flex items-center gap-sm cursor-pointer hover:bg-surface-container py-1 px-1 sm:px-2 rounded-full transition-all"
         >
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-sm">
-            {initials(user?.name)}
-          </div>
+          {user?.photo_path
+            ? <img src={`/uploads/${user.photo_path}`} alt={user.name} className="w-8 h-8 rounded-full object-cover" />
+            : <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-sm">{initials(user?.name)}</div>
+          }
           <div className="hidden lg:flex flex-col">
             <span className="text-label-md font-bold leading-tight">{user?.name ?? ''}</span>
             <span className="text-[10px] text-outline uppercase tracking-wider">{user?.role ?? ''}</span>

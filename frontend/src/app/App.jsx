@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from '../context/AuthContext'
+import { AttendanceProvider } from '../context/AttendanceContext'
 import Layout from '../components/layout/Layout'
 import LoginPage from '../features/admin/LoginPage'
 import NotFoundPage from '../features/errors/NotFoundPage'
@@ -44,6 +45,7 @@ function DashboardRedirect() {
 export default function App() {
   return (
     <AuthProvider>
+      <AttendanceProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -129,6 +131,7 @@ export default function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>
+      </AttendanceProvider>
     </AuthProvider>
   )
 }

@@ -2,7 +2,7 @@ import logging
 import secrets
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.models import User
 from app import auth as auth_utils
@@ -21,7 +21,7 @@ logger = logging.getLogger("ems.auth")
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
 def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
+    user = db.query(User).options(joinedload(User.employee)).filter(User.email == payload.email).first()
     if not user or not auth_utils.verify_password(payload.password, user.password_hash):
         logger.warning("Failed login attempt for email=%s ip=%s", payload.email, request.client.host)
         raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -43,6 +43,7 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
             email=user.email,
             role=user.role,
             employee_id=user.employee_id,
+            photo_path=user.employee.photo_path if user.employee else None,
         ),
     )
 
@@ -57,7 +58,7 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).options(joinedload(User.employee)).filter(User.id == user_id).first()
     if not user or user.status != "Active":
         raise HTTPException(status_code=401, detail="User not found or inactive")
 
@@ -72,6 +73,7 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
             email=user.email,
             role=user.role,
             employee_id=user.employee_id,
+            photo_path=user.employee.photo_path if user.employee else None,
         ),
     )
 

@@ -23,6 +23,7 @@ class EmployeeBrief(BaseModel):
     id: str
     emp_id: str
     name: str
+    photo_path: Optional[str] = None
     department: Optional["DeptBrief"] = None
     position: Optional["PosBrief"] = None
 

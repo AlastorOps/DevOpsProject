@@ -10,6 +10,10 @@ const statusStyle = {
 export default function LeaveManagement() {
   const [requests, setRequests]       = useState([])
   const [total, setTotal]             = useState(0)
+  const [totalCount, setTotalCount]   = useState(0)
+  const [approvedCount, setApprovedCount] = useState(0)
+  const [pendingCount, setPendingCount]   = useState(0)
+  const [rejectedCount, setRejectedCount] = useState(0)
   const [loading, setLoading]         = useState(true)
   const [toast, setToast]             = useState(null)
   const [search, setSearch]           = useState('')
@@ -29,6 +33,22 @@ export default function LeaveManagement() {
     setLoading(false)
   }, [page, filterType, filterStatus])
 
+  const fetchCounts = useCallback(async () => {
+    try {
+      const [allRes, aRes, pRes, rRes] = await Promise.all([
+        leaveService.list({ limit: 1 }),
+        leaveService.list({ limit: 1, status: 'Approved' }),
+        leaveService.list({ limit: 1, status: 'Pending' }),
+        leaveService.list({ limit: 1, status: 'Rejected' }),
+      ])
+      if (allRes.ok) { const d = await allRes.json(); setTotalCount(d.total || 0) }
+      if (aRes.ok)   { const d = await aRes.json();   setApprovedCount(d.total || 0) }
+      if (pRes.ok)   { const d = await pRes.json();   setPendingCount(d.total || 0) }
+      if (rRes.ok)   { const d = await rRes.json();   setRejectedCount(d.total || 0) }
+    } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => { fetchCounts() }, [fetchCounts])
   useEffect(() => { fetchRequests() }, [fetchRequests])
 
   const handleAction = async (req, action) => {
@@ -37,7 +57,7 @@ export default function LeaveManagement() {
       if (res.ok) {
         const newStatus = action === 'approve' ? 'Approved' : 'Rejected'
         showToast(`Leave for ${req.employee?.name} ${newStatus.toLowerCase()}.`, action === 'reject' ? 'error' : 'success')
-        fetchRequests()
+        fetchRequests(); fetchCounts()
       } else {
         const err = await res.json().catch(() => ({}))
         showToast(err.detail || 'Action failed.', 'error')
@@ -47,12 +67,6 @@ export default function LeaveManagement() {
 
   const filtered = requests.filter(r => !search || `${r.employee?.name ?? ''} ${r.employee?.emp_id ?? ''}`.toLowerCase().includes(search.toLowerCase()))
 
-  const counts = {
-    total: total,
-    approved: requests.filter(r => r.status === 'Approved').length,
-    pending: requests.filter(r => r.status === 'Pending').length,
-    rejected: requests.filter(r => r.status === 'Rejected').length,
-  }
   const totalPages = Math.max(1, Math.ceil(total / limit))
 
   return (
@@ -67,10 +81,10 @@ export default function LeaveManagement() {
       {/* Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-gutter mb-lg">
         {[
-          { label: 'Total Requests', val: total,            icon: 'event_note',     style: 'bg-primary text-on-primary' },
-          { label: 'Approved',       val: counts.approved,  icon: 'event_available', style: 'bg-secondary-container/30' },
-          { label: 'Pending',        val: counts.pending,   icon: 'pending_actions', style: 'bg-tertiary-fixed/30' },
-          { label: 'Rejected',       val: counts.rejected,  icon: 'event_busy',      style: 'bg-error-container/30' },
+          { label: 'Total Requests', val: totalCount,    icon: 'event_note',     style: 'bg-primary text-on-primary' },
+          { label: 'Approved',       val: approvedCount, icon: 'event_available', style: 'bg-secondary-container/30' },
+          { label: 'Pending',        val: pendingCount,  icon: 'pending_actions', style: 'bg-tertiary-fixed/30' },
+          { label: 'Rejected',       val: rejectedCount, icon: 'event_busy',      style: 'bg-error-container/30' },
         ].map(s => (
           <div key={s.label} className={`p-lg rounded-xl border border-outline-variant shadow-sm ${s.style}`}>
             <div className="flex items-center justify-between mb-md"><span className="material-symbols-outlined">{s.icon}</span></div>
@@ -117,7 +131,10 @@ export default function LeaveManagement() {
                 <tr key={req.id} className="hover:bg-surface-container-low transition-colors">
                   <td className="px-lg py-md">
                     <div className="flex items-center gap-sm">
-                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{(req.employee?.name ?? '?').split(' ').map(n => n[0]).join('')}</div>
+                      {req.employee?.photo_path
+                        ? <img src={`/uploads/${req.employee.photo_path}`} alt={req.employee.name} className="w-9 h-9 rounded-full object-cover border border-outline-variant shrink-0" />
+                        : <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">{(req.employee?.name ?? '?').split(' ').map(n => n[0]).join('')}</div>
+                      }
                       <div><p className="font-bold">{req.employee?.name ?? '—'}</p><p className="text-label-sm text-on-surface-variant">{req.employee?.department?.name ?? '—'}</p></div>
                     </div>
                   </td>

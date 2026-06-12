@@ -2,7 +2,7 @@ import csv
 import io
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.models import User
 from app import auth as auth_utils
@@ -57,7 +57,7 @@ def list_users(
     if status:
         q = q.filter(User.status == status)
     total = q.count()
-    users = q.order_by(User.created_at.asc()).offset((page - 1) * limit).limit(limit).all()
+    users = q.options(joinedload(User.employee)).order_by(User.created_at.asc()).offset((page - 1) * limit).limit(limit).all()
     return UserListResponse(users=users, total=total, page=page, limit=limit)
 
 

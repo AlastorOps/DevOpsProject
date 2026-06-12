@@ -105,8 +105,11 @@ export default function PersonalProfile() {
         <div className="absolute top-0 left-0 w-full h-32 bg-primary/5"></div>
         <div className="relative flex flex-col md:flex-row items-start md:items-end gap-lg">
           <div className="relative">
-            <div className="w-32 h-32 md:w-40 md:h-40 rounded-xl bg-primary/10 flex items-center justify-center text-primary border-4 border-surface-container-lowest shadow-md">
-              <span className="material-symbols-outlined text-[80px]" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
+            <div className="w-32 h-32 md:w-40 md:h-40 rounded-xl bg-primary/10 flex items-center justify-center text-primary border-4 border-surface-container-lowest shadow-md overflow-hidden">
+              {employee?.photo_path
+                ? <img src={`/uploads/${employee.photo_path}`} alt={displayName} className="w-full h-full object-cover" />
+                : <span className="material-symbols-outlined text-[80px]" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
+              }
             </div>
           </div>
           <div className="flex-1 pb-xs">

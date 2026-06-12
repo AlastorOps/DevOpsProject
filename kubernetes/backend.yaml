@@ -55,6 +55,8 @@ spec:
               value: '["http://ems-ops.local","http://localhost:8080"]'
             - name: UPLOAD_DIR
               value: "/app/uploads"
+            - name: ENABLE_DOCS
+              value: "false"
           volumeMounts:
             - name: upload-storage
               mountPath: /app/uploads
@@ -111,8 +113,11 @@ metadata:
   name: ems-ops-uploads-pvc
   namespace: ems-ops
 spec:
+  # ReadWriteMany is required when replicas > 1 so all pods can mount the same volume.
+  # Your cluster's storage class must support RWX (e.g. NFS, AWS EFS, CephFS).
+  # For single-node clusters or local dev, change to ReadWriteOnce and set replicas: 1.
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
       storage: 2Gi

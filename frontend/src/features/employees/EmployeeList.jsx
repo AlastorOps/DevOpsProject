@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { employeeService } from '../../api/employees.js'
 import { departmentService } from '../../api/departments.js'
+import { positionService } from '../../api/positions.js'
 
 const statusStyle = {
   Active:     'bg-secondary-container text-on-secondary-container',
@@ -22,11 +23,13 @@ export default function EmployeeList() {
   const [showModal, setShowModal]       = useState(false)
   const [editEmp, setEditEmp]           = useState(null)
   const [form, setForm]                 = useState({})
+  const [positions, setPositions]       = useState([])
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [toast, setToast]               = useState(null)
-  const [activeCount, setActiveCount]     = useState(0)
-  const [onLeaveCount, setOnLeaveCount]   = useState(0)
-  const [inactiveCount, setInactiveCount] = useState(0)
+  const [totalHeadcount, setTotalHeadcount] = useState(0)
+  const [activeCount, setActiveCount]       = useState(0)
+  const [onLeaveCount, setOnLeaveCount]     = useState(0)
+  const [inactiveCount, setInactiveCount]   = useState(0)
   const limit = 10
 
   const showToast = (message, type = 'success') => {
@@ -54,16 +57,25 @@ export default function EmployeeList() {
     } catch { /* ignore */ }
   }, [])
 
+  const fetchPositions = useCallback(async (deptId) => {
+    try {
+      const res = await positionService.list({ limit: 100, dept: deptId || '' })
+      if (res.ok) { const d = await res.json(); setPositions(d.positions || []) }
+    } catch { /* ignore */ }
+  }, [])
+
   const fetchCounts = useCallback(async () => {
     try {
-      const [aRes, lRes, iRes] = await Promise.all([
+      const [allRes, aRes, lRes, iRes] = await Promise.all([
+        employeeService.list({ limit: 1 }),
         employeeService.list({ limit: 1, status: 'Active' }),
         employeeService.list({ limit: 1, status: 'On Leave' }),
         employeeService.list({ limit: 1, status: 'Inactive' }),
       ])
-      if (aRes.ok) { const d = await aRes.json(); setActiveCount(d.total) }
-      if (lRes.ok) { const d = await lRes.json(); setOnLeaveCount(d.total) }
-      if (iRes.ok) { const d = await iRes.json(); setInactiveCount(d.total) }
+      if (allRes.ok) { const d = await allRes.json(); setTotalHeadcount(d.total) }
+      if (aRes.ok)   { const d = await aRes.json();   setActiveCount(d.total) }
+      if (lRes.ok)   { const d = await lRes.json();   setOnLeaveCount(d.total) }
+      if (iRes.ok)   { const d = await iRes.json();   setInactiveCount(d.total) }
     } catch { /* ignore */ }
   }, [])
 
@@ -78,9 +90,11 @@ export default function EmployeeList() {
     setEditEmp(emp)
     setForm({
       name: emp.name, phone: emp.phone ?? '', gender: emp.gender ?? 'Male',
-      department_id: emp.department_id ? String(emp.department_id) : '', position_id: emp.position_id ?? '',
+      department_id: emp.department_id ? String(emp.department_id) : '',
+      position_id: emp.position_id ? String(emp.position_id) : '',
       status: emp.status, work_email: emp.work_email ?? '',
     })
+    fetchPositions(emp.department_id)
     setShowModal(true)
   }
 
@@ -92,6 +106,7 @@ export default function EmployeeList() {
       const res = await employeeService.update(editEmp.id, {
         name: form.name, phone: form.phone || null, gender: form.gender,
         department_id: form.department_id ? Number(form.department_id) : null,
+        position_id: form.position_id ? Number(form.position_id) : null,
         status: form.status,
       })
       if (res.ok) {
@@ -198,9 +213,24 @@ export default function EmployeeList() {
                 </div>
                 <div className="space-y-xs">
                   <label className="text-label-md text-on-surface">Department</label>
-                  <select className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary" {...field('department_id')}>
+                  <select
+                    className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary"
+                    value={form.department_id ?? ''}
+                    onChange={e => {
+                      const newDeptId = e.target.value
+                      setForm(prev => ({ ...prev, department_id: newDeptId, position_id: '' }))
+                      fetchPositions(newDeptId)
+                    }}
+                  >
                     <option value="">None</option>
                     {departments.map(d => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-xs">
+                  <label className="text-label-md text-on-surface">Position</label>
+                  <select className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary" {...field('position_id')}>
+                    <option value="">None</option>
+                    {positions.map(p => <option key={p.id} value={String(p.id)}>{p.title}</option>)}
                   </select>
                 </div>
                 <div className="space-y-xs">
@@ -235,7 +265,7 @@ export default function EmployeeList() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-gutter mb-lg">
         {[
-          { label: 'Total Headcount', val: total,         icon: 'group',        color: 'text-primary bg-primary/10' },
+          { label: 'Total Headcount', val: totalHeadcount, icon: 'group',        color: 'text-primary bg-primary/10' },
           { label: 'Active',          val: activeCount,   icon: 'person_check', color: 'text-secondary bg-secondary/10' },
           { label: 'On Leave',        val: onLeaveCount,  icon: 'event_busy',   color: 'text-tertiary bg-tertiary/10' },
           { label: 'Inactive',        val: inactiveCount, icon: 'person_off',   color: 'text-error bg-error/10' },

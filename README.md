@@ -57,7 +57,7 @@ docker compose up --build -d
 
 | Account | Email | Password |
 | ------- | ----- | -------- |
-| Admin | `admin@ems-ops.com` | Your `ADMIN_PASSWORD` |
+| Admin | `admin@company.com` | Your `ADMIN_PASSWORD` |
 | Demo employees | `firstname.lastname@ems-ops.com` | `Employee@123` |
 
 Demo accounts: `alice.johnson@ems-ops.com`, `bob.williams@ems-ops.com`, etc. See `database/init/03_fake_data.sql` for the full list.

@@ -29,6 +29,7 @@ class EmployeeBrief(BaseModel):
     id: str
     emp_id: str
     name: str
+    photo_path: Optional[str] = None
 
 
 class AttendanceResponse(BaseModel):

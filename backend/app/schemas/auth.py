@@ -21,6 +21,7 @@ class UserTokenPayload(BaseModel):
     email: str
     role: str
     employee_id: Optional[str] = None
+    photo_path: Optional[str] = None
 
 
 class RefreshRequest(BaseModel):
