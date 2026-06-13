@@ -156,8 +156,16 @@ jobs:
       - name: Apply namespace
         run: kubectl apply -f kubernetes/00-namespace.yaml
 
-      - name: Apply secrets
-        run: kubectl apply -f kubernetes/secrets.yaml
+      - name: Create Kubernetes secret
+        run: |
+          kubectl create secret generic ems-ops-secrets \
+            --namespace=ems-ops \
+            --from-literal=POSTGRES_PASSWORD=${{ secrets.K8S_POSTGRES_PASSWORD }} \
+            --from-literal=DATABASE_URL=${{ secrets.K8S_DATABASE_URL }} \
+            --from-literal=SECRET_KEY=${{ secrets.K8S_SECRET_KEY }} \
+            --from-literal=ADMIN_PASSWORD=${{ secrets.K8S_ADMIN_PASSWORD }} \
+            --from-literal=GRAFANA_PASSWORD=${{ secrets.K8S_GRAFANA_PASSWORD }} \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply all manifests
         run: kubectl apply -k kubernetes/
