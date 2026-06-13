@@ -109,39 +109,43 @@ export default function EmployeeDashboard() {
     setPhotoFile(null)
     setPhotoPreview(null)
 
-    try {
-      const empData = await profileService.getMyEmployee()
-      console.log('[EditProfile] Loaded employee data:', empData)
+    const [profileResult, empResult] = await Promise.allSettled([
+      profileService.get(),
+      profileService.getMyEmployee(),
+    ])
 
+    if (profileResult.status === 'fulfilled') {
+      setData(prev => ({ ...prev, user: profileResult.value }))
+    }
+
+    if (empResult.status === 'fulfilled') {
+      const empData = empResult.value
       setCurrentPhotoPath(empData.photo_path ?? null)
       setEditForm({
-        name:           empData.name           ?? '',
-        email:          empData.work_email     ?? empData.email ?? '',
+        name:           empData.name                       ?? '',
+        email:          empData.work_email ?? empData.email ?? '',
         phone:          empData.phone          ?? '',
         personal_email: empData.personal_email ?? '',
         address:        empData.address        ?? '',
         dob:            empData.dob            ?? '',
         gender:         empData.gender         ?? '',
       })
-    } catch (err) {
-      console.error('[EditProfile] Failed to load profile:', err)
-      // Fall back to whatever partial data the dashboard already loaded
+    } else {
       const emp = data?.employee
-      console.warn('[EditProfile] Falling back to dashboard employee data:', emp)
       setCurrentPhotoPath(emp?.photo_path ?? null)
       setEditForm({
-        name:           emp?.name                        ?? '',
-        email:          emp?.work_email ?? emp?.email   ?? '',
-        phone:          emp?.phone                       ?? '',
-        personal_email: emp?.personal_email              ?? '',
-        address:        emp?.address                     ?? '',
-        dob:            emp?.dob                         ?? '',
-        gender:         emp?.gender                      ?? '',
+        name:           emp?.name                      ?? '',
+        email:          emp?.work_email ?? emp?.email  ?? '',
+        phone:          emp?.phone                     ?? '',
+        personal_email: emp?.personal_email            ?? '',
+        address:        emp?.address                   ?? '',
+        dob:            emp?.dob                       ?? '',
+        gender:         emp?.gender                    ?? '',
       })
       setEditError('Could not refresh profile data — showing last known values.')
-    } finally {
-      setEditLoading(false)
     }
+
+    setEditLoading(false)
   }
 
   const handlePhotoChange = (e) => {

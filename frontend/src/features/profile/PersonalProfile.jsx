@@ -65,23 +65,33 @@ export default function PersonalProfile() {
     setEditError('')
     setPhotoFile(null)
     setPhotoPreview(null)
-    try {
-      const empData = await profileService.getMyEmployee()
-      setCurrentPhotoPath(empData.photo_path ?? null)
+
+    const [profileResult, empResult] = await Promise.allSettled([
+      profileService.get(),
+      profileService.getMyEmployee(),
+    ])
+
+    const freshProfile = profileResult.status === 'fulfilled' ? profileResult.value : null
+    if (freshProfile) setProfile(freshProfile)
+    const p = freshProfile ?? profile
+
+    if (empResult.status === 'fulfilled') {
+      const emp = empResult.value
+      setCurrentPhotoPath(emp.photo_path ?? null)
       setEditForm({
-        name:           empData.name           ?? profile?.name  ?? user?.name  ?? '',
-        email:          empData.work_email     ?? profile?.email ?? user?.email ?? '',
-        phone:          empData.phone          ?? '',
-        personal_email: empData.personal_email ?? '',
-        address:        empData.address        ?? '',
-        dob:            empData.dob            ?? '',
-        gender:         empData.gender         ?? '',
+        name:           emp.name           ?? p?.name  ?? user?.name  ?? '',
+        email:          emp.work_email     ?? p?.email ?? user?.email ?? '',
+        phone:          emp.phone          ?? '',
+        personal_email: emp.personal_email ?? '',
+        address:        emp.address        ?? '',
+        dob:            emp.dob            ?? '',
+        gender:         emp.gender         ?? '',
       })
-    } catch {
+    } else {
       setCurrentPhotoPath(employee?.photo_path ?? null)
       setEditForm({
-        name:           profile?.name  ?? user?.name  ?? '',
-        email:          profile?.email ?? user?.email ?? '',
+        name:           p?.name  ?? user?.name  ?? '',
+        email:          p?.email ?? user?.email ?? '',
         phone:          employee?.phone          ?? '',
         personal_email: employee?.personal_email ?? '',
         address:        employee?.address        ?? '',
@@ -89,9 +99,9 @@ export default function PersonalProfile() {
         gender:         employee?.gender         ?? '',
       })
       setEditError('Could not refresh profile data — showing last known values.')
-    } finally {
-      setEditLoading(false)
     }
+
+    setEditLoading(false)
   }
 
   function handlePhotoChange(e) {
