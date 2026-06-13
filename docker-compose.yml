@@ -50,7 +50,7 @@ services:
     image: ${DOCKER_USERNAME:-alastorops}/employee-management-frontend:latest
     container_name: ems-frontend
     ports:
-      - "8080:80"
+      - "8080:8080"
     depends_on:
       - backend
     restart: unless-stopped

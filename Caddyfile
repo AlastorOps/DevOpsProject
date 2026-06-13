@@ -2,5 +2,5 @@
 # HTTP requests are automatically redirected to HTTPS.
 
 ems-ops.xyz, www.ems-ops.xyz {
-    reverse_proxy frontend:80
+    reverse_proxy frontend:8080
 }
