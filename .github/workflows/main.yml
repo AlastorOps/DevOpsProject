@@ -160,18 +160,27 @@ jobs:
         run: |
           kubectl create secret generic ems-ops-secrets \
             --namespace=ems-ops \
-            --from-literal=POSTGRES_PASSWORD=${{ secrets.K8S_POSTGRES_PASSWORD }} \
-            --from-literal=DATABASE_URL=${{ secrets.K8S_DATABASE_URL }} \
-            --from-literal=SECRET_KEY=${{ secrets.K8S_SECRET_KEY }} \
-            --from-literal=ADMIN_PASSWORD=${{ secrets.K8S_ADMIN_PASSWORD }} \
-            --from-literal=GRAFANA_PASSWORD=${{ secrets.K8S_GRAFANA_PASSWORD }} \
+            --from-literal=POSTGRES_PASSWORD="${{ secrets.K8S_POSTGRES_PASSWORD }}" \
+            --from-literal=DATABASE_URL="${{ secrets.K8S_DATABASE_URL }}" \
+            --from-literal=SECRET_KEY="${{ secrets.K8S_SECRET_KEY }}" \
+            --from-literal=ADMIN_PASSWORD="${{ secrets.K8S_ADMIN_PASSWORD }}" \
+            --from-literal=GRAFANA_PASSWORD="${{ secrets.K8S_GRAFANA_PASSWORD }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply all manifests
         run: kubectl apply -k kubernetes/
 
       - name: Wait for database
-        run: kubectl rollout status statefulset/ems-ops-db -n ems-ops --timeout=180s
+        run: |
+          kubectl rollout status statefulset/ems-ops-db -n ems-ops --timeout=300s || {
+            echo "──── pod list ────"
+            kubectl get pods -n ems-ops -o wide
+            echo "──── describe db pod ────"
+            kubectl describe pod -l app=ems-ops-db -n ems-ops
+            echo "──── db logs ────"
+            kubectl logs -l app=ems-ops-db -n ems-ops --tail=60 || true
+            exit 1
+          }
 
       - name: Deploy backend (rolling update)
         run: |
