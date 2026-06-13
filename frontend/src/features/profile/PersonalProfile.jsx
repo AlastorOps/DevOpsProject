@@ -23,10 +23,15 @@ export default function PersonalProfile() {
   const [employee, setEmployee] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  const [editOpen, setEditOpen] = useState(false)
-  const [editForm, setEditForm] = useState({ name: '', email: '' })
-  const [editSaving, setEditSaving] = useState(false)
-  const [editError, setEditError] = useState('')
+  const [editOpen, setEditOpen]       = useState(false)
+  const [editLoading, setEditLoading] = useState(false)
+  const [editForm, setEditForm]       = useState({ name: '', email: '', phone: '', personal_email: '', address: '', dob: '', gender: '' })
+  const [editSaving, setEditSaving]   = useState(false)
+  const [editError, setEditError]     = useState('')
+  const [photoFile, setPhotoFile]     = useState(null)
+  const [photoPreview, setPhotoPreview]     = useState(null)
+  const [currentPhotoPath, setCurrentPhotoPath] = useState(null)
+  const [photoVersion, setPhotoVersion] = useState(() => Date.now())
 
   const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm_password: '' })
   const [pwStatus, setPwStatus] = useState(null)
@@ -45,8 +50,8 @@ export default function PersonalProfile() {
             // employee record not accessible — skip silently
           }
         }
-      } catch (err) {
-        console.error('Failed to load profile:', err)
+      } catch {
+        // silently fail — user sees empty state
       } finally {
         setLoading(false)
       }
@@ -54,10 +59,59 @@ export default function PersonalProfile() {
     load()
   }, [])
 
-  function openEdit() {
-    setEditForm({ name: profile?.name ?? user?.name ?? '', email: profile?.email ?? user?.email ?? '' })
-    setEditError('')
+  async function openEdit() {
     setEditOpen(true)
+    setEditLoading(true)
+    setEditError('')
+    setPhotoFile(null)
+    setPhotoPreview(null)
+
+    const [profileResult, empResult] = await Promise.allSettled([
+      profileService.get(),
+      profileService.getMyEmployee(),
+    ])
+
+    const freshProfile = profileResult.status === 'fulfilled' ? profileResult.value : null
+    if (freshProfile) setProfile(freshProfile)
+    const p = freshProfile ?? profile
+
+    if (empResult.status === 'fulfilled') {
+      const emp = empResult.value
+      setCurrentPhotoPath(emp.photo_path ?? null)
+      setEditForm({
+        name:           emp.name           ?? p?.name  ?? user?.name  ?? '',
+        email:          emp.work_email     ?? p?.email ?? user?.email ?? '',
+        phone:          emp.phone          ?? '',
+        personal_email: emp.personal_email ?? '',
+        address:        emp.address        ?? '',
+        dob:            emp.dob            ?? '',
+        gender:         emp.gender         ?? '',
+      })
+    } else {
+      setCurrentPhotoPath(employee?.photo_path ?? null)
+      setEditForm({
+        name:           p?.name  ?? user?.name  ?? '',
+        email:          p?.email ?? user?.email ?? '',
+        phone:          employee?.phone          ?? '',
+        personal_email: employee?.personal_email ?? '',
+        address:        employee?.address        ?? '',
+        dob:            employee?.dob            ?? '',
+        gender:         employee?.gender         ?? '',
+      })
+      setEditError('Could not refresh profile data — showing last known values.')
+    }
+
+    setEditLoading(false)
+  }
+
+  function handlePhotoChange(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setPhotoFile(file)
+    setPhotoPreview(prev => {
+      if (prev) URL.revokeObjectURL(prev)
+      return URL.createObjectURL(file)
+    })
   }
 
   async function handleEditSave(e) {
@@ -65,9 +119,33 @@ export default function PersonalProfile() {
     setEditSaving(true)
     setEditError('')
     try {
-      const updated = await profileService.update({ name: editForm.name, email: editForm.email })
-      setProfile(updated)
-      updateUser({ name: updated.name, email: updated.email })
+      // 1. Update user account (name + email)
+      const userUpdated = await profileService.update({ name: editForm.name, email: editForm.email })
+      setProfile(userUpdated)
+
+      // 2. Update employee personal fields
+      const empUpdated = await profileService.updateMyEmployee({
+        name:           editForm.name           || null,
+        phone:          editForm.phone          || null,
+        personal_email: editForm.personal_email || null,
+        address:        editForm.address        || null,
+        dob:            editForm.dob            || null,
+        gender:         editForm.gender         || null,
+      })
+
+      // 3. Upload photo if selected
+      let finalPhotoPath = empUpdated.photo_path
+      if (photoFile) {
+        const fd = new FormData()
+        fd.append('photo', photoFile)
+        const photoRes = await profileService.uploadMyPhoto(fd)
+        finalPhotoPath = photoRes.photo_path
+        setPhotoVersion(Date.now())
+      }
+
+      setEmployee({ ...empUpdated, photo_path: finalPhotoPath })
+      setCurrentPhotoPath(finalPhotoPath)
+      updateUser({ name: userUpdated.name, email: userUpdated.email, photo_path: finalPhotoPath, photo_ts: Date.now() })
       setEditOpen(false)
     } catch (err) {
       setEditError(err.message)
@@ -105,8 +183,11 @@ export default function PersonalProfile() {
         <div className="absolute top-0 left-0 w-full h-32 bg-primary/5"></div>
         <div className="relative flex flex-col md:flex-row items-start md:items-end gap-lg">
           <div className="relative">
-            <div className="w-32 h-32 md:w-40 md:h-40 rounded-xl bg-primary/10 flex items-center justify-center text-primary border-4 border-surface-container-lowest shadow-md">
-              <span className="material-symbols-outlined text-[80px]" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
+            <div className="w-32 h-32 md:w-40 md:h-40 rounded-xl bg-primary/10 flex items-center justify-center text-primary border-4 border-surface-container-lowest shadow-md overflow-hidden">
+              {employee?.photo_path
+                ? <img src={`/uploads/${employee.photo_path}?v=${photoVersion}`} alt={displayName} className="w-full h-full object-cover" />
+                : <span className="material-symbols-outlined text-[80px]" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
+              }
             </div>
           </div>
           <div className="flex-1 pb-xs">
@@ -310,56 +391,152 @@ export default function PersonalProfile() {
         </div>
       </div>
 
-      {/* Edit Profile Modal */}
+      {/* ── Edit Profile Modal ───────────────────────────────────────────────── */}
       {editOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-md">
-          <div className="absolute inset-0 bg-on-background/40 backdrop-blur-sm" onClick={() => setEditOpen(false)} />
-          <div className="relative w-full max-w-md bg-surface-container-lowest rounded-xl border border-outline-variant shadow-2xl">
-            <div className="flex items-center justify-between px-xl pt-xl pb-md">
-              <h3 className="text-headline-md text-on-surface">Edit Profile</h3>
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-md overflow-y-auto">
+          <div className="absolute inset-0 bg-on-background/40 backdrop-blur-sm" onClick={() => !editSaving && setEditOpen(false)} />
+          <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl border border-outline-variant shadow-2xl my-xl">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-xl pt-xl pb-md border-b border-outline-variant">
+              <div>
+                <h3 className="text-headline-md text-on-surface">Edit Profile</h3>
+                <p className="text-body-sm text-outline">Update your personal information</p>
+              </div>
               <button
-                onClick={() => setEditOpen(false)}
-                className="text-outline hover:text-on-surface transition-colors p-xs rounded-lg hover:bg-surface-container"
                 type="button"
+                onClick={() => !editSaving && setEditOpen(false)}
+                className="text-outline hover:text-on-surface p-xs rounded-lg hover:bg-surface-container transition-colors"
               >
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
-            <form onSubmit={handleEditSave} className="px-xl pb-xl space-y-lg">
+
+            {editLoading ? (
+              <div className="px-xl py-xl flex flex-col items-center justify-center gap-md text-outline">
+                <span className="material-symbols-outlined text-primary text-[40px]" style={{ animation: 'spin 1s linear infinite' }}>progress_activity</span>
+                <p className="text-body-md">Loading your profile…</p>
+              </div>
+            ) : (
+            <form onSubmit={handleEditSave} className="px-xl py-lg space-y-lg">
               {editError && (
                 <div className="flex items-center gap-sm p-md bg-error/10 border border-error/30 rounded-lg text-body-sm text-error">
                   <span className="material-symbols-outlined text-[18px] shrink-0">error</span>
                   {editError}
                 </div>
               )}
-              <div className="space-y-xs">
-                <label className="text-label-md text-on-surface ml-xs block" htmlFor="edit-name">Full Name</label>
-                <input
-                  autoFocus
-                  className="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-body-md"
-                  id="edit-name"
-                  required
-                  type="text"
-                  value={editForm.name}
-                  onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                />
+
+              {/* Photo */}
+              <div className="flex items-center gap-lg">
+                <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border-2 border-outline-variant overflow-hidden shrink-0">
+                  {photoPreview
+                    ? <img src={photoPreview} className="w-full h-full object-cover" alt="Preview" />
+                    : currentPhotoPath
+                      ? <img src={`/uploads/${currentPhotoPath}?v=${photoVersion}`} className="w-full h-full object-cover" alt={editForm.name} />
+                      : <span className="material-symbols-outlined text-[40px]" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
+                  }
+                </div>
+                <div>
+                  <label
+                    htmlFor="pp-photo"
+                    className="cursor-pointer inline-flex items-center gap-xs px-md py-sm border border-outline-variant rounded-lg text-label-md hover:bg-surface-container transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">upload</span>
+                    {photoFile ? photoFile.name : 'Change Photo'}
+                  </label>
+                  <input id="pp-photo" type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                  <p className="text-label-sm text-outline mt-xs">JPG, PNG or GIF · max 5 MB</p>
+                </div>
               </div>
-              <div className="space-y-xs">
-                <label className="text-label-md text-on-surface ml-xs block" htmlFor="edit-email">Email Address</label>
-                <input
-                  className="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-body-md"
-                  id="edit-email"
-                  required
-                  type="email"
-                  value={editForm.email}
-                  onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
-                />
+
+              {/* Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                <div className="space-y-xs">
+                  <label className="text-label-sm text-on-surface-variant uppercase tracking-wider" htmlFor="pp-name">Full Name</label>
+                  <input
+                    id="pp-name" type="text" required autoFocus
+                    className="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-body-md"
+                    value={editForm.name}
+                    onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-xs">
+                  <label className="text-label-sm text-on-surface-variant uppercase tracking-wider" htmlFor="pp-email">Work Email</label>
+                  <input
+                    id="pp-email" type="email" required
+                    className="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-body-md"
+                    value={editForm.email}
+                    onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-xs">
+                  <label className="text-label-sm text-on-surface-variant uppercase tracking-wider" htmlFor="pp-phone">Phone</label>
+                  <input
+                    id="pp-phone" type="tel"
+                    className="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-body-md"
+                    placeholder="+1 234 567 8900"
+                    value={editForm.phone}
+                    onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-xs">
+                  <label className="text-label-sm text-on-surface-variant uppercase tracking-wider" htmlFor="pp-dob">Date of Birth</label>
+                  <input
+                    id="pp-dob" type="date"
+                    className="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-body-md"
+                    value={editForm.dob}
+                    onChange={e => setEditForm(f => ({ ...f, dob: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-xs">
+                  <label className="text-label-sm text-on-surface-variant uppercase tracking-wider" htmlFor="pp-gender">Gender</label>
+                  <select
+                    id="pp-gender"
+                    className="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-body-md"
+                    value={editForm.gender}
+                    onChange={e => setEditForm(f => ({ ...f, gender: e.target.value }))}
+                  >
+                    <option value="">Prefer not to say</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="space-y-xs">
+                  <label className="text-label-sm text-on-surface-variant uppercase tracking-wider" htmlFor="pp-personal-email">Personal Email</label>
+                  <input
+                    id="pp-personal-email" type="email"
+                    className="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-body-md"
+                    placeholder="personal@email.com"
+                    value={editForm.personal_email}
+                    onChange={e => setEditForm(f => ({ ...f, personal_email: e.target.value }))}
+                  />
+                </div>
+
+                <div className="sm:col-span-2 space-y-xs">
+                  <label className="text-label-sm text-on-surface-variant uppercase tracking-wider" htmlFor="pp-address">Address</label>
+                  <textarea
+                    id="pp-address" rows={2}
+                    className="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-body-md resize-none"
+                    placeholder="123 Main St, City, Country"
+                    value={editForm.address}
+                    onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
+                  />
+                </div>
               </div>
-              <div className="flex gap-md pt-xs">
+
+              {/* Actions */}
+              <div className="flex gap-md pt-xs border-t border-outline-variant">
                 <button
                   type="button"
                   onClick={() => setEditOpen(false)}
-                  className="flex-1 py-md border border-outline-variant rounded-lg text-label-md text-on-surface hover:bg-surface-container transition-all"
+                  disabled={editSaving}
+                  className="flex-1 py-md border border-outline-variant rounded-lg text-label-md text-on-surface hover:bg-surface-container transition-all disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -372,9 +549,11 @@ export default function PersonalProfile() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}
+      {/* ── End Edit Profile Modal ────────────────────────────────────────────── */}
     </div>
   )
 }

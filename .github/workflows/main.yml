@@ -49,8 +49,8 @@ jobs:
       run:
         working-directory: backend
     env:
-      SECRET_KEY: CI0GitHub0Actions0Backend0Test0A1B2C3
-      ADMIN_PASSWORD: CIactions0AdminPw
+      SECRET_KEY: ${{ secrets.CI_SECRET_KEY }}
+      ADMIN_PASSWORD: ${{ secrets.CI_ADMIN_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -120,3 +120,95 @@ jobs:
           tags: ${{ steps.meta-backend.outputs.tags }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
+
+  deploy:
+    name: Deploy to Kubernetes (Minikube)
+    needs: [docker]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start Minikube
+        uses: medyagh/setup-minikube@latest
+        with:
+          driver: docker
+          kubernetes-version: stable
+
+      - uses: azure/setup-kubectl@v3
+
+      - name: Resolve image tag
+        id: tag
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "value=sha-$(echo '${{ github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify cluster connectivity
+        run: |
+          kubectl config current-context
+          kubectl cluster-info
+          kubectl get nodes
+          kubectl get namespaces
+
+      - name: Apply namespace
+        run: kubectl apply -f kubernetes/00-namespace.yaml
+
+      - name: Create Kubernetes secret
+        run: |
+          kubectl create secret generic ems-ops-secrets \
+            --namespace=ems-ops \
+            --from-literal=POSTGRES_PASSWORD="${{ secrets.K8S_POSTGRES_PASSWORD }}" \
+            --from-literal=DATABASE_URL="${{ secrets.K8S_DATABASE_URL }}" \
+            --from-literal=SECRET_KEY="${{ secrets.K8S_SECRET_KEY }}" \
+            --from-literal=ADMIN_PASSWORD="${{ secrets.K8S_ADMIN_PASSWORD }}" \
+            --from-literal=GRAFANA_PASSWORD="${{ secrets.K8S_GRAFANA_PASSWORD }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply all manifests
+        run: kubectl apply -k kubernetes/
+
+      - name: Wait for database
+        run: |
+          kubectl rollout status statefulset/ems-ops-db -n ems-ops --timeout=300s || {
+            echo "──── pod list ────"
+            kubectl get pods -n ems-ops -o wide
+            echo "──── describe db pod ────"
+            kubectl describe pod -l app=ems-ops-db -n ems-ops
+            echo "──── db logs ────"
+            kubectl logs -l app=ems-ops-db -n ems-ops --tail=60 || true
+            exit 1
+          }
+
+      - name: Deploy backend (rolling update)
+        run: |
+          kubectl set image deployment/ems-ops-backend \
+            backend=${{ secrets.DOCKER_USERNAME }}/employee-management-backend:${{ steps.tag.outputs.value }} \
+            -n ems-ops
+          kubectl rollout status deployment/ems-ops-backend -n ems-ops --timeout=300s || {
+            echo "──── pod list ────"
+            kubectl get pods -n ems-ops -o wide
+            echo "──── describe backend pods ────"
+            kubectl describe pod -l app=ems-ops-backend -n ems-ops
+            echo "──── backend logs ────"
+            kubectl logs -l app=ems-ops-backend -n ems-ops --tail=60 || true
+            exit 1
+          }
+
+      - name: Deploy frontend (rolling update)
+        run: |
+          kubectl scale deployment/ems-ops-frontend --replicas=1 -n ems-ops
+          kubectl set image deployment/ems-ops-frontend \
+            frontend=${{ secrets.DOCKER_USERNAME }}/employee-management-frontend:${{ steps.tag.outputs.value }} \
+            -n ems-ops
+          kubectl rollout status deployment/ems-ops-frontend -n ems-ops --timeout=300s || {
+            echo "──── pod list ────"
+            kubectl get pods -n ems-ops -o wide
+            echo "──── describe frontend pods ────"
+            kubectl describe pod -l app=ems-ops-frontend -n ems-ops
+            echo "──── frontend logs ────"
+            kubectl logs -l app=ems-ops-frontend -n ems-ops --tail=60 || true
+            exit 1
+          }

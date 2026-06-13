@@ -197,7 +197,10 @@ export default function PerformanceReviews() {
                 <tr key={rev.id} className="hover:bg-surface-container-low transition-colors">
                   <td className="px-lg py-md">
                     <div className="flex items-center gap-sm">
-                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{(rev.employee?.name ?? '?').split(' ').map(n => n[0]).join('')}</div>
+                      {rev.employee?.photo_path
+                        ? <img src={`/uploads/${rev.employee.photo_path}`} alt={rev.employee.name} className="w-9 h-9 rounded-full object-cover border border-outline-variant shrink-0" />
+                        : <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">{(rev.employee?.name ?? '?').split(' ').map(n => n[0]).join('')}</div>
+                      }
                       <div><p className="font-bold">{rev.employee?.name ?? '—'}</p><p className="text-label-sm text-on-surface-variant">{rev.employee?.position?.title ?? '—'}</p></div>
                     </div>
                   </td>

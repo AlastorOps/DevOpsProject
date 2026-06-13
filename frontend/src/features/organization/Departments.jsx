@@ -76,8 +76,10 @@ export default function Departments() {
 
   const closeModal = () => { setShowModal(false); setEditDept(null); setManagerId('') }
 
+  const budgetInvalid = form.budget !== '' && Number(form.budget) < 0
+
   const handleSave = async () => {
-    if (!form.name.trim()) return
+    if (!form.name.trim() || budgetInvalid) return
     setSaving(true)
     try {
       const selectedManager = managers.find(m => m.id === managerId)
@@ -184,19 +186,25 @@ export default function Departments() {
               <div className="flex flex-col gap-xs">
                 <label className="text-label-md text-on-surface-variant">Annual Budget ($)</label>
                 <input
-                  className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary outline-none"
+                  className={`bg-surface border rounded-lg p-md text-body-md focus:ring-1 outline-none ${budgetInvalid ? 'border-error focus:ring-error' : 'border-outline-variant focus:ring-primary'}`}
                   type="number"
                   min="0"
                   placeholder="0"
                   {...f('budget')}
                 />
+                {budgetInvalid && (
+                  <p className="text-label-sm text-error flex items-center gap-xs">
+                    <span className="material-symbols-outlined text-[14px]">error</span>
+                    Annual budget cannot be negative.
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex gap-sm justify-end mt-xl">
               <button onClick={closeModal} className="px-lg py-sm bg-surface-container border border-outline-variant text-on-surface rounded-lg text-label-md">Cancel</button>
               <button
                 onClick={handleSave}
-                disabled={!form.name.trim() || saving}
+                disabled={!form.name.trim() || budgetInvalid || saving}
                 className="px-lg py-sm bg-primary text-on-primary rounded-lg text-label-md disabled:opacity-50"
               >
                 {saving ? 'Saving…' : editDept ? 'Save Changes' : 'Create'}

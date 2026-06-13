@@ -318,7 +318,10 @@ export default function AttendanceManagement() {
                   <tr key={rec.id} className="hover:bg-surface-container-low transition-colors">
                     <td className="px-lg py-md">
                       <div className="flex items-center gap-sm">
-                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{(rec.employee?.name ?? '?').split(' ').map(n => n[0]).join('')}</div>
+                        {rec.employee?.photo_path
+                          ? <img src={`/uploads/${rec.employee.photo_path}`} alt={rec.employee.name} className="w-9 h-9 rounded-full object-cover border border-outline-variant shrink-0" />
+                          : <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">{(rec.employee?.name ?? '?').split(' ').map(n => n[0]).join('')}</div>
+                        }
                         <div><p className="font-bold">{rec.employee?.name ?? '—'}</p><p className="text-label-sm text-on-surface-variant">{rec.employee?.emp_id ?? '—'}</p></div>
                       </div>
                     </td>

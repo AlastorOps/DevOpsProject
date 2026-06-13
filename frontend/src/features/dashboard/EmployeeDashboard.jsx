@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { dashboardService } from '../../api/dashboard.js'
 import { attendanceService } from '../../api/attendance.js'
 import { leaveService } from '../../api/leave.js'
 import { notificationService } from '../../api/notifications.js'
+import { profileService } from '../../api/users.js'
+import { useAttendance } from '../../context/useAttendance.js'
+import { useAuth } from '../../context/AuthContext.jsx'
 
 const statusStyle = {
   'On Time': 'bg-secondary-container text-on-secondary-container',
@@ -18,7 +21,15 @@ const leaveStatusStyle = {
   Rejected: 'bg-error-container text-on-error-container border border-error/20',
 }
 
+const TZ = 'Asia/Bangkok'
+
 const fmtTime = (t) => t ? t.slice(0, 5) : '—'
+
+const fmtLiveClock = (date) =>
+  date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: TZ })
+
+const fmtLiveDate = (date) =>
+  date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: TZ })
 
 const formatSeconds = (s) => {
   const h = Math.floor(s / 3600)
@@ -28,19 +39,33 @@ const formatSeconds = (s) => {
 }
 
 export default function EmployeeDashboard() {
+  const [now, setNow]                 = useState(new Date())
   const [data, setData]               = useState(null)
   const [loading, setLoading]         = useState(true)
   const [recentLeave, setRecentLeave] = useState([])
   const [attendanceLogs, setAttendanceLogs] = useState([])
 
-  // Today's attendance widget
-  const [todayAtt, setTodayAtt]   = useState(null)
-  const [attLoading, setAttLoading] = useState(true)
-  const [attBusy, setAttBusy]     = useState(false)
-  const [attError, setAttError]   = useState('')
-  const [seconds, setSeconds]     = useState(0)
+  // Edit profile modal
+  const [editOpen, setEditOpen]       = useState(false)
+  const [editLoading, setEditLoading] = useState(false)
+  const [editForm, setEditForm]       = useState({})
+  const [editSaving, setEditSaving]   = useState(false)
+  const [editError, setEditError]     = useState('')
+  const [photoFile, setPhotoFile]     = useState(null)
+  const [photoPreview, setPhotoPreview]   = useState(null)
+  const [currentPhotoPath, setCurrentPhotoPath] = useState(null)
+  const [photoVersion, setPhotoVersion] = useState(() => Date.now())
 
-  const navigate = useNavigate()
+  // Today's attendance — shared with FloatingCheckout via context
+  const { todayAtt, seconds, attLoading, busy: attBusy, checkIn: ctxCheckIn, checkOut: ctxCheckOut } = useAttendance()
+  const [attError, setAttError] = useState('')
+
+  const { updateUser } = useAuth()
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
 
   // Load dashboard data + attendance log
   useEffect(() => {
@@ -65,61 +90,116 @@ export default function EmployeeDashboard() {
     load()
   }, [])
 
-  // Load today's check-in state
-  const loadTodayAtt = useCallback(async () => {
-    try {
-      const res = await attendanceService.getToday()
-      if (res.ok) {
-        const d = await res.json()
-        setTodayAtt(d)
-        if (d.check_in && !d.check_out && d.elapsed_seconds != null) {
-          setSeconds(d.elapsed_seconds)
-        }
-      }
-    } catch { /* ignore */ }
-    setAttLoading(false)
-  }, [])
-
-  useEffect(() => { loadTodayAtt() }, [loadTodayAtt])
-
-  // Live timer — only runs while checked in but not checked out
-  useEffect(() => {
-    if (!todayAtt?.check_in || todayAtt?.check_out) return
-    const interval = setInterval(() => setSeconds(s => s + 1), 1000)
-    return () => clearInterval(interval)
-  }, [todayAtt?.check_in, todayAtt?.check_out])
-
   const handleCheckIn = async () => {
-    setAttBusy(true)
     setAttError('')
-    try {
-      const res = await attendanceService.checkIn()
-      if (res.ok || res.status === 201) {
-        const d = await res.json()
-        setTodayAtt(d)
-        setSeconds(0)
-      } else {
-        const err = await res.json().catch(() => ({}))
-        setAttError(err.detail || 'Check-in failed.')
-      }
-    } catch { setAttError('Network error. Please try again.') }
-    setAttBusy(false)
+    const result = await ctxCheckIn()
+    if (!result.ok) setAttError(result.error)
   }
 
   const handleCheckOut = async () => {
-    setAttBusy(true)
     setAttError('')
+    const result = await ctxCheckOut()
+    if (!result.ok) setAttError(result.error)
+  }
+
+  const openEdit = async () => {
+    setEditOpen(true)
+    setEditLoading(true)
+    setEditError('')
+    setPhotoFile(null)
+    setPhotoPreview(null)
+
+    const [profileResult, empResult] = await Promise.allSettled([
+      profileService.get(),
+      profileService.getMyEmployee(),
+    ])
+
+    if (profileResult.status === 'fulfilled') {
+      setData(prev => ({ ...prev, user: profileResult.value }))
+    }
+
+    if (empResult.status === 'fulfilled') {
+      const empData = empResult.value
+      setCurrentPhotoPath(empData.photo_path ?? null)
+      setEditForm({
+        name:           empData.name                       ?? '',
+        email:          empData.work_email ?? empData.email ?? '',
+        phone:          empData.phone          ?? '',
+        personal_email: empData.personal_email ?? '',
+        address:        empData.address        ?? '',
+        dob:            empData.dob            ?? '',
+        gender:         empData.gender         ?? '',
+      })
+    } else {
+      const emp = data?.employee
+      setCurrentPhotoPath(emp?.photo_path ?? null)
+      setEditForm({
+        name:           emp?.name                      ?? '',
+        email:          emp?.work_email ?? emp?.email  ?? '',
+        phone:          emp?.phone                     ?? '',
+        personal_email: emp?.personal_email            ?? '',
+        address:        emp?.address                   ?? '',
+        dob:            emp?.dob                       ?? '',
+        gender:         emp?.gender                    ?? '',
+      })
+      setEditError('Could not refresh profile data — showing last known values.')
+    }
+
+    setEditLoading(false)
+  }
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+  }
+
+  const handleEditSave = async (e) => {
+    e.preventDefault()
+    setEditSaving(true)
+    setEditError('')
     try {
-      const res = await attendanceService.checkOut()
-      if (res.ok) {
-        const d = await res.json()
-        setTodayAtt(d)
-      } else {
-        const err = await res.json().catch(() => ({}))
-        setAttError(err.detail || 'Check-out failed.')
+      const userUpdated = await profileService.update({ name: editForm.name, email: editForm.email })
+
+      const empUpdated = await profileService.updateMyEmployee({
+        name:           editForm.name           || null,
+        phone:          editForm.phone          || null,
+        personal_email: editForm.personal_email || null,
+        address:        editForm.address        || null,
+        dob:            editForm.dob            || null,
+        gender:         editForm.gender         || null,
+      })
+
+      let finalPhotoPath = empUpdated.photo_path
+      if (photoFile) {
+        const fd = new FormData()
+        fd.append('photo', photoFile)
+        const photoRes = await profileService.uploadMyPhoto(fd)
+        finalPhotoPath = photoRes.photo_path
+        setPhotoVersion(Date.now())
       }
-    } catch { setAttError('Network error. Please try again.') }
-    setAttBusy(false)
+
+      // Sync auth context so the Header avatar updates immediately
+      updateUser({ name: userUpdated.name, email: userUpdated.email, photo_path: finalPhotoPath, photo_ts: photoFile ? Date.now() : undefined })
+
+      // Merge the full updated record back into the dashboard state so the
+      // profile card reflects the new name / photo without a page reload.
+      setData(prev => ({
+        ...prev,
+        employee: {
+          ...prev.employee,
+          ...empUpdated,
+          photo_path: finalPhotoPath,
+        },
+      }))
+      setCurrentPhotoPath(finalPhotoPath)
+      setEditOpen(false)
+    } catch (err) {
+      setEditError(err.message)
+    } finally {
+      setEditSaving(false)
+    }
   }
 
   const markNotificationRead = async (id) => {
@@ -185,10 +265,13 @@ export default function EmployeeDashboard() {
           <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-150 duration-700"></div>
           <div className="relative z-10 flex flex-col h-full">
             <div className="flex items-start justify-between">
-              <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border-4 border-surface shadow-md">
-                <span className="material-symbols-outlined text-[48px]" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
+              <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border-4 border-surface shadow-md overflow-hidden">
+                {emp.photo_path
+                  ? <img src={`/uploads/${emp.photo_path}?v=${photoVersion}`} alt={emp.name} className="w-full h-full object-cover" />
+                  : <span className="material-symbols-outlined text-[48px]" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
+                }
               </div>
-              <button onClick={() => navigate('/profile')} className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors">
+              <button onClick={openEdit} className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors" title="Edit profile">
                 <span className="material-symbols-outlined">edit</span>
               </button>
             </div>
@@ -296,8 +379,9 @@ export default function EmployeeDashboard() {
                     Shift complete
                   </span>
                 )}
-                <span className="text-label-sm text-on-surface-variant ml-md hidden sm:block">
-                  {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                <span className="text-label-sm text-on-surface-variant ml-md hidden sm:flex sm:flex-col sm:items-end">
+                  <span className="font-mono font-bold">{fmtLiveClock(now)}</span>
+                  <span>{fmtLiveDate(now)}</span>
                 </span>
               </div>
             </div>
@@ -481,6 +565,171 @@ export default function EmployeeDashboard() {
           </div>
         </div>
       </div>
+
+      {/* ── Edit Profile Modal ────────────────────────────────────────────────── */}
+      {editOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-md overflow-y-auto">
+          <div className="absolute inset-0 bg-on-background/40 backdrop-blur-sm" onClick={() => !editSaving && setEditOpen(false)} />
+          <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl border border-outline-variant shadow-2xl my-xl">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-xl pt-xl pb-md border-b border-outline-variant">
+              <div>
+                <h3 className="text-headline-md text-on-surface">Edit Profile</h3>
+                <p className="text-body-sm text-outline">Update your personal information</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !editSaving && setEditOpen(false)}
+                className="text-outline hover:text-on-surface p-xs rounded-lg hover:bg-surface-container transition-colors"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {editLoading ? (
+              <div className="px-xl py-xl flex flex-col items-center justify-center gap-md text-outline">
+                <span className="material-symbols-outlined text-primary text-[40px]" style={{ animation: 'spin 1s linear infinite' }}>progress_activity</span>
+                <p className="text-body-md">Loading your profile…</p>
+              </div>
+            ) : (
+            <form onSubmit={handleEditSave} className="px-xl py-lg space-y-lg">
+              {editError && (
+                <div className="flex items-center gap-sm p-md bg-error/10 border border-error/30 rounded-lg text-body-sm text-error">
+                  <span className="material-symbols-outlined text-[18px] shrink-0">error</span>
+                  {editError}
+                </div>
+              )}
+
+              {/* Photo upload */}
+              <div className="flex items-center gap-lg">
+                <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border-2 border-outline-variant overflow-hidden shrink-0">
+                  {photoPreview
+                    ? <img src={photoPreview} className="w-full h-full object-cover" alt="Preview" />
+                    : currentPhotoPath
+                      ? <img src={`/uploads/${currentPhotoPath}?v=${photoVersion}`} className="w-full h-full object-cover" alt={editForm.name} />
+                      : <span className="material-symbols-outlined text-[40px]" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
+                  }
+                </div>
+                <div>
+                  <label
+                    htmlFor="ef-photo"
+                    className="cursor-pointer inline-flex items-center gap-xs px-md py-sm border border-outline-variant rounded-lg text-label-md hover:bg-surface-container transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">upload</span>
+                    {photoFile ? photoFile.name : 'Change Photo'}
+                  </label>
+                  <input id="ef-photo" type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                  <p className="text-label-sm text-outline mt-xs">JPG, PNG or GIF · max 5 MB</p>
+                </div>
+              </div>
+
+              {/* Form fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+
+                <div className="space-y-xs">
+                  <label className="text-label-sm text-on-surface-variant uppercase tracking-wider" htmlFor="ef-name">Full Name</label>
+                  <input
+                    id="ef-name" type="text" required
+                    className="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-body-md"
+                    value={editForm.name}
+                    onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-xs">
+                  <label className="text-label-sm text-on-surface-variant uppercase tracking-wider" htmlFor="ef-email">Work Email</label>
+                  <input
+                    id="ef-email" type="email" required
+                    className="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-body-md"
+                    value={editForm.email}
+                    onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-xs">
+                  <label className="text-label-sm text-on-surface-variant uppercase tracking-wider" htmlFor="ef-phone">Phone</label>
+                  <input
+                    id="ef-phone" type="tel"
+                    className="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-body-md"
+                    placeholder="+1 234 567 8900"
+                    value={editForm.phone}
+                    onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-xs">
+                  <label className="text-label-sm text-on-surface-variant uppercase tracking-wider" htmlFor="ef-dob">Date of Birth</label>
+                  <input
+                    id="ef-dob" type="date"
+                    className="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-body-md"
+                    value={editForm.dob}
+                    onChange={e => setEditForm(f => ({ ...f, dob: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-xs">
+                  <label className="text-label-sm text-on-surface-variant uppercase tracking-wider" htmlFor="ef-gender">Gender</label>
+                  <select
+                    id="ef-gender"
+                    className="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-body-md"
+                    value={editForm.gender}
+                    onChange={e => setEditForm(f => ({ ...f, gender: e.target.value }))}
+                  >
+                    <option value="">Prefer not to say</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="space-y-xs">
+                  <label className="text-label-sm text-on-surface-variant uppercase tracking-wider" htmlFor="ef-personal-email">Personal Email</label>
+                  <input
+                    id="ef-personal-email" type="email"
+                    className="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-body-md"
+                    placeholder="personal@email.com"
+                    value={editForm.personal_email}
+                    onChange={e => setEditForm(f => ({ ...f, personal_email: e.target.value }))}
+                  />
+                </div>
+
+                <div className="sm:col-span-2 space-y-xs">
+                  <label className="text-label-sm text-on-surface-variant uppercase tracking-wider" htmlFor="ef-address">Address</label>
+                  <textarea
+                    id="ef-address" rows={2}
+                    className="w-full px-md py-md bg-surface-container-low border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-body-md resize-none"
+                    placeholder="123 Main St, City, Country"
+                    value={editForm.address}
+                    onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-md pt-xs border-t border-outline-variant">
+                <button
+                  type="button"
+                  onClick={() => setEditOpen(false)}
+                  disabled={editSaving}
+                  className="flex-1 py-md border border-outline-variant rounded-lg text-label-md text-on-surface hover:bg-surface-container transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editSaving}
+                  className="flex-1 py-md bg-primary text-on-primary rounded-lg text-label-md hover:opacity-90 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {editSaving ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+            )}
+          </div>
+        </div>
+      )}
+      {/* ── End Edit Profile Modal ───────────────────────────────────────────── */}
     </div>
   )
 }

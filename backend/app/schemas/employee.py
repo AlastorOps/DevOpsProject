@@ -40,6 +40,15 @@ class EmployeeUpdate(BaseModel):
     status: Optional[str] = None
 
 
+class EmployeeSelfUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    personal_email: Optional[str] = None
+    address: Optional[str] = None
+    dob: Optional[date] = None
+    gender: Optional[str] = None
+
+
 class DepartmentBrief(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int

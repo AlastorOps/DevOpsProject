@@ -12,6 +12,8 @@ const statusStyle = {
 const balanceColors = ['bg-primary', 'bg-secondary', 'bg-tertiary', 'bg-outline', 'bg-error']
 const textColors    = ['text-primary', 'text-secondary', 'text-tertiary', 'text-on-surface-variant', 'text-error']
 
+const todayUTC7 = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
+
 const calcDays = (from, to) => {
   if (!from || !to) return 0
   const diff = new Date(to) - new Date(from)
@@ -57,8 +59,13 @@ export default function RequestLeave() {
     if (f) { setFile(f); setFileName(f.name) }
   }
 
+  const fromDateError = fromDate && fromDate < todayUTC7 ? 'Leave cannot be requested for a past date.' : ''
+  const toDateError   = toDate && fromDate && toDate < fromDate ? 'End date must be on or after start date.' : ''
+  const dateInvalid   = !!fromDateError || !!toDateError
+
   const handleSubmit = async () => {
     if (!fromDate || !toDate) { showToast('Please select both start and end dates.', 'error'); return }
+    if (dateInvalid) { showToast(fromDateError || toDateError, 'error'); return }
     if (!reason.trim()) { showToast('Please provide a reason for your leave.', 'error'); return }
     if (!user?.employee_id) { showToast('No employee profile linked to your account.', 'error'); return }
 
@@ -144,11 +151,35 @@ export default function RequestLeave() {
               <div className="grid grid-cols-2 gap-md">
                 <div className="space-y-xs">
                   <label className="text-label-md text-on-surface">From Date</label>
-                  <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} />
+                  <input
+                    className={`w-full border rounded-lg py-md px-md text-body-md focus:ring-1 outline-none ${fromDateError ? 'border-error focus:ring-error' : 'border-outline-variant focus:ring-primary'}`}
+                    type="date"
+                    min={todayUTC7}
+                    value={fromDate}
+                    onChange={e => { setFromDate(e.target.value); if (toDate && e.target.value > toDate) setToDate('') }}
+                  />
+                  {fromDateError && (
+                    <p className="text-label-sm text-error flex items-center gap-xs">
+                      <span className="material-symbols-outlined text-[14px]">error</span>
+                      {fromDateError}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-xs">
                   <label className="text-label-md text-on-surface">To Date</label>
-                  <input className="w-full border border-outline-variant rounded-lg py-md px-md text-body-md focus:ring-1 focus:ring-primary outline-none" type="date" value={toDate} min={fromDate} onChange={e => setToDate(e.target.value)} />
+                  <input
+                    className={`w-full border rounded-lg py-md px-md text-body-md focus:ring-1 outline-none ${toDateError ? 'border-error focus:ring-error' : 'border-outline-variant focus:ring-primary'}`}
+                    type="date"
+                    min={fromDate || todayUTC7}
+                    value={toDate}
+                    onChange={e => setToDate(e.target.value)}
+                  />
+                  {toDateError && (
+                    <p className="text-label-sm text-error flex items-center gap-xs">
+                      <span className="material-symbols-outlined text-[14px]">error</span>
+                      {toDateError}
+                    </p>
+                  )}
                 </div>
               </div>
               {days > 0 && <p className="text-label-md text-primary font-bold">{days} day{days !== 1 ? 's' : ''} selected</p>}
@@ -167,7 +198,7 @@ export default function RequestLeave() {
             </div>
             <div className="flex flex-wrap justify-end gap-md pt-lg border-t border-outline-variant mt-lg">
               <Link to="/leave" className="px-lg py-md text-on-surface-variant hover:bg-surface-container rounded-lg text-label-md">Cancel</Link>
-              <button onClick={handleSubmit} disabled={submitting} className="px-xl py-md bg-primary text-on-primary rounded-lg text-label-md font-bold shadow-md hover:opacity-90 active:scale-95 transition-all disabled:opacity-50">
+              <button onClick={handleSubmit} disabled={submitting || dateInvalid} className="px-xl py-md bg-primary text-on-primary rounded-lg text-label-md font-bold shadow-md hover:opacity-90 active:scale-95 transition-all disabled:opacity-50">
                 {submitting ? 'Submitting…' : 'Submit Request'}
               </button>
             </div>

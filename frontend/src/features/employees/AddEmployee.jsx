@@ -70,7 +70,10 @@ export default function AddEmployee() {
     const file = e.target.files[0]
     if (file) {
       setPhotoFile(file)
-      setPhotoPreview(URL.createObjectURL(file))
+      setPhotoPreview(prev => {
+        if (prev) URL.revokeObjectURL(prev)
+        return URL.createObjectURL(file)
+      })
     }
   }
 

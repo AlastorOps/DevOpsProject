@@ -21,6 +21,7 @@ class UserTokenPayload(BaseModel):
     email: str
     role: str
     employee_id: Optional[str] = None
+    photo_path: Optional[str] = None
 
 
 class RefreshRequest(BaseModel):
@@ -32,6 +33,7 @@ class ForgotPasswordRequest(BaseModel):
 
 
 class ResetPasswordRequest(BaseModel):
+    email: EmailStr
     token: str
     new_password: str
     confirm_password: str

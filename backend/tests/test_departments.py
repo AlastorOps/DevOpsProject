@@ -100,3 +100,58 @@ def test_search_departments(client, admin_headers):
     resp = client.get(f"/departments?search=Searchable-{unique}", headers=admin_headers)
     assert resp.status_code == 200
     assert resp.json()["total"] >= 1
+
+
+# --- Budget validation ---
+
+def test_create_department_negative_budget_rejected(client, admin_headers):
+    resp = client.post(
+        "/departments",
+        json={"name": _name(), "budget": "-1"},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 422
+    body = resp.json()
+    assert any("negative" in str(e.get("msg", "")).lower() for e in body["detail"])
+
+
+def test_update_department_negative_budget_rejected(client, admin_headers):
+    dept_id = client.post("/departments", json={"name": _name()}, headers=admin_headers).json()["id"]
+    resp = client.put(
+        f"/departments/{dept_id}",
+        json={"budget": "-500"},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 422
+    body = resp.json()
+    assert any("negative" in str(e.get("msg", "")).lower() for e in body["detail"])
+
+
+def test_create_department_zero_budget_allowed(client, admin_headers):
+    resp = client.post(
+        "/departments",
+        json={"name": _name(), "budget": "0"},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 201
+    assert float(resp.json()["budget"]) == 0.0
+
+
+def test_create_department_positive_budget_allowed(client, admin_headers):
+    resp = client.post(
+        "/departments",
+        json={"name": _name(), "budget": "75000.50"},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 201
+    assert float(resp.json()["budget"]) == 75000.50
+
+
+def test_create_department_null_budget_allowed(client, admin_headers):
+    resp = client.post(
+        "/departments",
+        json={"name": _name(), "budget": None},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["budget"] is None

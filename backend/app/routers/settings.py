@@ -1,6 +1,6 @@
 import os
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import (
@@ -8,7 +8,10 @@ from app.models import (
     LeaveBalance, Payroll, PayslipItem, PerformanceReview, Notification,
 )
 from app.schemas.settings import SettingsUpdate, SettingsResponse
-from app.dependencies import require_admin
+from app.dependencies import get_current_user, require_admin
+from app.limiter import limiter
+
+MAX_LOGO_SIZE = 5 * 1024 * 1024  # 5 MB
 from app.config import settings as app_settings
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -17,7 +20,7 @@ ALLOWED_IMG_EXTS = {".jpg", ".jpeg", ".png", ".svg", ".webp"}
 
 
 @router.get("", response_model=SettingsResponse)
-def get_settings(db: Session = Depends(get_db)):
+def get_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     row = db.query(SystemSettings).filter(SystemSettings.id == 1).first()
     if not row:
         row = SystemSettings(id=1)
@@ -57,6 +60,8 @@ async def upload_logo(
         raise HTTPException(status_code=422, detail="Invalid image format")
 
     content = await logo.read()
+    if len(content) > MAX_LOGO_SIZE:
+        raise HTTPException(status_code=422, detail="Logo must be under 5 MB")
     upload_dir = os.path.join(app_settings.upload_dir, "logos")
     os.makedirs(upload_dir, exist_ok=True)
     filename = f"{uuid.uuid4()}{ext}"
@@ -79,7 +84,9 @@ async def upload_logo(
 
 
 @router.post("/reset", status_code=204)
+@limiter.limit("5/minute")
 def reset_system(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):

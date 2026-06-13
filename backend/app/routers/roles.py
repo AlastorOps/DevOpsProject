@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Role, RolePermission, User
 from app.schemas.role import RoleCreate, PermissionUpdate, RoleResponse
 from app.dependencies import get_current_user, require_admin
+from app.limiter import limiter
 
 router = APIRouter(prefix="/roles", tags=["roles"])
 
@@ -51,7 +52,9 @@ def create_role(
 
 
 @router.put("/{role_name}", response_model=RoleResponse)
+@limiter.limit("20/minute")
 def update_role_permissions(
+    request: Request,
     role_name: str,
     payload: PermissionUpdate,
     db: Session = Depends(get_db),

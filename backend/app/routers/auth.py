@@ -1,8 +1,8 @@
 import logging
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.models import User
 from app import auth as auth_utils
@@ -21,7 +21,7 @@ logger = logging.getLogger("ems.auth")
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
 def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
+    user = db.query(User).options(joinedload(User.employee)).filter(User.email == payload.email).first()
     if not user or not auth_utils.verify_password(payload.password, user.password_hash):
         logger.warning("Failed login attempt for email=%s ip=%s", payload.email, request.client.host)
         raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -29,7 +29,7 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
         logger.warning("Inactive account login attempt for email=%s", payload.email)
         raise HTTPException(status_code=403, detail="Account is inactive")
 
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.now(timezone.utc)
     db.commit()
 
     logger.info("Successful login for user_id=%s email=%s ip=%s", user.id, user.email, request.client.host)
@@ -43,6 +43,7 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
             email=user.email,
             role=user.role,
             employee_id=user.employee_id,
+            photo_path=user.employee.photo_path if user.employee else None,
         ),
     )
 
@@ -57,7 +58,7 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).options(joinedload(User.employee)).filter(User.id == user_id).first()
     if not user or user.status != "Active":
         raise HTTPException(status_code=401, detail="User not found or inactive")
 
@@ -72,6 +73,7 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
             email=user.email,
             role=user.role,
             employee_id=user.employee_id,
+            photo_path=user.employee.photo_path if user.employee else None,
         ),
     )
 
@@ -90,7 +92,7 @@ def forgot_password(request: Request, payload: ForgotPasswordRequest, db: Sessio
     if user and user.status == "Active":
         token = secrets.token_urlsafe(32)
         user.reset_token = auth_utils.hash_password(token)
-        user.reset_token_expires = datetime.utcnow() + timedelta(hours=1)
+        user.reset_token_expires = datetime.now(timezone.utc) + timedelta(hours=1)
         db.commit()
         logger.info("Password reset token generated for user_id=%s", user.id)
         # TODO: send token via email (e.g. via SMTP or a transactional email service).
@@ -106,19 +108,19 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
         raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
 
     user = db.query(User).filter(
+        User.email == payload.email,
         User.reset_token != None,  # noqa: E711
-        User.reset_token_expires > datetime.utcnow(),
-    ).all()
+        User.reset_token_expires > datetime.now(timezone.utc),
+    ).first()
 
-    matched = next((u for u in user if auth_utils.verify_password(payload.token, u.reset_token)), None)
-    if not matched:
+    if not user or not auth_utils.verify_password(payload.token, user.reset_token):
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
 
-    matched.password_hash = auth_utils.hash_password(payload.new_password)
-    matched.reset_token = None
-    matched.reset_token_expires = None
+    user.password_hash = auth_utils.hash_password(payload.new_password)
+    user.reset_token = None
+    user.reset_token_expires = None
     db.commit()
-    logger.info("Password reset completed for user_id=%s", matched.id)
+    logger.info("Password reset completed for user_id=%s", user.id)
     return {"message": "Password updated successfully"}
 
 

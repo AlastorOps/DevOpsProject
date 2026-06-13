@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { dashboardService } from '../../api/dashboard.js'
 import { employeeService } from '../../api/employees.js'
 import { leaveService } from '../../api/leave.js'
+import { notificationService } from '../../api/notifications.js'
+import { getToken, client } from '../../api/client.js'
 
 const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
 
@@ -14,7 +16,11 @@ export default function AdminDashboard() {
   const [leaveRequests, setLeaveRequests] = useState([])
   const [loading, setLoading]         = useState(true)
   const [toast, setToast]             = useState(null)
-  const navigate                      = useNavigate()
+  const [notifications, setNotifications]   = useState([])
+  const [unreadCount, setUnreadCount]       = useState(0)
+  const [showNotifPanel, setShowNotifPanel] = useState(false)
+  const notifPanelRef                       = useRef(null)
+  const navigate                            = useNavigate()
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type })
@@ -62,13 +68,61 @@ export default function AdminDashboard() {
 
   useEffect(() => { fetchChart(chartPeriod) }, [chartPeriod, fetchChart])
 
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await notificationService.list()
+      if (res.ok) {
+        const data = await res.json()
+        setNotifications(data)
+        setUnreadCount(data.filter(n => !n.read).length)
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  const markRead = async (id) => {
+    await notificationService.markRead(id)
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+    setUnreadCount(prev => Math.max(0, prev - 1))
+  }
+
+  const markAllRead = async () => {
+    await notificationService.markAllRead()
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    setUnreadCount(0)
+  }
+
+  useEffect(() => {
+    fetchNotifications()
+    const token = getToken()
+    if (!token) return
+    const es = new EventSource(`${client.BASE}/notifications/stream?token=${token}`)
+    es.onmessage = (e) => {
+      try {
+        const incoming = JSON.parse(e.data)
+        setNotifications(prev => [...incoming, ...prev])
+        setUnreadCount(prev => prev + incoming.filter(n => !n.read).length)
+      } catch { /* ignore */ }
+    }
+    return () => es.close()
+  }, [fetchNotifications])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (notifPanelRef.current && !notifPanelRef.current.contains(e.target)) {
+        setShowNotifPanel(false)
+      }
+    }
+    if (showNotifPanel) document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showNotifPanel])
+
   const handleLeaveAction = async (leave, action) => {
     try {
       const res = await (action === 'Approve' ? leaveService.approve(leave.id) : leaveService.reject(leave.id))
       if (res.ok) {
         setLeaveRequests(prev => prev.filter(r => r.id !== leave.id))
         showToast(`Leave for ${leave.employee?.name} ${action === 'Approve' ? 'approved' : 'rejected'}.`, action === 'Approve' ? 'success' : 'error')
-        fetchStats()
+        fetchStats(); fetchNotifications()
       } else {
         const err = await res.json().catch(() => ({}))
         showToast(err.detail || 'Action failed.', 'error')
@@ -107,7 +161,7 @@ export default function AdminDashboard() {
             <h1 className="text-headline-lg text-on-surface">Dashboard Overview</h1>
             <p className="text-body-md text-on-surface-variant mt-xs">Welcome back. Here's what's happening today, {today}.</p>
           </div>
-          <div className="flex flex-wrap gap-sm">
+          <div className="flex flex-wrap gap-sm items-center">
             <Link to="/employees/new" className="bg-primary text-on-primary px-md py-sm rounded-lg flex items-center gap-sm shadow-sm hover:brightness-110 active:scale-95 transition-all">
               <span className="material-symbols-outlined text-[20px]">person_add</span>
               <span className="text-label-md">Add Employee</span>
@@ -120,6 +174,61 @@ export default function AdminDashboard() {
               <span className="material-symbols-outlined text-[20px]">receipt_long</span>
               <span className="text-label-md">Create Payroll</span>
             </button>
+
+            {/* Notification Bell */}
+            <div className="relative" ref={notifPanelRef}>
+              <button
+                onClick={() => setShowNotifPanel(prev => !prev)}
+                className="relative bg-surface-container-lowest border border-outline-variant text-on-surface p-sm rounded-lg flex items-center shadow-sm hover:bg-surface-container-low active:scale-95 transition-all"
+              >
+                <span className="material-symbols-outlined text-[22px]">notifications</span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-error text-on-error text-[10px] font-bold min-w-[18px] h-[18px] px-0.5 rounded-full flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {showNotifPanel && (
+                <div className="absolute right-0 top-full mt-2 w-96 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-2xl z-50 overflow-hidden">
+                  <div className="px-lg py-md border-b border-outline-variant flex items-center justify-between">
+                    <div className="flex items-center gap-sm">
+                      <span className="material-symbols-outlined text-primary text-[20px]">notifications</span>
+                      <h4 className="text-label-md font-bold">Notifications</h4>
+                      {unreadCount > 0 && (
+                        <span className="bg-error text-on-error text-[10px] font-bold px-1.5 py-0.5 rounded-full">{unreadCount}</span>
+                      )}
+                    </div>
+                    {unreadCount > 0 && (
+                      <button onClick={markAllRead} className="text-primary text-label-sm hover:underline">Mark all read</button>
+                    )}
+                  </div>
+                  <div className="max-h-[360px] overflow-y-auto divide-y divide-outline-variant">
+                    {notifications.length === 0 ? (
+                      <div className="p-xl flex flex-col items-center gap-sm text-on-surface-variant">
+                        <span className="material-symbols-outlined text-[40px] opacity-30">notifications_off</span>
+                        <p className="text-body-md">No notifications yet.</p>
+                      </div>
+                    ) : notifications.map(n => (
+                      <div
+                        key={n.id}
+                        onClick={() => !n.read && markRead(n.id)}
+                        className={`px-lg py-md flex gap-md cursor-pointer hover:bg-surface-container-low transition-colors ${!n.read ? 'bg-primary/5' : ''}`}
+                      >
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${!n.read ? 'bg-primary/10' : 'bg-surface-container'}`}>
+                          <span className={`material-symbols-outlined text-[18px] ${!n.read ? 'text-primary' : 'text-on-surface-variant'}`}>{n.icon || 'notifications'}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-label-md leading-snug ${!n.read ? 'font-bold text-on-surface' : 'text-on-surface'}`}>{n.title}</p>
+                          <p className="text-label-sm text-on-surface-variant leading-snug mt-0.5 break-words">{n.body}</p>
+                        </div>
+                        {!n.read && <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5"></div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -244,7 +353,10 @@ export default function AdminDashboard() {
                   <tr key={emp.id} className="hover:bg-surface-container-low transition-colors">
                     <td className="px-lg py-md">
                       <div className="flex items-center gap-sm">
-                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{emp.name.split(' ').map(n => n[0]).join('')}</div>
+                        {emp.photo_path
+                          ? <img src={`/uploads/${emp.photo_path}`} alt={emp.name} className="w-9 h-9 rounded-full object-cover border border-outline-variant shrink-0" />
+                          : <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">{emp.name.split(' ').map(n => n[0]).join('')}</div>
+                        }
                         <div><p className="font-bold">{emp.name}</p><p className="text-label-sm text-on-surface-variant">{emp.emp_id}</p></div>
                       </div>
                     </td>
@@ -277,7 +389,10 @@ export default function AdminDashboard() {
             ) : leaveRequests.map(req => (
               <div key={req.id} className="p-lg flex flex-col gap-md sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-md min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{(req.employee?.name ?? '?').split(' ').map(n => n[0]).join('')}</div>
+                  {req.employee?.photo_path
+                    ? <img src={`/uploads/${req.employee.photo_path}`} alt={req.employee.name} className="w-10 h-10 rounded-full object-cover border border-outline-variant shrink-0" />
+                    : <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">{(req.employee?.name ?? '?').split(' ').map(n => n[0]).join('')}</div>
+                  }
                   <div className="min-w-0">
                     <p className="font-bold text-body-md">{req.employee?.name}</p>
                     <p className="text-label-sm text-on-surface-variant">{req.leave_type} · {req.from_date} – {req.to_date} · {req.days} day{req.days !== 1 ? 's' : ''}</p>

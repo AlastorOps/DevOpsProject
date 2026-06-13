@@ -1,8 +1,13 @@
 import os
 import re
 import uuid
-from datetime import date as date_type, datetime
+from datetime import date as date_type, datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
+
+_UTC7 = timezone(timedelta(hours=7))
+
+def _today7() -> date_type:
+    return datetime.now(_UTC7).date()
 from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.models import LeaveRequest, LeaveBalance, Employee, User, Notification
@@ -41,6 +46,12 @@ def _notify_user(db: Session, employee_id: str, title: str, body: str, icon: str
     user = db.query(User).filter(User.employee_id == employee_id).first()
     if user:
         db.add(Notification(user_id=user.id, title=title, body=body, icon=icon, color=color))
+
+
+def _notify_admins(db: Session, title: str, body: str, icon: str = "notifications", color: str = "primary"):
+    admins = db.query(User).filter(User.role.in_(["Admin", "HR Manager"])).all()
+    for admin in admins:
+        db.add(Notification(user_id=admin.id, title=title, body=body, icon=icon, color=color))
 
 
 @router.get("", response_model=LeaveListResponse)
@@ -84,6 +95,8 @@ async def create_leave(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if from_date < _today7():
+        raise HTTPException(status_code=422, detail="Leave cannot be requested for a past date.")
     if to_date < from_date:
         raise HTTPException(status_code=422, detail="to_date must be on or after from_date")
 
@@ -125,6 +138,17 @@ async def create_leave(
     db.add(leave)
     db.commit()
     db.refresh(leave)
+
+    employee = db.query(Employee).filter(Employee.id == employee_id).first()
+    emp_name = employee.name if employee else "An employee"
+    _notify_admins(
+        db,
+        title="New Leave Request",
+        body=f"{emp_name} submitted a {leave_type} request from {from_date} to {to_date} ({days} day{'s' if days != 1 else ''}).",
+        icon="event_note",
+        color="primary",
+    )
+    db.commit()
 
     return db.query(LeaveRequest).options(
         joinedload(LeaveRequest.employee).joinedload(Employee.department)

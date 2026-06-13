@@ -11,9 +11,6 @@ services:
       # Init scripts run once on first boot (empty data volume).
       # 01_schema.sql creates all tables; 02_seed.sql inserts roles and settings.
       - ./database/init:/docker-entrypoint-initdb.d:ro
-    # Port only exposed for local development. Remove this block in production.
-    ports:
-      - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -35,10 +32,8 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
       REFRESH_TOKEN_EXPIRE_DAYS: 7
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:8080","http://localhost:5173"]}
-      ENABLE_DOCS: ${ENABLE_DOCS:-true}
+      ENABLE_DOCS: ${ENABLE_DOCS:-false}
       UPLOAD_DIR: uploads
-    ports:
-      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -55,9 +50,24 @@ services:
     image: ${DOCKER_USERNAME:-alastorops}/employee-management-frontend:latest
     container_name: ems-frontend
     ports:
-      - "8080:80"
+      - "8080:8080"
     depends_on:
       - backend
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: ems-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
     restart: unless-stopped
 
   prometheus:
@@ -71,7 +81,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.enable-lifecycle'
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     depends_on:
       - backend
     restart: unless-stopped
@@ -87,7 +97,7 @@ services:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       - prometheus
     restart: unless-stopped
@@ -106,7 +116,30 @@ services:
       - '--path.rootfs=/rootfs'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
     ports:
-      - "9100:9100"
+      - "127.0.0.1:9100:9100"
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: ems-loki
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: ems-promtail
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/var/log:ro
+      - ./monitoring/loki/promtail-config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
     restart: unless-stopped
 
 volumes:
@@ -114,3 +147,6 @@ volumes:
   upload_data:
   prometheus_data:
   grafana_data:
+  caddy_data:
+  caddy_config:
+  loki_data:

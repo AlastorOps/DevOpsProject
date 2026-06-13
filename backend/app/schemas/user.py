@@ -40,6 +40,7 @@ class UserResponse(BaseModel):
     role: str
     status: str
     employee_id: Optional[str] = None
+    photo_path: Optional[str] = None
     last_login: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime

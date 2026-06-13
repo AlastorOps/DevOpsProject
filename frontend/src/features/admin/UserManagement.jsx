@@ -248,7 +248,10 @@ export default function UserManagement() {
                   <tr key={u.id} className="hover:bg-surface-container-lowest group transition-colors">
                     <td className="px-lg py-md">
                       <div className="flex items-center gap-md">
-                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">{initials(u.name)}</div>
+                        {u.photo_path
+                          ? <img src={`/uploads/${u.photo_path}`} alt={u.name} className="w-9 h-9 rounded-full object-cover border border-outline-variant shrink-0" />
+                          : <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">{initials(u.name)}</div>
+                        }
                         <div><p className="font-bold text-body-md text-on-surface">{u.name}</p><p className="text-label-sm text-on-surface-variant">{u.email}</p></div>
                       </div>
                     </td>

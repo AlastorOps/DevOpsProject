@@ -1,5 +1,13 @@
-from datetime import date as date_type, datetime
+from datetime import date as date_type, datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
+
+_UTC7 = timezone(timedelta(hours=7))
+
+def _now7() -> datetime:
+    return datetime.now(_UTC7).replace(tzinfo=None)
+
+def _today7() -> date_type:
+    return _now7().date()
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_
 from app.database import get_db
@@ -49,8 +57,8 @@ def get_today(
     if not current_user.employee_id:
         raise HTTPException(status_code=400, detail="No employee profile linked to this account")
 
-    today = date_type.today()
-    now = datetime.now()
+    today = _today7()
+    now = _now7()
 
     record = db.query(Attendance).filter(
         and_(Attendance.employee_id == current_user.employee_id, Attendance.date == today)
@@ -63,8 +71,7 @@ def get_today(
     if record.check_in and not record.check_out:
         ci_dt = _parse_time_str(record.check_in)
         if ci_dt:
-            from datetime import datetime as _dt
-            ci_full = _dt.combine(today, ci_dt.time())
+            ci_full = datetime.combine(today, ci_dt.time())
             elapsed_seconds = max(0, int((now - ci_full).total_seconds()))
 
     return TodayAttendanceResponse(
@@ -86,14 +93,14 @@ def check_in(
     if not current_user.employee_id:
         raise HTTPException(status_code=400, detail="No employee profile linked to this account")
 
-    today = date_type.today()
+    today = _today7()
     existing = db.query(Attendance).filter(
         and_(Attendance.employee_id == current_user.employee_id, Attendance.date == today)
     ).first()
     if existing:
         raise HTTPException(status_code=409, detail="Already checked in today")
 
-    now = datetime.now()
+    now = _now7()
     status = "Late" if now.hour >= 9 else "Present"
     record = Attendance(
         employee_id=current_user.employee_id,
@@ -122,7 +129,7 @@ def check_out(
     if not current_user.employee_id:
         raise HTTPException(status_code=400, detail="No employee profile linked to this account")
 
-    today = date_type.today()
+    today = _today7()
     record = db.query(Attendance).filter(
         and_(Attendance.employee_id == current_user.employee_id, Attendance.date == today)
     ).first()
@@ -132,7 +139,7 @@ def check_out(
     if record.check_out:
         raise HTTPException(status_code=409, detail="Already checked out today")
 
-    record.check_out = datetime.now().strftime("%H:%M:%S")
+    record.check_out = _now7().strftime("%H:%M:%S")
     db.commit()
     db.refresh(record)
 
@@ -152,7 +159,7 @@ def get_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    d = target_date or date_type.today()
+    d = target_date or _today7()
     results = db.query(Attendance.status, func.count(Attendance.id)).filter(Attendance.date == d).group_by(Attendance.status).all()
     counts = {row[0]: row[1] for row in results}
     total = sum(counts.values())
