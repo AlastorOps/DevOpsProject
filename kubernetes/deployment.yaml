@@ -24,7 +24,7 @@ spec:
       containers:
         - name: frontend
           image: alastorops/employee-management-frontend:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
               name: http

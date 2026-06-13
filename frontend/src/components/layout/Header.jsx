@@ -284,7 +284,7 @@ export default function Header({ onMenuClick }) {
           className="flex items-center gap-sm cursor-pointer hover:bg-surface-container py-1 px-1 sm:px-2 rounded-full transition-all"
         >
           {user?.photo_path
-            ? <img src={`/uploads/${user.photo_path}`} alt={user.name} className="w-8 h-8 rounded-full object-cover" />
+            ? <img src={`/uploads/${user.photo_path}?v=${user.photo_ts || ''}`} alt={user.name} className="w-8 h-8 rounded-full object-cover" />
             : <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-sm">{initials(user?.name)}</div>
           }
           <div className="hidden lg:flex flex-col">

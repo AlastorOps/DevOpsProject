@@ -152,6 +152,13 @@ def employee_dashboard(db: Session = Depends(get_db), current_user: User = Depen
             "emp_id": employee.emp_id,
             "name": employee.name,
             "email": employee.work_email or employee.personal_email,
+            "work_email": employee.work_email,
+            "personal_email": employee.personal_email,
+            "phone": employee.phone,
+            "address": employee.address,
+            "dob": employee.dob.isoformat() if employee.dob else None,
+            "gender": employee.gender,
+            "photo_path": employee.photo_path,
             "status": employee.status,
         },
         "attendance_this_month": {

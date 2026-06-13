@@ -8,7 +8,7 @@ from sqlalchemy import func, or_
 from app.database import get_db
 from app.models import Employee, Department, User, LeaveBalance
 from app import auth as auth_utils
-from app.schemas.employee import EmployeeCreate, EmployeeUpdate, EmployeeResponse, EmployeeListResponse
+from app.schemas.employee import EmployeeCreate, EmployeeUpdate, EmployeeSelfUpdate, EmployeeResponse, EmployeeListResponse
 from app.dependencies import get_current_user, require_hr
 
 router = APIRouter(prefix="/employees", tags=["employees"])
@@ -79,6 +79,77 @@ def get_eligible_managers(
     )
     count = len(employees)
     return EmployeeListResponse(employees=employees, total=count, page=1, limit=max(count, 1))
+
+
+@router.get("/me", response_model=EmployeeResponse)
+def get_my_employee(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not current_user.employee_id:
+        raise HTTPException(status_code=404, detail="No employee record linked to this account")
+    employee = (
+        db.query(Employee)
+        .options(joinedload(Employee.department), joinedload(Employee.position))
+        .filter(Employee.id == current_user.employee_id)
+        .first()
+    )
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    return employee
+
+
+@router.put("/me", response_model=EmployeeResponse)
+def update_my_employee(
+    payload: EmployeeSelfUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not current_user.employee_id:
+        raise HTTPException(status_code=404, detail="No employee record linked to this account")
+    employee = db.query(Employee).filter(Employee.id == current_user.employee_id).first()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    allowed = {"name", "phone", "personal_email", "address", "dob", "gender"}
+    for field, value in payload.model_dump(exclude_none=True).items():
+        if field in allowed:
+            setattr(employee, field, value)
+
+    db.commit()
+    db.refresh(employee)
+    return (
+        db.query(Employee)
+        .options(joinedload(Employee.department), joinedload(Employee.position))
+        .filter(Employee.id == employee.id)
+        .first()
+    )
+
+
+@router.post("/me/photo")
+async def upload_my_photo(
+    photo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not current_user.employee_id:
+        raise HTTPException(status_code=404, detail="No employee record linked to this account")
+    employee = db.query(Employee).filter(Employee.id == current_user.employee_id).first()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    upload_dir = Path(os.getenv("UPLOAD_DIR", "uploads")) / "employees"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    ext = Path(photo.filename).suffix.lower() if photo.filename else ".jpg"
+    filename = f"{current_user.employee_id}{ext}"
+    content = await photo.read()
+    with open(upload_dir / filename, "wb") as f:
+        f.write(content)
+
+    employee.photo_path = f"employees/{filename}"
+    db.commit()
+    return {"photo_path": employee.photo_path}
 
 
 @router.get("/{employee_id}", response_model=EmployeeResponse)

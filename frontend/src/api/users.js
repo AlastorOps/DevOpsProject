@@ -1,4 +1,4 @@
-import { client, download } from './client.js'
+import { client, upload, download } from './client.js'
 
 export const usersService = {
   list: ({ page = 1, limit = 20, search = '', role = '', status = '' } = {}) => {
@@ -26,6 +26,11 @@ export const profileService = {
     if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail ?? 'Request failed') }
     return res.json()
   },
+  getMyEmployee: async () => {
+    const res = await client.get('/employees/me')
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail ?? 'Request failed') }
+    return res.json()
+  },
   update: async (data) => {
     const res = await client.put('/users/profile/me', data)
     if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail ?? 'Request failed') }
@@ -35,5 +40,15 @@ export const profileService = {
     const res = await client.put('/users/profile/password', data)
     if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail ?? 'Request failed') }
     return null
+  },
+  updateMyEmployee: async (data) => {
+    const res = await client.put('/employees/me', data)
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail ?? 'Request failed') }
+    return res.json()
+  },
+  uploadMyPhoto: async (formData) => {
+    const res = await upload('/employees/me/photo', formData)
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail ?? 'Request failed') }
+    return res.json()
   },
 }

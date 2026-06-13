@@ -1,6 +1,6 @@
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from jose import JWTError
 from app.database import get_db
 from app.models import User
@@ -23,7 +23,12 @@ def get_current_user(
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = (
+        db.query(User)
+        .options(joinedload(User.employee))
+        .filter(User.id == user_id)
+        .first()
+    )
     if not user or user.status != "Active":
         raise HTTPException(status_code=401, detail="User not found or inactive")
     return user

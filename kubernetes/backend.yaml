@@ -9,7 +9,9 @@ metadata:
     app.kubernetes.io/component: backend
     app.kubernetes.io/part-of: ems-ops
 spec:
-  replicas: 2
+  replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: ems-ops-backend
@@ -21,10 +23,22 @@ spec:
         app.kubernetes.io/component: backend
         app.kubernetes.io/part-of: ems-ops
     spec:
+      initContainers:
+        - name: wait-for-db
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h db -p 5432 -U postgres; do
+                echo "Waiting for PostgreSQL..."; sleep 2
+              done
+              echo "PostgreSQL is ready"
       containers:
         - name: backend
           image: alastorops/employee-management-backend:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
               name: http
@@ -117,7 +131,7 @@ spec:
   # Your cluster's storage class must support RWX (e.g. NFS, AWS EFS, CephFS).
   # For single-node clusters or local dev, change to ReadWriteOnce and set replicas: 1.
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
       storage: 2Gi

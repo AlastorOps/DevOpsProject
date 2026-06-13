@@ -39,6 +39,8 @@ metadata:
     app.kubernetes.io/part-of: ems-ops
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: prometheus
@@ -53,6 +55,7 @@ spec:
       containers:
         - name: prometheus
           image: prom/prometheus:v2.53.0
+          imagePullPolicy: IfNotPresent
           args:
             - '--config.file=/etc/prometheus/prometheus.yml'
             - '--storage.tsdb.path=/prometheus'
@@ -157,6 +160,8 @@ metadata:
     app.kubernetes.io/part-of: ems-ops
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: grafana
@@ -171,6 +176,7 @@ spec:
       containers:
         - name: grafana
           image: grafana/grafana:11.1.0
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
               name: http
