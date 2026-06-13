@@ -187,11 +187,28 @@ jobs:
           kubectl set image deployment/ems-ops-backend \
             backend=${{ secrets.DOCKER_USERNAME }}/employee-management-backend:${{ steps.tag.outputs.value }} \
             -n ems-ops
-          kubectl rollout status deployment/ems-ops-backend -n ems-ops --timeout=120s
+          kubectl rollout status deployment/ems-ops-backend -n ems-ops --timeout=300s || {
+            echo "──── pod list ────"
+            kubectl get pods -n ems-ops -o wide
+            echo "──── describe backend pods ────"
+            kubectl describe pod -l app=ems-ops-backend -n ems-ops
+            echo "──── backend logs ────"
+            kubectl logs -l app=ems-ops-backend -n ems-ops --tail=60 || true
+            exit 1
+          }
 
       - name: Deploy frontend (rolling update)
         run: |
+          kubectl scale deployment/ems-ops-frontend --replicas=1 -n ems-ops
           kubectl set image deployment/ems-ops-frontend \
             frontend=${{ secrets.DOCKER_USERNAME }}/employee-management-frontend:${{ steps.tag.outputs.value }} \
             -n ems-ops
-          kubectl rollout status deployment/ems-ops-frontend -n ems-ops --timeout=120s
+          kubectl rollout status deployment/ems-ops-frontend -n ems-ops --timeout=300s || {
+            echo "──── pod list ────"
+            kubectl get pods -n ems-ops -o wide
+            echo "──── describe frontend pods ────"
+            kubectl describe pod -l app=ems-ops-frontend -n ems-ops
+            echo "──── frontend logs ────"
+            kubectl logs -l app=ems-ops-frontend -n ems-ops --tail=60 || true
+            exit 1
+          }
