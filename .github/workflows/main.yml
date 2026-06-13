@@ -122,22 +122,20 @@ jobs:
           cache-to: type=gha,mode=max,scope=backend
 
   deploy:
-    name: Deploy to Kubernetes
+    name: Deploy to Kubernetes (Minikube)
     needs: [docker]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     runs-on: ubuntu-latest
     steps:
-      - uses: azure/setup-kubectl@v3
+      - uses: actions/checkout@v4
 
-      - name: Configure kubeconfig
-        run: |
-          if [ -z "${{ secrets.KUBECONFIG }}" ]; then
-            echo "ERROR: KUBECONFIG secret is empty or not set."
-            exit 1
-          fi
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG }}" | base64 --decode > ~/.kube/config
-          chmod 600 ~/.kube/config
+      - name: Start Minikube
+        uses: medyagh/setup-minikube@latest
+        with:
+          driver: docker
+          kubernetes-version: stable
+
+      - uses: azure/setup-kubectl@v3
 
       - name: Resolve image tag
         id: tag
@@ -154,6 +152,9 @@ jobs:
           kubectl cluster-info
           kubectl get nodes
           kubectl get namespaces
+
+      - name: Create namespace
+        run: kubectl create namespace ems-ops --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy backend (rolling update)
         run: |
