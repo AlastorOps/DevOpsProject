@@ -18,10 +18,10 @@ spec:
   # Requires cert-manager installed: kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
   tls:
     - hosts:
-        - your-domain.com  # Replace with your actual domain
+        - ems-ops.xyz  # Replace with your actual domain
       secretName: ems-ops-tls
   rules:
-    - host: your-domain.com  # Replace with your actual domain
+    - host: ems-ops.xyz  # Replace with your actual domain
       http:
         paths:
           - path: /

@@ -1,7 +1,6 @@
-# Replace your-domain.com with your actual domain.
 # Caddy automatically provisions and renews a Let's Encrypt TLS certificate.
 # HTTP requests are automatically redirected to HTTPS.
 
-your-domain.com {
+ems-ops.xyz, www.ems-ops.xyz {
     reverse_proxy frontend:80
 }

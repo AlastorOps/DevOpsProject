@@ -119,6 +119,29 @@ services:
       - "127.0.0.1:9100:9100"
     restart: unless-stopped
 
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: ems-loki
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: ems-promtail
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/var/log:ro
+      - ./monitoring/loki/promtail-config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   upload_data:
@@ -126,3 +149,4 @@ volumes:
   grafana_data:
   caddy_data:
   caddy_config:
+  loki_data:
