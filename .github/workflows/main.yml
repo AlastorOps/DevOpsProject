@@ -153,8 +153,17 @@ jobs:
           kubectl get nodes
           kubectl get namespaces
 
-      - name: Create namespace
-        run: kubectl create namespace ems-ops --dry-run=client -o yaml | kubectl apply -f -
+      - name: Apply namespace
+        run: kubectl apply -f kubernetes/00-namespace.yaml
+
+      - name: Apply secrets
+        run: kubectl apply -f kubernetes/secrets.yaml
+
+      - name: Apply all manifests
+        run: kubectl apply -k kubernetes/
+
+      - name: Wait for database
+        run: kubectl rollout status statefulset/ems-ops-db -n ems-ops --timeout=180s
 
       - name: Deploy backend (rolling update)
         run: |
