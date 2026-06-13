@@ -4,7 +4,7 @@ import Sidebar from './Sidebar'
 import Header from './Header'
 import FloatingCheckout from '../ui/FloatingCheckout'
 import { useAuth } from '../../context/AuthContext'
-import { useAttendance } from '../../context/AttendanceContext'
+import { useAttendance } from '../../context/useAttendance.js'
 
 export default function Layout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)

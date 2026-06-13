@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { useAttendance } from '../../context/AttendanceContext'
+import { useAttendance } from '../../context/useAttendance.js'
 
 const fmt = (s) => {
   const h = Math.floor(s / 3600)
