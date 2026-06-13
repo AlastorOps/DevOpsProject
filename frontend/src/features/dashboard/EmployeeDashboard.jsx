@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { dashboardService } from '../../api/dashboard.js'
 import { attendanceService } from '../../api/attendance.js'
 import { leaveService } from '../../api/leave.js'
 import { notificationService } from '../../api/notifications.js'
 import { profileService } from '../../api/users.js'
-import { useAttendance } from '../../context/AttendanceContext.jsx'
+import { useAttendance } from '../../context/useAttendance.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 const statusStyle = {
@@ -61,7 +61,6 @@ export default function EmployeeDashboard() {
   const [attError, setAttError] = useState('')
 
   const { updateUser } = useAuth()
-  const navigate = useNavigate()
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000)

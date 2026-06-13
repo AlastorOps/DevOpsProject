@@ -1,8 +1,9 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useState, useEffect, useCallback } from 'react'
 import { useAuth } from './AuthContext'
 import { attendanceService } from '../api/attendance.js'
 
 const AttendanceContext = createContext(null)
+export default AttendanceContext
 
 export function AttendanceProvider({ children }) {
   const { user } = useAuth()
@@ -85,8 +86,3 @@ export function AttendanceProvider({ children }) {
   )
 }
 
-export function useAttendance() {
-  const ctx = useContext(AttendanceContext)
-  if (!ctx) throw new Error('useAttendance must be used inside AttendanceProvider')
-  return ctx
-}
