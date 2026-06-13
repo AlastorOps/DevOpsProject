@@ -1,6 +1,6 @@
 from datetime import date as date_type, datetime
 from decimal import Decimal
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from app.database import get_db
@@ -10,12 +10,14 @@ from app.schemas.payroll import (
     PayrollListResponse, PayslipResponse, PayslipItemSchema,
 )
 from app.dependencies import get_current_user, require_hr
+from app.limiter import limiter
 
 router = APIRouter(prefix="/payroll", tags=["payroll"])
 
 
 def _generate_payroll_id(db: Session) -> str:
-    year = datetime.utcnow().year
+    from datetime import timezone as _tz
+    year = datetime.now(_tz.utc).year
     last = (
         db.query(Payroll.payroll_id)
         .filter(Payroll.payroll_id.like(f"PR-{year}-%"))
@@ -118,7 +120,9 @@ def list_payroll(
 
 
 @router.post("", response_model=PayrollResponse, status_code=201)
+@limiter.limit("20/minute")
 def create_payroll(
+    request: Request,
     payload: PayrollCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_hr),
@@ -161,7 +165,9 @@ def create_payroll(
 
 
 @router.put("/{payroll_id}/approve", response_model=PayrollResponse)
+@limiter.limit("20/minute")
 def approve_payroll(
+    request: Request,
     payroll_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_hr),

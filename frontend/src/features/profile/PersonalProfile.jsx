@@ -50,8 +50,8 @@ export default function PersonalProfile() {
             // employee record not accessible — skip silently
           }
         }
-      } catch (err) {
-        console.error('Failed to load profile:', err)
+      } catch {
+        // silently fail — user sees empty state
       } finally {
         setLoading(false)
       }
@@ -67,7 +67,6 @@ export default function PersonalProfile() {
     setPhotoPreview(null)
     try {
       const empData = await profileService.getMyEmployee()
-      console.log('[EditProfile] Loaded employee data:', empData)
       setCurrentPhotoPath(empData.photo_path ?? null)
       setEditForm({
         name:           empData.name           ?? profile?.name  ?? user?.name  ?? '',
@@ -78,8 +77,7 @@ export default function PersonalProfile() {
         dob:            empData.dob            ?? '',
         gender:         empData.gender         ?? '',
       })
-    } catch (err) {
-      console.error('[EditProfile] Failed to load profile:', err)
+    } catch {
       setCurrentPhotoPath(employee?.photo_path ?? null)
       setEditForm({
         name:           profile?.name  ?? user?.name  ?? '',
@@ -100,7 +98,10 @@ export default function PersonalProfile() {
     const file = e.target.files[0]
     if (!file) return
     setPhotoFile(file)
-    setPhotoPreview(URL.createObjectURL(file))
+    setPhotoPreview(prev => {
+      if (prev) URL.revokeObjectURL(prev)
+      return URL.createObjectURL(file)
+    })
   }
 
   async function handleEditSave(e) {

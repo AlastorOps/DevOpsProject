@@ -49,8 +49,8 @@ jobs:
       run:
         working-directory: backend
     env:
-      SECRET_KEY: CI0GitHub0Actions0Backend0Test0A1B2C3
-      ADMIN_PASSWORD: CIactions0AdminPw
+      SECRET_KEY: ${{ secrets.CI_SECRET_KEY }}
+      ADMIN_PASSWORD: ${{ secrets.CI_ADMIN_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 

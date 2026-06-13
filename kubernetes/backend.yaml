@@ -74,6 +74,10 @@ spec:
           volumeMounts:
             - name: upload-storage
               mountPath: /app/uploads
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           resources:
             requests:
               cpu: "100m"

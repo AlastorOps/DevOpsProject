@@ -1,6 +1,6 @@
 import logging
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
@@ -29,7 +29,7 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
         logger.warning("Inactive account login attempt for email=%s", payload.email)
         raise HTTPException(status_code=403, detail="Account is inactive")
 
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.now(timezone.utc)
     db.commit()
 
     logger.info("Successful login for user_id=%s email=%s ip=%s", user.id, user.email, request.client.host)
@@ -92,7 +92,7 @@ def forgot_password(request: Request, payload: ForgotPasswordRequest, db: Sessio
     if user and user.status == "Active":
         token = secrets.token_urlsafe(32)
         user.reset_token = auth_utils.hash_password(token)
-        user.reset_token_expires = datetime.utcnow() + timedelta(hours=1)
+        user.reset_token_expires = datetime.now(timezone.utc) + timedelta(hours=1)
         db.commit()
         logger.info("Password reset token generated for user_id=%s", user.id)
         # TODO: send token via email (e.g. via SMTP or a transactional email service).
@@ -108,19 +108,19 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
         raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
 
     user = db.query(User).filter(
+        User.email == payload.email,
         User.reset_token != None,  # noqa: E711
-        User.reset_token_expires > datetime.utcnow(),
-    ).all()
+        User.reset_token_expires > datetime.now(timezone.utc),
+    ).first()
 
-    matched = next((u for u in user if auth_utils.verify_password(payload.token, u.reset_token)), None)
-    if not matched:
+    if not user or not auth_utils.verify_password(payload.token, user.reset_token):
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
 
-    matched.password_hash = auth_utils.hash_password(payload.new_password)
-    matched.reset_token = None
-    matched.reset_token_expires = None
+    user.password_hash = auth_utils.hash_password(payload.new_password)
+    user.reset_token = None
+    user.reset_token_expires = None
     db.commit()
-    logger.info("Password reset completed for user_id=%s", matched.id)
+    logger.info("Password reset completed for user_id=%s", user.id)
     return {"message": "Password updated successfully"}
 
 

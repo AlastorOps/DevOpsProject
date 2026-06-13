@@ -33,6 +33,7 @@ class ForgotPasswordRequest(BaseModel):
 
 
 class ResetPasswordRequest(BaseModel):
+    email: EmailStr
     token: str
     new_password: str
     confirm_password: str

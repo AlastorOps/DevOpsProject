@@ -1,6 +1,6 @@
 import csv
 import io
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
@@ -8,6 +8,7 @@ from app.models import User
 from app import auth as auth_utils
 from app.schemas.user import UserCreate, UserUpdate, UserStatusUpdate, UserResponse, UserListResponse, PasswordChange
 from app.dependencies import get_current_user, require_admin
+from app.limiter import limiter
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -84,7 +85,9 @@ def create_user(
 
 
 @router.put("/{user_id}", response_model=UserResponse)
+@limiter.limit("20/minute")
 def update_user(
+    request: Request,
     user_id: str,
     payload: UserUpdate,
     db: Session = Depends(get_db),
@@ -125,7 +128,9 @@ def update_user_status(
 
 
 @router.delete("/{user_id}", status_code=204)
+@limiter.limit("20/minute")
 def delete_user(
+    request: Request,
     user_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import Optional
 from datetime import date, datetime
 
@@ -8,7 +8,7 @@ class LeaveRequestCreate(BaseModel):
     leave_type: str
     from_date: date
     to_date: date
-    reason: str
+    reason: str = Field(..., max_length=2000)
 
     @model_validator(mode="after")
     def validate_dates(self):

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional
 from datetime import date, datetime
 
@@ -7,7 +7,7 @@ class PerformanceCreate(BaseModel):
     employee_id: str
     cycle: str
     stars: int
-    comments: Optional[str] = None
+    comments: Optional[str] = Field(default=None, max_length=5000)
     review_date: Optional[date] = None
 
     @field_validator("stars")

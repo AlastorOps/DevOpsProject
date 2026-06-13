@@ -2,7 +2,7 @@ import os
 import re
 from datetime import date, timedelta
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from app.database import get_db
@@ -10,8 +10,12 @@ from app.models import Employee, Department, User, LeaveBalance
 from app import auth as auth_utils
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate, EmployeeSelfUpdate, EmployeeResponse, EmployeeListResponse
 from app.dependencies import get_current_user, require_hr
+from app.limiter import limiter
 
 router = APIRouter(prefix="/employees", tags=["employees"])
+
+ALLOWED_PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
+MAX_PHOTO_SIZE = 5 * 1024 * 1024  # 5 MB
 
 LEAVE_DEFAULTS = {
     "Annual Leave": 14,
@@ -138,12 +142,18 @@ async def upload_my_photo(
     if not employee:
         raise HTTPException(status_code=404, detail="Employee not found")
 
+    ext = Path(photo.filename).suffix.lower() if photo.filename else ""
+    if ext not in ALLOWED_PHOTO_EXTS:
+        raise HTTPException(status_code=422, detail="Photo must be JPG, PNG, or WEBP")
+
     upload_dir = Path(os.getenv("UPLOAD_DIR", "uploads")) / "employees"
     upload_dir.mkdir(parents=True, exist_ok=True)
 
-    ext = Path(photo.filename).suffix.lower() if photo.filename else ".jpg"
-    filename = f"{current_user.employee_id}{ext}"
     content = await photo.read()
+    if len(content) > MAX_PHOTO_SIZE:
+        raise HTTPException(status_code=422, detail="Photo must be under 5 MB")
+
+    filename = f"{current_user.employee_id}{ext}"
     with open(upload_dir / filename, "wb") as f:
         f.write(content)
 
@@ -173,7 +183,9 @@ def get_employee(
 
 
 @router.post("", response_model=EmployeeResponse, status_code=201)
+@limiter.limit("20/minute")
 def create_employee(
+    request: Request,
     payload: EmployeeCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_hr),
@@ -272,12 +284,18 @@ async def upload_employee_photo(
     if not employee:
         raise HTTPException(status_code=404, detail="Employee not found")
 
+    ext = Path(photo.filename).suffix.lower() if photo.filename else ""
+    if ext not in ALLOWED_PHOTO_EXTS:
+        raise HTTPException(status_code=422, detail="Photo must be JPG, PNG, or WEBP")
+
     upload_dir = Path(os.getenv("UPLOAD_DIR", "uploads")) / "employees"
     upload_dir.mkdir(parents=True, exist_ok=True)
 
-    ext = Path(photo.filename).suffix.lower() if photo.filename else ".jpg"
-    filename = f"{employee_id}{ext}"
     content = await photo.read()
+    if len(content) > MAX_PHOTO_SIZE:
+        raise HTTPException(status_code=422, detail="Photo must be under 5 MB")
+
+    filename = f"{employee_id}{ext}"
     with open(upload_dir / filename, "wb") as f:
         f.write(content)
 
@@ -287,7 +305,9 @@ async def upload_employee_photo(
 
 
 @router.delete("/{employee_id}", status_code=204)
+@limiter.limit("20/minute")
 def delete_employee(
+    request: Request,
     employee_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_hr),
