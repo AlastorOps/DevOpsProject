@@ -197,7 +197,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Scan backend image for vulnerabilities
-        uses: aquasecurity/trivy-action@v0.30.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: ${{ secrets.DOCKER_USERNAME }}/employee-management-backend:${{ needs.docker.outputs.image-tag }}
           format: sarif
@@ -212,7 +212,7 @@ jobs:
           category: trivy-backend
 
       - name: Scan frontend image for vulnerabilities
-        uses: aquasecurity/trivy-action@v0.30.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: ${{ secrets.DOCKER_USERNAME }}/employee-management-frontend:${{ needs.docker.outputs.image-tag }}
           format: sarif
