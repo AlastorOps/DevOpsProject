@@ -272,6 +272,6 @@ jobs:
         run: |
           echo "Waiting for backend to pass readiness probe..."
           kubectl wait --for=condition=ready pod -l app=ems-ops-backend -n ems-ops --timeout=120s
-          kubectl wait --for=condition=ready pod -l app=ems-ops-frontend -n ems-ops --timeout=60s
+          kubectl wait --for=condition=ready pod -l app=ems-ops-frontend -n ems-ops --timeout=120s
           echo "All pods are ready."
           kubectl get pods -n ems-ops -o wide

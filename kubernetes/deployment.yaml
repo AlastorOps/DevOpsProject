@@ -29,7 +29,7 @@ spec:
       containers:
         - name: frontend
           image: alastorops/employee-management-frontend:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
               name: http
