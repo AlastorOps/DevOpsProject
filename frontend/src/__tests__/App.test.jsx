@@ -2,7 +2,7 @@
  * Smoke tests for the top-level App component.
  * We render with MemoryRouter so no real navigation occurs.
  */
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
 // Silence API imports inside the tree
@@ -34,7 +34,7 @@ describe('App', () => {
 
   it('renders login page when navigating to /login', () => {
     render(<App />)
-    expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /login to dashboard/i })).toBeInTheDocument()
   })
 
   it('shows the app branding / product name', () => {

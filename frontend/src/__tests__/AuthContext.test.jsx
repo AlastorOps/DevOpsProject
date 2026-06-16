@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { useState } from 'react'
+import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AuthProvider, useAuth } from '../context/AuthContext'
 
@@ -22,11 +23,13 @@ import { client } from '../api/client.js'
 
 function AuthConsumer() {
   const { user, isAuthenticated, login, logout } = useAuth()
+  const [error, setError] = useState('')
   return (
     <div>
       <p data-testid="auth-status">{isAuthenticated ? 'authenticated' : 'unauthenticated'}</p>
       <p data-testid="user-email">{user?.email ?? 'none'}</p>
-      <button onClick={() => login('test@example.com', 'password')}>Login</button>
+      {error && <p role="alert">{error}</p>}
+      <button onClick={() => login('test@example.com', 'password').catch((err) => setError(err.message))}>Login</button>
       <button onClick={logout}>Logout</button>
     </div>
   )
@@ -70,7 +73,7 @@ describe('AuthContext', () => {
     expect(client.saveTokens).toHaveBeenCalledOnce()
   })
 
-  it('throws on failed login', async () => {
+  it('shows an error on failed login', async () => {
     authService.login.mockResolvedValue({
       ok: false,
       json: async () => ({ detail: 'Invalid credentials' }),
@@ -82,11 +85,11 @@ describe('AuthContext', () => {
       </AuthProvider>
     )
 
-    await expect(
-      act(async () => {
-        await userEvent.click(screen.getByText('Login'))
-      })
-    ).rejects.toThrow('Invalid credentials')
+    await userEvent.click(screen.getByText('Login'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Invalid credentials')
+    })
   })
 
   it('clears user on logout', async () => {

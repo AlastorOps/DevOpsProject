@@ -45,7 +45,7 @@ describe('LoginPage', () => {
 
   it('renders a login submit button', () => {
     render(<Wrapped />)
-    expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /login to dashboard/i })).toBeInTheDocument()
   })
 
   it('shows error message on invalid credentials', async () => {
@@ -57,7 +57,7 @@ describe('LoginPage', () => {
     render(<Wrapped />)
     await userEvent.type(screen.getByLabelText(/email/i), 'wrong@test.com')
     await userEvent.type(screen.getByLabelText(/password/i), 'wrongpass')
-    await userEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    await userEvent.click(screen.getByRole('button', { name: /login to dashboard/i }))
 
     await waitFor(() => {
       expect(screen.getByText(/invalid email or password/i)).toBeInTheDocument()
@@ -77,7 +77,7 @@ describe('LoginPage', () => {
     render(<Wrapped />)
     await userEvent.type(screen.getByLabelText(/email/i), 'admin@company.com')
     await userEvent.type(screen.getByLabelText(/password/i), 'Admin@1234')
-    await userEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    await userEvent.click(screen.getByRole('button', { name: /login to dashboard/i }))
 
     await waitFor(() => {
       expect(authService.login).toHaveBeenCalledWith('admin@company.com', 'Admin@1234')
@@ -91,10 +91,10 @@ describe('LoginPage', () => {
     render(<Wrapped />)
     await userEvent.type(screen.getByLabelText(/email/i), 'test@test.com')
     await userEvent.type(screen.getByLabelText(/password/i), 'password')
-    await userEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    await userEvent.click(screen.getByRole('button', { name: /login to dashboard/i }))
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /sign in/i })).toBeDisabled()
+      expect(screen.getByRole('button', { name: /signing in/i })).toBeDisabled()
     })
   })
 })
