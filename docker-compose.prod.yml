@@ -1,0 +1,67 @@
+# Production overrides — stack on top of docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Requirements before running:
+#   1. Copy .env.example to .env and fill in all values.
+#   2. Ensure GRAFANA_PASSWORD, SECRET_KEY, POSTGRES_PASSWORD, ADMIN_PASSWORD are set.
+#   3. Update CORS_ORIGINS to your real domain.
+
+services:
+  backend:
+    environment:
+      ENABLE_DOCS: "false"
+      CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS to your production domain(s)}
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+        reservations:
+          cpus: "0.10"
+          memory: 128M
+    restart: always
+
+  frontend:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
+    restart: always
+
+  db:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+        reservations:
+          cpus: "0.10"
+          memory: 256M
+    restart: always
+
+  prometheus:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+    restart: always
+
+  grafana:
+    environment:
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-https://grafana.ems-ops.xyz}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD must be set}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+    restart: always

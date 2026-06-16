@@ -1,0 +1,131 @@
+# NetworkPolicies restrict pod-to-pod communication to the minimum required.
+# Requires a CNI plugin that enforces NetworkPolicy (e.g. Calico, Cilium, Weave).
+# Minikube: minikube start --cni=calico
+
+# ─── Default: deny all ingress within the namespace ───────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: ems-ops
+  labels:
+    app.kubernetes.io/part-of: ems-ops
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+# ─── Frontend: accept traffic from the nginx Ingress controller ───────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-frontend
+  namespace: ems-ops
+  labels:
+    app.kubernetes.io/part-of: ems-ops
+spec:
+  podSelector:
+    matchLabels:
+      app: ems-ops-frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+# ─── Backend: accept traffic from frontend pods only ─────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-to-backend
+  namespace: ems-ops
+  labels:
+    app.kubernetes.io/part-of: ems-ops
+spec:
+  podSelector:
+    matchLabels:
+      app: ems-ops-backend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: ems-ops-frontend
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+# ─── Backend: accept Prometheus scrape ────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape-backend
+  namespace: ems-ops
+  labels:
+    app.kubernetes.io/part-of: ems-ops
+spec:
+  podSelector:
+    matchLabels:
+      app: ems-ops-backend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+# ─── Database: accept connections from backend only ───────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-to-database
+  namespace: ems-ops
+  labels:
+    app.kubernetes.io/part-of: ems-ops
+spec:
+  podSelector:
+    matchLabels:
+      app: ems-ops-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: ems-ops-backend
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# ─── Prometheus: accept from Grafana ─────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-grafana-to-prometheus
+  namespace: ems-ops
+  labels:
+    app.kubernetes.io/part-of: ems-ops
+spec:
+  podSelector:
+    matchLabels:
+      app: prometheus
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grafana
+      ports:
+        - protocol: TCP
+          port: 9090
