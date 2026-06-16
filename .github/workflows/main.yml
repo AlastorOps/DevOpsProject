@@ -39,10 +39,21 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Run tests
+        run: npm test
+
       - name: Build
         run: npm run build
         env:
           VITE_API_BASE_URL: /api
+
+      - name: Upload coverage report
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          retention-days: 7
 
   # ─── Backend CI ──────────────────────────────────────────────────────────────
   build-backend:
@@ -79,10 +90,32 @@ jobs:
           path: backend/coverage.xml
           retention-days: 7
 
+  # ─── Validate infrastructure files ───────────────────────────────────────────
+  validate-infra:
+    name: Validate Infrastructure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-kubectl@v3
+
+      - name: Validate kustomize build
+        run: kubectl kustomize kubernetes/ > /dev/null && echo "kustomize build OK"
+
+      - name: Validate Docker Compose syntax
+        run: docker compose config --quiet && echo "docker-compose.yml syntax OK"
+
+      - name: Validate Docker Compose prod overlay
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.prod.yml \
+            config --quiet && echo "prod overlay syntax OK"
+
   # ─── Docker Build & Push ─────────────────────────────────────────────────────
   docker:
     name: Build & Push Docker Images
-    needs: [build-frontend, build-backend]
+    needs: [build-frontend, build-backend, validate-infra]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     runs-on: ubuntu-latest
     outputs:

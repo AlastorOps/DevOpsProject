@@ -1,0 +1,264 @@
+name: Continuous Deployment
+
+# This workflow handles environment-specific deployments separately from CI.
+#
+# dev branch  → pushed images tagged :dev → Render/dev K8s namespace gets updated
+# main branch → images tagged :sha-XXXXXXX + :latest → production deployment
+#
+# Secrets required:
+#   DOCKER_USERNAME, DOCKER_PASSWORD
+#   RENDER_API_KEY, RENDER_BACKEND_SERVICE_ID, RENDER_FRONTEND_SERVICE_ID
+#   K8S_POSTGRES_PASSWORD, K8S_DATABASE_URL, K8S_SECRET_KEY,
+#   K8S_ADMIN_PASSWORD, K8S_GRAFANA_PASSWORD
+#   SLACK_WEBHOOK_URL (optional — for deployment notifications)
+
+on:
+  workflow_run:
+    workflows: ["CI/CD Pipeline"]
+    types: [completed]
+    branches: [main, dev]
+
+permissions:
+  contents: read
+  deployments: write
+
+env:
+  REGISTRY: docker.io
+
+jobs:
+  # ─── Gate: only run CD when CI passed ────────────────────────────────────────
+  check-ci:
+    name: Verify CI passed
+    runs-on: ubuntu-latest
+    outputs:
+      should-deploy: ${{ steps.check.outputs.should_deploy }}
+      branch: ${{ steps.check.outputs.branch }}
+      sha: ${{ steps.check.outputs.sha }}
+    steps:
+      - name: Check CI workflow result
+        id: check
+        run: |
+          result="${{ github.event.workflow_run.conclusion }}"
+          branch="${{ github.event.workflow_run.head_branch }}"
+          sha="${{ github.event.workflow_run.head_sha }}"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+          if [ "$result" = "success" ] && ([ "$branch" = "main" ] || [ "$branch" = "dev" ]); then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "CI passed on $branch — proceeding with deployment"
+          else
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping deployment: CI result=$result branch=$branch"
+          fi
+
+  # ─── Resolve image tag ────────────────────────────────────────────────────────
+  resolve-tag:
+    name: Resolve image tag
+    needs: check-ci
+    if: needs.check-ci.outputs.should-deploy == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.value }}
+      environment: ${{ steps.env.outputs.value }}
+    steps:
+      - name: Set image tag
+        id: tag
+        run: |
+          branch="${{ needs.check-ci.outputs.branch }}"
+          sha="${{ needs.check-ci.outputs.sha }}"
+          if [ "$branch" = "main" ]; then
+            echo "value=sha-$(echo $sha | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set environment name
+        id: env
+        run: |
+          if [ "${{ needs.check-ci.outputs.branch }}" = "main" ]; then
+            echo "value=production" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=development" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ─── Deploy to Render ─────────────────────────────────────────────────────────
+  deploy-render:
+    name: Deploy to Render (${{ needs.resolve-tag.outputs.environment }})
+    needs: [check-ci, resolve-tag]
+    if: needs.check-ci.outputs.should-deploy == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve-tag.outputs.environment }}
+    concurrency:
+      group: render-deploy-${{ needs.resolve-tag.outputs.environment }}
+      cancel-in-progress: false   # Never cancel a deploy mid-flight
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.check-ci.outputs.sha }}
+
+      - name: Trigger Render backend deployment
+        id: deploy-backend
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_BACKEND_SERVICE_ID }}/deploys")
+
+          body=$(echo "$response" | head -n -1)
+          http_code=$(echo "$response" | tail -n1)
+
+          echo "Response: $body"
+          echo "HTTP status: $http_code"
+
+          if [ "$http_code" != "201" ] && [ "$http_code" != "200" ]; then
+            echo "Backend deploy request failed with HTTP $http_code"
+            exit 1
+          fi
+
+          deploy_id=$(echo "$body" | jq -r '.deploy.id // .id // empty')
+          echo "deploy_id=$deploy_id" >> "$GITHUB_OUTPUT"
+          echo "Backend deploy triggered: $deploy_id"
+
+      - name: Trigger Render frontend deployment
+        id: deploy-frontend
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_FRONTEND_SERVICE_ID }}/deploys")
+
+          body=$(echo "$response" | head -n -1)
+          http_code=$(echo "$response" | tail -n1)
+
+          echo "Response: $body"
+          echo "HTTP status: $http_code"
+
+          if [ "$http_code" != "201" ] && [ "$http_code" != "200" ]; then
+            echo "Frontend deploy request failed with HTTP $http_code"
+            exit 1
+          fi
+
+          deploy_id=$(echo "$body" | jq -r '.deploy.id // .id // empty')
+          echo "deploy_id=$deploy_id" >> "$GITHUB_OUTPUT"
+          echo "Frontend deploy triggered: $deploy_id"
+
+      - name: Wait for backend to become healthy
+        run: |
+          echo "Waiting up to 5 minutes for backend to report healthy..."
+          for i in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+              "https://api.render.com/v1/services/${{ secrets.RENDER_BACKEND_SERVICE_ID }}/deploys/${{ steps.deploy-backend.outputs.deploy_id }}" \
+              | jq -r '.status // empty' 2>/dev/null || echo "unknown")
+
+            echo "Deploy status: $status (attempt $i/30)"
+
+            if [ "$status" = "live" ]; then
+              echo "Backend is live!"
+              break
+            elif [ "$status" = "deactivated" ] || [ "$status" = "canceled" ]; then
+              echo "Backend deploy failed with status: $status"
+              exit 1
+            fi
+            sleep 10
+          done
+
+      - name: Validate backend health endpoint
+        run: |
+          backend_url="${{ vars.RENDER_BACKEND_URL }}"
+          if [ -n "$backend_url" ]; then
+            for i in 1 2 3 4 5; do
+              if curl -sf "$backend_url/health" | grep -q '"status":"ok"'; then
+                echo "Backend health check passed"
+                exit 0
+              fi
+              echo "Health check attempt $i failed, retrying in 10s..."
+              sleep 10
+            done
+            echo "Backend health check failed after 5 attempts"
+            exit 1
+          else
+            echo "RENDER_BACKEND_URL not set — skipping health check"
+          fi
+
+  # ─── Rollback on failure ──────────────────────────────────────────────────────
+  rollback-render:
+    name: Rollback Render deployment
+    needs: [check-ci, resolve-tag, deploy-render]
+    if: failure() && needs.deploy-render.result == 'failure' && needs.check-ci.outputs.branch == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger rollback (redeploy previous commit)
+        run: |
+          echo "Deployment failed on main — triggering rollback via previous successful deploy"
+          # List the two most recent deploys and redeploy the previous one
+          deploys=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_BACKEND_SERVICE_ID }}/deploys?limit=2")
+
+          prev_deploy=$(echo "$deploys" | jq -r '.[1].id // empty')
+          if [ -n "$prev_deploy" ]; then
+            echo "Rolling back backend to deploy: $prev_deploy"
+            curl -s -X POST \
+              -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+              "https://api.render.com/v1/services/${{ secrets.RENDER_BACKEND_SERVICE_ID }}/deploys/$prev_deploy/rollback" \
+              || echo "Rollback API call failed — manual action may be needed"
+          else
+            echo "No previous deploy found to roll back to"
+          fi
+
+      - name: Notify team of rollback
+        if: vars.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -s -X POST "${{ vars.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"text\": \":rotating_light: *EMS Ops production deployment FAILED* — rollback triggered\",
+              \"attachments\": [{
+                \"color\": \"danger\",
+                \"fields\": [
+                  {\"title\": \"Branch\", \"value\": \"main\", \"short\": true},
+                  {\"title\": \"Commit\", \"value\": \"${{ needs.check-ci.outputs.sha }}\", \"short\": true},
+                  {\"title\": \"Action\", \"value\": \"<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>\", \"short\": false}
+                ]
+              }]
+            }"
+
+  # ─── Notify on success ────────────────────────────────────────────────────────
+  notify-success:
+    name: Deployment notification
+    needs: [check-ci, resolve-tag, deploy-render]
+    if: success() && needs.deploy-render.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post deployment summary
+        run: |
+          echo "## Deployment Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Environment | ${{ needs.resolve-tag.outputs.environment }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Branch | ${{ needs.check-ci.outputs.branch }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Commit | \`${{ needs.check-ci.outputs.sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Image tag | \`${{ needs.resolve-tag.outputs.tag }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Status | ✅ Success |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Notify Slack on success
+        if: vars.SLACK_WEBHOOK_URL != ''
+        run: |
+          env="${{ needs.resolve-tag.outputs.environment }}"
+          emoji=$([ "$env" = "production" ] && echo ":rocket:" || echo ":white_check_mark:")
+          curl -s -X POST "${{ vars.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"text\": \"$emoji *EMS Ops deployed to $env*\",
+              \"attachments\": [{
+                \"color\": \"good\",
+                \"fields\": [
+                  {\"title\": \"Branch\", \"value\": \"${{ needs.check-ci.outputs.branch }}\", \"short\": true},
+                  {\"title\": \"Tag\", \"value\": \"${{ needs.resolve-tag.outputs.tag }}\", \"short\": true}
+                ]
+              }]
+            }"
