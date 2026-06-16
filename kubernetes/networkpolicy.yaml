@@ -2,11 +2,11 @@
 # Requires a CNI plugin that enforces NetworkPolicy (e.g. Calico, Cilium, Weave).
 # Minikube: minikube start --cni=calico
 
-# ─── Default: deny all ingress within the namespace ───────────────────────────
+# ─── Default: deny all ingress AND egress within the namespace ────────────────
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: default-deny-ingress
+  name: default-deny-all
   namespace: ems-ops
   labels:
     app.kubernetes.io/part-of: ems-ops
@@ -14,6 +14,7 @@ spec:
   podSelector: {}
   policyTypes:
     - Ingress
+    - Egress
 ---
 # ─── Frontend: accept traffic from the nginx Ingress controller ───────────────
 apiVersion: networking.k8s.io/v1
@@ -126,6 +127,124 @@ spec:
         - podSelector:
             matchLabels:
               app: grafana
+      ports:
+        - protocol: TCP
+          port: 9090
+---
+# ─── Egress: allow DNS for all pods (required for service discovery) ──────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: ems-ops
+  labels:
+    app.kubernetes.io/part-of: ems-ops
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# ─── Egress: backend → database ──────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-egress-to-db
+  namespace: ems-ops
+  labels:
+    app.kubernetes.io/part-of: ems-ops
+spec:
+  podSelector:
+    matchLabels:
+      app: ems-ops-backend
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: ems-ops-db
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# ─── Egress: frontend → backend ──────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-egress-to-backend
+  namespace: ems-ops
+  labels:
+    app.kubernetes.io/part-of: ems-ops
+spec:
+  podSelector:
+    matchLabels:
+      app: ems-ops-frontend
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: ems-ops-backend
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+# ─── Egress: prometheus → backend (scrape) and node-exporter ─────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-egress
+  namespace: ems-ops
+  labels:
+    app.kubernetes.io/part-of: ems-ops
+spec:
+  podSelector:
+    matchLabels:
+      app: prometheus
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: ems-ops-backend
+      ports:
+        - protocol: TCP
+          port: 8000
+    - to:
+        - podSelector:
+            matchLabels:
+              app: node-exporter
+      ports:
+        - protocol: TCP
+          port: 9100
+---
+# ─── Egress: grafana → prometheus ────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-grafana-egress-to-prometheus
+  namespace: ems-ops
+  labels:
+    app.kubernetes.io/part-of: ems-ops
+spec:
+  podSelector:
+    matchLabels:
+      app: grafana
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: prometheus
       ports:
         - protocol: TCP
           port: 9090

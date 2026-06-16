@@ -12,7 +12,7 @@ from app.schemas.auth import (
 )
 from app.dependencies import get_current_user
 from app.limiter import limiter
-from jose import JWTError
+from jwt.exceptions import PyJWTError as JWTError
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger("ems.auth")
