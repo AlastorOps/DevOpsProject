@@ -1,0 +1,143 @@
+# render.yaml — Render Blueprint for EMS Ops
+# Docs: https://render.com/docs/blueprint-spec
+#
+# ──────────────────────────────────────────────────────────────────────────────
+# FIRST-TIME DEPLOYMENT CHECKLIST
+# ──────────────────────────────────────────────────────────────────────────────
+# 1. Connect this repo to Render (Dashboard → New → Blueprint).
+# 2. Render will provision ems-postgres, ems-backend, and ems-frontend.
+# 3. Note the backend URL shown in the dashboard, e.g.
+#      https://ems-backend.onrender.com
+# 4. Set the following env vars manually in the Render dashboard
+#    (they are marked sync:false because they depend on each other's URL):
+#
+#    On ems-backend:
+#      ADMIN_PASSWORD   → a strong password for the initial admin account
+#      CORS_ORIGINS     → ["https://ems-frontend.onrender.com"]
+#                         (use the actual URL from the dashboard)
+#
+#    On ems-frontend (Dashboard → ems-frontend → Environment → Add Env Var):
+#      VITE_API_BASE_URL → https://ems-backend.onrender.com
+#                          (the full backend service URL; no trailing slash)
+#
+# 5. Trigger a manual redeploy of ems-frontend so Vite bakes the correct URL
+#    into the JavaScript bundle (env vars for static sites are build-time only).
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ─── Backend (FastAPI / Uvicorn) ────────────────────────────────────────────
+  - type: web
+    name: ems-backend
+    env: python
+    plan: starter
+    region: oregon          # change to match your users' geography
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+
+    # Uncomment to persist uploaded files across deploys (Standard plan required).
+    # Without a disk, uploads are lost on every redeploy.
+    # disk:
+    #   name: ems-uploads
+    #   mountPath: /data/uploads
+    #   sizeGB: 10
+
+    envVars:
+      # ── Database ────────────────────────────────────────────────────────────
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ems-postgres
+          property: connectionString
+
+      # ── Security ────────────────────────────────────────────────────────────
+      - key: SECRET_KEY
+        generateValue: true     # Render generates a 32-byte random hex string
+
+      # Set ADMIN_PASSWORD manually in the dashboard after first deploy.
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      # ── JWT ─────────────────────────────────────────────────────────────────
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "30"
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: "7"
+
+      # ── CORS ────────────────────────────────────────────────────────────────
+      # Set this to ["https://ems-frontend.onrender.com"] (your actual frontend
+      # URL) after the first deploy. Leaving it blank will block all API calls
+      # from the browser.
+      - key: CORS_ORIGINS
+        sync: false
+
+      # ── App settings ────────────────────────────────────────────────────────
+      - key: ENABLE_DOCS
+        value: "false"          # Never expose /docs in production
+
+      # Match the disk mountPath above, or leave as-is for ephemeral uploads.
+      - key: UPLOAD_DIR
+        value: /data/uploads
+
+      # ── Python runtime ──────────────────────────────────────────────────────
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+
+  # ─── Frontend (React + Vite — static site) ──────────────────────────────────
+  # Render serves the dist/ bundle directly; nginx is not used here.
+  # SPA routing is handled by the rewrite rule below.
+  - type: web
+    name: ems-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+
+    # SPA fallback: redirect all 404s to index.html so React Router handles them.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+    # Security headers (mirrors the nginx.conf used in Docker/Kubernetes).
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-XSS-Protection
+        value: "1; mode=block"
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Strict-Transport-Security
+        value: "max-age=31536000; includeSubDomains"
+      - path: /*
+        name: Permissions-Policy
+        value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+
+    envVars:
+      # Build-time variable — Vite embeds this into the JS bundle at compile time.
+      # Set this to the backend service URL BEFORE triggering your first build,
+      # e.g. https://ems-backend.onrender.com
+      - key: VITE_API_BASE_URL
+        sync: false
+
+# ─── PostgreSQL (managed database) ───────────────────────────────────────────
+databases:
+  - name: ems-postgres
+    databaseName: emsops
+    user: postgres
+    # 'free' plan: 90-day retention, no auto-backups — fine for testing.
+    # 'starter' plan ($7/mo): daily backups, no retention limit — use for production.
+    plan: starter
+    region: oregon            # must match the backend service region above
