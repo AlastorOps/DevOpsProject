@@ -2,6 +2,7 @@ name: CI/CD Pipeline
 
 permissions:
   contents: read
+  security-events: write   # Required for uploading Trivy SARIF to GitHub Security tab
 
 on:
   push:
@@ -16,6 +17,7 @@ on:
       - 'feature/**'
 
 jobs:
+  # ─── Frontend CI ─────────────────────────────────────────────────────────────
   build-frontend:
     name: Frontend CI
     runs-on: ubuntu-latest
@@ -42,6 +44,7 @@ jobs:
         env:
           VITE_API_BASE_URL: /api
 
+  # ─── Backend CI ──────────────────────────────────────────────────────────────
   build-backend:
     name: Backend CI
     runs-on: ubuntu-latest
@@ -58,19 +61,32 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: backend/requirements-test.txt
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Install dependencies (production + test)
+        run: pip install -r requirements-test.txt
 
       - name: Run tests
-        run: python -m pytest --tb=short -q
+        run: python -m pytest --tb=short -q --cov=app --cov-report=xml
 
+      - name: Upload coverage report
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+          retention-days: 7
+
+  # ─── Docker Build & Push ─────────────────────────────────────────────────────
   docker:
     name: Build & Push Docker Images
     needs: [build-frontend, build-backend]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     runs-on: ubuntu-latest
+    outputs:
+      frontend-image: ${{ steps.meta-frontend.outputs.tags }}
+      backend-image: ${{ steps.meta-backend.outputs.tags }}
+      image-tag: ${{ steps.tag.outputs.value }}
     steps:
       - uses: actions/checkout@v4
 
@@ -80,6 +96,15 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Resolve image tag
+        id: tag
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "value=sha-$(echo '${{ github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=dev" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Docker metadata (frontend)
         id: meta-frontend
@@ -121,6 +146,46 @@ jobs:
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
 
+  # ─── Security Scanning ───────────────────────────────────────────────────────
+  security-scan:
+    name: Security Scan (Trivy)
+    needs: [docker]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan backend image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKER_USERNAME }}/employee-management-backend:${{ needs.docker.outputs.image-tag }}
+          format: sarif
+          output: trivy-backend.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: Upload backend SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-backend.sarif
+          category: trivy-backend
+
+      - name: Scan frontend image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKER_USERNAME }}/employee-management-frontend:${{ needs.docker.outputs.image-tag }}
+          format: sarif
+          output: trivy-frontend.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: Upload frontend SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-frontend.sarif
+          category: trivy-frontend
+
+  # ─── Kubernetes Deploy ───────────────────────────────────────────────────────
   deploy:
     name: Deploy to Kubernetes (Minikube)
     needs: [docker]
@@ -136,15 +201,6 @@ jobs:
           kubernetes-version: stable
 
       - uses: azure/setup-kubectl@v3
-
-      - name: Resolve image tag
-        id: tag
-        run: |
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo "value=sha-$(echo '${{ github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=dev" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Verify cluster connectivity
         run: |
@@ -185,7 +241,7 @@ jobs:
       - name: Deploy backend (rolling update)
         run: |
           kubectl set image deployment/ems-ops-backend \
-            backend=${{ secrets.DOCKER_USERNAME }}/employee-management-backend:${{ steps.tag.outputs.value }} \
+            backend=${{ secrets.DOCKER_USERNAME }}/employee-management-backend:${{ needs.docker.outputs.image-tag }} \
             -n ems-ops
           kubectl rollout status deployment/ems-ops-backend -n ems-ops --timeout=300s || {
             echo "──── pod list ────"
@@ -199,9 +255,8 @@ jobs:
 
       - name: Deploy frontend (rolling update)
         run: |
-          kubectl scale deployment/ems-ops-frontend --replicas=1 -n ems-ops
           kubectl set image deployment/ems-ops-frontend \
-            frontend=${{ secrets.DOCKER_USERNAME }}/employee-management-frontend:${{ steps.tag.outputs.value }} \
+            frontend=${{ secrets.DOCKER_USERNAME }}/employee-management-frontend:${{ needs.docker.outputs.image-tag }} \
             -n ems-ops
           kubectl rollout status deployment/ems-ops-frontend -n ems-ops --timeout=300s || {
             echo "──── pod list ────"
@@ -212,3 +267,11 @@ jobs:
             kubectl logs -l app=ems-ops-frontend -n ems-ops --tail=60 || true
             exit 1
           }
+
+      - name: Post-deployment health check
+        run: |
+          echo "Waiting for backend to pass readiness probe..."
+          kubectl wait --for=condition=ready pod -l app=ems-ops-backend -n ems-ops --timeout=120s --field-selector=status.phase=Running
+          kubectl wait --for=condition=ready pod -l app=ems-ops-frontend -n ems-ops --timeout=120s --field-selector=status.phase=Running
+          echo "All pods are ready."
+          kubectl get pods -n ems-ops -o wide

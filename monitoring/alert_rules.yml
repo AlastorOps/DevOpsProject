@@ -1,0 +1,110 @@
+groups:
+  - name: ems-ops.infrastructure
+    interval: 1m
+    rules:
+      # ─── Service availability ───────────────────────────────────────────────
+      - alert: BackendDown
+        expr: up{job="ems-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: backend
+        annotations:
+          summary: "EMS Backend is unreachable"
+          description: "The Prometheus scrape target for the backend ({{ $labels.instance }}) has been down for more than 2 minutes."
+
+      - alert: PrometheusTargetMissing
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus target missing: {{ $labels.job }}"
+          description: "Scrape target {{ $labels.instance }} (job={{ $labels.job }}) has been unreachable for 5 minutes."
+
+      # ─── CPU ────────────────────────────────────────────────────────────────
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value | humanize }}% and has been above 85% for more than 5 minutes."
+
+      # ─── Memory ─────────────────────────────────────────────────────────────
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value | humanize }}% and has been above 85% for more than 5 minutes."
+
+      - alert: CriticalMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value | humanize }}% — system is at risk of OOM."
+
+      # ─── Disk ───────────────────────────────────────────────────────────────
+      - alert: DiskSpaceLow
+        expr: |
+          (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"}
+          / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"}) * 100 < 15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Filesystem {{ $labels.mountpoint }} has {{ $value | humanize }}% free space remaining."
+
+      - alert: DiskSpaceCritical
+        expr: |
+          (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"}
+          / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"}) * 100 < 5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical disk space on {{ $labels.instance }}"
+          description: "Filesystem {{ $labels.mountpoint }} has only {{ $value | humanize }}% free — immediate action required."
+
+  - name: ems-ops.application
+    interval: 30s
+    rules:
+      # ─── HTTP error rate ────────────────────────────────────────────────────
+      - alert: HighRequestErrorRate
+        expr: |
+          (
+            rate(http_requests_total{status=~"5.."}[5m])
+            / rate(http_requests_total[5m])
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: backend
+        annotations:
+          summary: "High HTTP 5xx error rate on the backend"
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes (threshold: 5%)."
+
+      # ─── Slow responses ─────────────────────────────────────────────────────
+      - alert: SlowAPIResponse
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket[5m])
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: backend
+        annotations:
+          summary: "Slow API response times"
+          description: "P95 response time is {{ $value | humanizeDuration }} (threshold: 2 s)."

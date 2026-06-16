@@ -1,0 +1,35 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Test files — not needed in production image
+tests/
+requirements-test.txt
+
+# Secrets and environment
+.env
+.env.*
+!.env.example
+
+# Editor / OS artefacts
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Uploads directory (volume-mounted at runtime)
+uploads/
+
+# Git
+.git/
+.gitignore

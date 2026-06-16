@@ -42,6 +42,13 @@ spec:
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
+          # postgres:alpine entrypoint runs as root briefly (gosu) then drops to uid 70.
+          # allowPrivilegeEscalation: false is safe here because gosu uses setuid()
+          # directly, which is not blocked by NO_NEW_PRIVS.
+          securityContext:
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
           resources:
             requests:
               cpu: "100m"
@@ -54,12 +61,14 @@ spec:
               command: ["pg_isready", "-U", "postgres", "-d", "emsops"]
             initialDelaySeconds: 30
             periodSeconds: 20
+            timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
             exec:
               command: ["pg_isready", "-U", "postgres", "-d", "emsops"]
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 5
             failureThreshold: 5
   volumeClaimTemplates:
     - metadata:

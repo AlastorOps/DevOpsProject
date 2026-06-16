@@ -1,0 +1,27 @@
+node_modules/
+dist/
+dist-ssr/
+.cache/
+.vite/
+coverage/
+playwright-report/
+test-results/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Editor / OS artefacts
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Root-level test scripts
+form-test.mjs
