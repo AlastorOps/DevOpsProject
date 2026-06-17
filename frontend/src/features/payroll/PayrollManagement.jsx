@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { getUploadUrl } from '../../api/client.js'
 import { payrollService } from '../../api/payroll.js'
 import { employeeService } from '../../api/employees.js'
 import EmployeeCombobox from '../../components/ui/EmployeeCombobox.jsx'
@@ -18,6 +19,8 @@ export default function PayrollManagement() {
   const [empLoading, setEmpLoading]   = useState(false)
   const [total, setTotal]             = useState(0)
   const [loading, setLoading]         = useState(true)
+  const [imgErrors, setImgErrors]     = useState(() => new Set())
+  const markImgError = (id) => setImgErrors(prev => new Set(prev).add(id))
   const [activeTab, setActiveTab]     = useState('all')
   const [showModal, setShowModal]     = useState(false)
   const [form, setForm]               = useState({ employee_id: '', month: '', basic: '', bonus: '0', deductions: '0' })
@@ -347,8 +350,8 @@ export default function PayrollManagement() {
                   <td className="px-lg py-md font-mono text-label-md">{rec.payroll_id}</td>
                   <td className="px-lg py-md">
                     <div className="flex items-center gap-sm">
-                      {rec.employee?.photo_path
-                        ? <img src={`/uploads/${rec.employee.photo_path}`} alt={rec.employee.name} className="w-9 h-9 rounded-full object-cover border border-outline-variant shrink-0" />
+                      {rec.employee?.photo_path && !imgErrors.has(rec.id)
+                        ? <img src={getUploadUrl(rec.employee.photo_path)} alt={rec.employee.name} className="w-9 h-9 rounded-full object-cover border border-outline-variant shrink-0" onError={() => markImgError(rec.id)} />
                         : <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">{(rec.employee?.name ?? '?').split(' ').map(n => n[0]).join('')}</div>
                       }
                       <div><p className="font-bold">{rec.employee?.name ?? '—'}</p><p className="text-label-sm text-on-surface-variant">{rec.employee?.emp_id ?? '—'}</p></div>

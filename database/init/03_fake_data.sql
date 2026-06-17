@@ -15,22 +15,24 @@ INSERT INTO departments (name, head, budget, status) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 -- ── Positions (skip if title already exists) ──────────────────
-INSERT INTO positions (title, department_id, level, headcount, openings, salary_min, salary_max)
-SELECT v.title, d.id, v.level, v.headcount::INT, v.openings::INT, v.sal_min::NUMERIC, v.sal_max::NUMERIC
+-- max_slots is the position's planned capacity. headcount/openings are never
+-- stored — the API computes them live from the Employees table on every request.
+INSERT INTO positions (title, department_id, level, max_slots, salary_min, salary_max)
+SELECT v.title, d.id, v.level, v.max_slots::INT, v.sal_min::NUMERIC, v.sal_max::NUMERIC
 FROM (VALUES
-    ('Senior Software Engineer',     'Engineering',     'Senior', '5', '1', '90000', '130000'),
-    ('Software Engineer',            'Engineering',     'Mid',    '8', '2', '70000', '100000'),
-    ('DevOps Engineer',              'Engineering',     'Mid',    '3', '0', '80000', '115000'),
-    ('Product Manager',              'Engineering',     'Senior', '2', '0', '95000', '140000'),
-    ('HR Manager',                   'Human Resources', 'Senior', '1', '0', '75000', '100000'),
-    ('HR Specialist',                'Human Resources', 'Junior', '3', '1', '50000',  '70000'),
-    ('Finance Manager',              'Finance',         'Senior', '1', '0', '85000', '120000'),
-    ('Financial Analyst',            'Finance',         'Mid',    '4', '1', '60000',  '85000'),
-    ('Marketing Manager',            'Marketing',       'Senior', '1', '0', '80000', '110000'),
-    ('Digital Marketing Specialist', 'Marketing',       'Mid',    '3', '0', '55000',  '75000'),
-    ('Operations Manager',           'Operations',      'Senior', '1', '0', '80000', '115000'),
-    ('Operations Analyst',           'Operations',      'Mid',    '4', '1', '55000',  '80000')
-) AS v(title, dept_name, level, headcount, openings, sal_min, sal_max)
+    ('Senior Software Engineer',     'Engineering',     'Senior', '2', '90000', '130000'),
+    ('Software Engineer',            'Engineering',     'Mid',    '3', '70000', '100000'),
+    ('DevOps Engineer',              'Engineering',     'Mid',    '2', '80000', '115000'),
+    ('Product Manager',              'Engineering',     'Senior', '2', '95000', '140000'),
+    ('HR Manager',                   'Human Resources', 'Senior', '1', '75000', '100000'),
+    ('HR Specialist',                'Human Resources', 'Junior', '2', '50000',  '70000'),
+    ('Finance Manager',              'Finance',         'Senior', '1', '85000', '120000'),
+    ('Financial Analyst',            'Finance',         'Mid',    '3', '60000',  '85000'),
+    ('Marketing Manager',            'Marketing',       'Senior', '1', '80000', '110000'),
+    ('Digital Marketing Specialist', 'Marketing',       'Mid',    '2', '55000',  '75000'),
+    ('Operations Manager',           'Operations',      'Senior', '1', '80000', '115000'),
+    ('Operations Analyst',           'Operations',      'Mid',    '2', '55000',  '80000')
+) AS v(title, dept_name, level, max_slots, sal_min, sal_max)
 JOIN departments d ON d.name = v.dept_name
 WHERE NOT EXISTS (SELECT 1 FROM positions WHERE title = v.title);
 

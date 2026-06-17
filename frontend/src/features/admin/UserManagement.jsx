@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { getUploadUrl } from '../../api/client.js'
 import { usersService } from '../../api/users.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 
@@ -29,6 +30,8 @@ export default function UserManagement() {
   const [editingUser, setEditingUser]   = useState(null)
   const [showModal, setShowModal]       = useState(false)
   const [form, setForm]                 = useState({ name: '', email: '', password: '', role: 'Employee', status: 'Active' })
+  const [imgErrors, setImgErrors]       = useState(() => new Set())
+  const markImgError = (id) => setImgErrors(prev => new Set(prev).add(id))
   const [formErrors, setFormErrors]     = useState({})
   const [deleteId, setDeleteId]         = useState(null)
   const [page, setPage]                 = useState(1)
@@ -248,8 +251,8 @@ export default function UserManagement() {
                   <tr key={u.id} className="hover:bg-surface-container-lowest group transition-colors">
                     <td className="px-lg py-md">
                       <div className="flex items-center gap-md">
-                        {u.photo_path
-                          ? <img src={`/uploads/${u.photo_path}`} alt={u.name} className="w-9 h-9 rounded-full object-cover border border-outline-variant shrink-0" />
+                        {u.photo_path && !imgErrors.has(u.id)
+                          ? <img src={getUploadUrl(u.photo_path)} alt={u.name} className="w-9 h-9 rounded-full object-cover border border-outline-variant shrink-0" onError={() => markImgError(u.id)} />
                           : <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">{initials(u.name)}</div>
                         }
                         <div><p className="font-bold text-body-md text-on-surface">{u.name}</p><p className="text-label-sm text-on-surface-variant">{u.email}</p></div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { getUploadUrl } from '../../api/client.js'
 import { employeeService } from '../../api/employees.js'
 import { departmentService } from '../../api/departments.js'
 import { positionService } from '../../api/positions.js'
@@ -26,6 +27,8 @@ export default function EmployeeList() {
   const [positions, setPositions]       = useState([])
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [toast, setToast]               = useState(null)
+  const [imgErrors, setImgErrors]       = useState(() => new Set())
+  const markImgError = (id) => setImgErrors(prev => new Set(prev).add(id))
   const [totalHeadcount, setTotalHeadcount] = useState(0)
   const [activeCount, setActiveCount]       = useState(0)
   const [onLeaveCount, setOnLeaveCount]     = useState(0)
@@ -328,8 +331,8 @@ export default function EmployeeList() {
                   <td className="px-md py-4 text-label-md font-bold">{emp.emp_id}</td>
                   <td className="px-md py-4">
                     <div className="flex items-center gap-sm">
-                      {emp.photo_path
-                        ? <img src={`/uploads/${emp.photo_path}`} alt={emp.name} className="w-10 h-10 rounded-full object-cover border border-outline-variant shrink-0" />
+                      {emp.photo_path && !imgErrors.has(emp.id)
+                        ? <img src={getUploadUrl(emp.photo_path)} alt={emp.name} className="w-10 h-10 rounded-full object-cover border border-outline-variant shrink-0" onError={() => markImgError(emp.id)} />
                         : <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm border border-outline-variant shrink-0">{emp.name.split(' ').map(n => n[0]).join('')}</div>
                       }
                       <div><p className="font-bold">{emp.name}</p><p className="text-label-sm text-on-surface-variant">{emp.work_email ?? emp.personal_email ?? '—'}</p></div>

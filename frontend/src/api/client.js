@@ -1,5 +1,16 @@
 const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
+// When VITE_API_BASE_URL is a same-origin path (dev proxy, nginx reverse proxy in
+// Docker/K8s), /uploads/* is proxied alongside it. When it's an absolute URL
+// (e.g. Render, where the frontend is a static site with no upload proxy),
+// uploads must be fetched directly from the backend origin.
+const UPLOAD_ORIGIN = /^https?:\/\//.test(BASE) ? new URL(BASE).origin : ''
+
+export function getUploadUrl(photoPath) {
+  if (!photoPath) return null
+  return `${UPLOAD_ORIGIN}/uploads/${photoPath}`
+}
+
 export function getToken() {
   return localStorage.getItem('access_token')
 }
@@ -102,4 +113,5 @@ export const client = {
   getToken,
   saveTokens,
   clearTokens,
+  getUploadUrl,
 }

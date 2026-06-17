@@ -13,7 +13,7 @@ export default function Positions() {
   const [search, setSearch]           = useState('')
   const [filterDept, setFilterDept]   = useState('')
   const [filterLevel, setFilterLevel] = useState('')
-  const [form, setForm]               = useState({ title: '', department_id: '', level: '', salary_min: '', salary_max: '', headcount: '', openings: '' })
+  const [form, setForm]               = useState({ title: '', department_id: '', level: '', salary_min: '', salary_max: '', max_slots: '' })
   const [toast, setToast]             = useState(null)
   const [saving, setSaving]           = useState(false)
 
@@ -34,10 +34,10 @@ export default function Positions() {
 
   useEffect(() => { const t = setTimeout(fetchData, search ? 300 : 0); return () => clearTimeout(t) }, [fetchData, search])
 
-  const openAdd = () => { setEditPos(null); setForm({ title: '', department_id: '', level: '', salary_min: '', salary_max: '', headcount: '0', openings: '0' }); setShowModal(true) }
+  const openAdd = () => { setEditPos(null); setForm({ title: '', department_id: '', level: '', salary_min: '', salary_max: '', max_slots: '0' }); setShowModal(true) }
   const openEdit = (pos) => {
     setEditPos(pos)
-    setForm({ title: pos.title, department_id: pos.department_id ? String(pos.department_id) : '', level: pos.level ?? '', salary_min: pos.salary_min ? String(pos.salary_min) : '', salary_max: pos.salary_max ? String(pos.salary_max) : '', headcount: String(pos.headcount ?? 0), openings: String(pos.openings ?? 0) })
+    setForm({ title: pos.title, department_id: pos.department_id ? String(pos.department_id) : '', level: pos.level ?? '', salary_min: pos.salary_min ? String(pos.salary_min) : '', salary_max: pos.salary_max ? String(pos.salary_max) : '', max_slots: String(pos.max_slots ?? 0) })
     setShowModal(true)
   }
   const closeModal = () => { setShowModal(false); setEditPos(null) }
@@ -52,8 +52,7 @@ export default function Positions() {
         level: form.level || null,
         salary_min: form.salary_min ? Number(form.salary_min) : null,
         salary_max: form.salary_max ? Number(form.salary_max) : null,
-        headcount: Number(form.headcount) || 0,
-        openings: Number(form.openings) || 0,
+        max_slots: Number(form.max_slots) || 0,
       }
       const res = editPos ? await positionService.update(editPos.id, payload) : await positionService.create(payload)
       if (res.ok || res.status === 201) {
@@ -123,13 +122,10 @@ export default function Positions() {
                 <label className="text-label-md text-on-surface-variant">Max Salary ($)</label>
                 <input type="number" className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0" {...f('salary_max')} />
               </div>
-              <div className="flex flex-col gap-xs">
-                <label className="text-label-md text-on-surface-variant">Headcount</label>
-                <input type="number" className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0" {...f('headcount')} />
-              </div>
-              <div className="flex flex-col gap-xs">
-                <label className="text-label-md text-on-surface-variant">Open Positions</label>
-                <input type="number" className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0" {...f('openings')} />
+              <div className="flex flex-col gap-xs col-span-2">
+                <label className="text-label-md text-on-surface-variant">Max Slots <span className="text-on-surface-variant/70">(planned capacity)</span></label>
+                <input type="number" min="0" className="bg-surface border border-outline-variant rounded-lg p-md text-body-md focus:ring-1 focus:ring-primary outline-none" placeholder="0" {...f('max_slots')} />
+                <p className="text-label-sm text-on-surface-variant">Headcount and openings are calculated automatically from active employees.</p>
               </div>
             </div>
             <div className="flex gap-sm justify-end mt-xl">

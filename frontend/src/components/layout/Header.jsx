@@ -40,6 +40,9 @@ export default function Header({ onMenuClick }) {
 
   const handleLogout = () => { logout(); navigate('/login', { replace: true }) }
 
+  const [avatarError, setAvatarError] = useState(false)
+  useEffect(() => { setAvatarError(false) }, [user?.photo_path])
+
   /* ── Notifications ── */
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount]     = useState(0)
@@ -283,8 +286,13 @@ export default function Header({ onMenuClick }) {
           to="/profile"
           className="flex items-center gap-sm cursor-pointer hover:bg-surface-container py-1 px-1 sm:px-2 rounded-full transition-all"
         >
-          {user?.photo_path
-            ? <img src={`/uploads/${user.photo_path}?v=${user.photo_ts || ''}`} alt={user.name} className="w-8 h-8 rounded-full object-cover" />
+          {user?.photo_path && !avatarError
+            ? <img
+                src={`${client.getUploadUrl(user.photo_path)}?v=${user.photo_ts || ''}`}
+                alt={user.name}
+                className="w-8 h-8 rounded-full object-cover"
+                onError={() => setAvatarError(true)}
+              />
             : <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-sm">{initials(user?.name)}</div>
           }
           <div className="hidden lg:flex flex-col">
