@@ -13,7 +13,7 @@ from app.database import get_db
 from app.models import LeaveRequest, LeaveBalance, Employee, User, Notification
 from app.schemas.leave import (
     LeaveResponse, LeaveListResponse, LeaveBalanceResponse,
-    LeaveBalanceUpdate, LeaveStatusUpdate,
+    LeaveBalanceUpdate, LeaveStatusUpdate, LeaveStatusChange,
 )
 from app.dependencies import get_current_user, require_hr, require_manager
 from app.config import settings
@@ -230,6 +230,66 @@ def reject_leave(
     db.commit()
     db.refresh(leave)
 
+    return db.query(LeaveRequest).options(
+        joinedload(LeaveRequest.employee).joinedload(Employee.department)
+    ).filter(LeaveRequest.id == leave.id).first()
+
+
+@router.put("/{leave_id}/status", response_model=LeaveResponse)
+def update_leave_status(
+    leave_id: str,
+    payload: LeaveStatusChange,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager),
+):
+    if payload.status not in ("Approved", "Rejected"):
+        raise HTTPException(status_code=422, detail="status must be 'Approved' or 'Rejected'")
+
+    leave = db.query(LeaveRequest).filter(LeaveRequest.id == leave_id).first()
+    if not leave:
+        raise HTTPException(status_code=404, detail="Leave request not found")
+    if leave.status != "Pending":
+        raise HTTPException(status_code=409, detail="Leave request is not pending")
+
+    if payload.status == "Approved":
+        balance = db.query(LeaveBalance).filter(
+            LeaveBalance.employee_id == leave.employee_id,
+            LeaveBalance.leave_type == leave.leave_type,
+        ).first()
+        if balance and (balance.total - balance.used) < leave.days:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Insufficient leave balance: {balance.total - balance.used} day(s) remaining, {leave.days} requested",
+            )
+        leave.status = "Approved"
+        if balance:
+            balance.used = balance.used + leave.days
+        else:
+            db.add(LeaveBalance(
+                employee_id=leave.employee_id,
+                leave_type=leave.leave_type,
+                total=LEAVE_DEFAULTS.get(leave.leave_type, 0),
+                used=leave.days,
+            ))
+        _notify_user(
+            db, leave.employee_id,
+            "Leave Approved",
+            f"Your {leave.leave_type} request from {leave.from_date} to {leave.to_date} has been approved.",
+            icon="check_circle",
+            color="success",
+        )
+    else:
+        leave.status = "Rejected"
+        _notify_user(
+            db, leave.employee_id,
+            "Leave Rejected",
+            f"Your {leave.leave_type} request from {leave.from_date} to {leave.to_date} has been rejected.",
+            icon="cancel",
+            color="error",
+        )
+
+    db.commit()
+    db.refresh(leave)
     return db.query(LeaveRequest).options(
         joinedload(LeaveRequest.employee).joinedload(Employee.department)
     ).filter(LeaveRequest.id == leave.id).first()

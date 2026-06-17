@@ -21,6 +21,11 @@ class LeaveStatusUpdate(BaseModel):
     note: Optional[str] = None
 
 
+class LeaveStatusChange(BaseModel):
+    status: str  # "Approved" or "Rejected"
+    rejection_reason: Optional[str] = None
+
+
 class EmployeeBrief(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str

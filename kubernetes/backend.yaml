@@ -47,7 +47,7 @@ spec:
       containers:
         - name: backend
           image: alastorops/employee-management-backend:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
               name: http
@@ -75,7 +75,8 @@ spec:
             - name: REFRESH_TOKEN_EXPIRE_DAYS
               value: "7"
             - name: CORS_ORIGINS
-              value: '["http://ems-ops.local","http://localhost:8080"]'
+              # Replace with your actual production domain(s) — must match the Ingress host.
+              value: '["https://ems-ops.xyz","https://www.ems-ops.xyz"]'
             - name: UPLOAD_DIR
               value: "/app/uploads"
             - name: ENABLE_DOCS
@@ -146,9 +147,13 @@ metadata:
   name: ems-ops-uploads-pvc
   namespace: ems-ops
 spec:
-  # ReadWriteMany is required when replicas > 1 so all pods can mount the same volume.
-  # Your cluster's storage class must support RWX (e.g. NFS, AWS EFS, CephFS).
-  # For single-node clusters or local dev, change to ReadWriteOnce and set replicas: 1.
+  # IMPORTANT: ReadWriteOnce allows only one node to mount this volume at a time.
+  # If the backend HPA scales to >1 replica AND pods land on different nodes, the
+  # second pod will remain Pending. Options:
+  #   A) Keep ReadWriteOnce and accept single-replica uploads (set hpa.yaml maxReplicas: 1 for backend).
+  #   B) Change to ReadWriteMany with an RWX-capable storage class (NFS, AWS EFS, CephFS).
+  #   C) Move uploads to object storage (S3/MinIO) and remove this PVC entirely — recommended for production.
+  # Single-node clusters (Minikube, k3s) can use ReadWriteOnce safely with multiple replicas.
   accessModes:
     - ReadWriteOnce
   resources:

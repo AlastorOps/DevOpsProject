@@ -1,0 +1,12 @@
+# Terraform state (contains secrets)
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
+# Terraform working directory
+.terraform/
+.terraform.lock.hcl
+
+# Plan files
+*.tfplan

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError as JWTError  # noqa: F401 — re-exported for callers
 from passlib.context import CryptContext
 from app.config import settings
 
