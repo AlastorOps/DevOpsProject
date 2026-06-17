@@ -19,6 +19,8 @@ export default function AdminDashboard() {
   const [notifications, setNotifications]   = useState([])
   const [unreadCount, setUnreadCount]       = useState(0)
   const [showNotifPanel, setShowNotifPanel] = useState(false)
+  const [imgErrors, setImgErrors] = useState(() => new Set())
+  const markImgError = (key) => setImgErrors(prev => new Set(prev).add(key))
   const notifPanelRef                       = useRef(null)
   const navigate                            = useNavigate()
 
@@ -353,8 +355,8 @@ export default function AdminDashboard() {
                   <tr key={emp.id} className="hover:bg-surface-container-low transition-colors">
                     <td className="px-lg py-md">
                       <div className="flex items-center gap-sm">
-                        {emp.photo_path
-                          ? <img src={`/uploads/${emp.photo_path}`} alt={emp.name} className="w-9 h-9 rounded-full object-cover border border-outline-variant shrink-0" />
+                        {emp.photo_path && !imgErrors.has(`emp-${emp.id}`)
+                          ? <img src={client.getUploadUrl(emp.photo_path)} alt={emp.name} className="w-9 h-9 rounded-full object-cover border border-outline-variant shrink-0" onError={() => markImgError(`emp-${emp.id}`)} />
                           : <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">{emp.name.split(' ').map(n => n[0]).join('')}</div>
                         }
                         <div><p className="font-bold">{emp.name}</p><p className="text-label-sm text-on-surface-variant">{emp.emp_id}</p></div>
@@ -389,8 +391,8 @@ export default function AdminDashboard() {
             ) : leaveRequests.map(req => (
               <div key={req.id} className="p-lg flex flex-col gap-md sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-md min-w-0">
-                  {req.employee?.photo_path
-                    ? <img src={`/uploads/${req.employee.photo_path}`} alt={req.employee.name} className="w-10 h-10 rounded-full object-cover border border-outline-variant shrink-0" />
+                  {req.employee?.photo_path && !imgErrors.has(`leave-${req.id}`)
+                    ? <img src={client.getUploadUrl(req.employee.photo_path)} alt={req.employee.name} className="w-10 h-10 rounded-full object-cover border border-outline-variant shrink-0" onError={() => markImgError(`leave-${req.id}`)} />
                     : <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">{(req.employee?.name ?? '?').split(' ').map(n => n[0]).join('')}</div>
                   }
                   <div className="min-w-0">

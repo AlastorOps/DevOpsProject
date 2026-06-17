@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { getUploadUrl } from '../../api/client.js'
 import { performanceService } from '../../api/performance.js'
 import { employeeService } from '../../api/employees.js'
 import { departmentService } from '../../api/departments.js'
@@ -26,6 +27,8 @@ export default function PerformanceReviews() {
   const [toast, setToast]             = useState(null)
   const [search, setSearch]           = useState('')
   const [filterDept, setFilterDept]   = useState('')
+  const [imgErrors, setImgErrors]     = useState(() => new Set())
+  const markImgError = (id) => setImgErrors(prev => new Set(prev).add(id))
   const [filterRating, setFilterRating] = useState('')
   const [page, setPage]               = useState(1)
   const [saving, setSaving]           = useState(false)
@@ -197,8 +200,8 @@ export default function PerformanceReviews() {
                 <tr key={rev.id} className="hover:bg-surface-container-low transition-colors">
                   <td className="px-lg py-md">
                     <div className="flex items-center gap-sm">
-                      {rev.employee?.photo_path
-                        ? <img src={`/uploads/${rev.employee.photo_path}`} alt={rev.employee.name} className="w-9 h-9 rounded-full object-cover border border-outline-variant shrink-0" />
+                      {rev.employee?.photo_path && !imgErrors.has(rev.id)
+                        ? <img src={getUploadUrl(rev.employee.photo_path)} alt={rev.employee.name} className="w-9 h-9 rounded-full object-cover border border-outline-variant shrink-0" onError={() => markImgError(rev.id)} />
                         : <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">{(rev.employee?.name ?? '?').split(' ').map(n => n[0]).join('')}</div>
                       }
                       <div><p className="font-bold">{rev.employee?.name ?? '—'}</p><p className="text-label-sm text-on-surface-variant">{rev.employee?.position?.title ?? '—'}</p></div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { getUploadUrl } from '../../api/client.js'
 import { dashboardService } from '../../api/dashboard.js'
 import { attendanceService } from '../../api/attendance.js'
 import { leaveService } from '../../api/leave.js'
@@ -55,6 +56,8 @@ export default function EmployeeDashboard() {
   const [photoPreview, setPhotoPreview]   = useState(null)
   const [currentPhotoPath, setCurrentPhotoPath] = useState(null)
   const [photoVersion, setPhotoVersion] = useState(() => Date.now())
+  const [photoError, setPhotoError] = useState(false)
+  const [editPhotoError, setEditPhotoError] = useState(false)
 
   // Today's attendance — shared with FloatingCheckout via context
   const { todayAtt, seconds, attLoading, busy: attBusy, checkIn: ctxCheckIn, checkOut: ctxCheckOut } = useAttendance()
@@ -121,6 +124,7 @@ export default function EmployeeDashboard() {
     if (empResult.status === 'fulfilled') {
       const empData = empResult.value
       setCurrentPhotoPath(empData.photo_path ?? null)
+      setEditPhotoError(false)
       setEditForm({
         name:           empData.name                       ?? '',
         email:          empData.work_email ?? empData.email ?? '',
@@ -194,6 +198,8 @@ export default function EmployeeDashboard() {
         },
       }))
       setCurrentPhotoPath(finalPhotoPath)
+      setPhotoError(false)
+      setEditPhotoError(false)
       setEditOpen(false)
     } catch (err) {
       setEditError(err.message)
@@ -266,8 +272,13 @@ export default function EmployeeDashboard() {
           <div className="relative z-10 flex flex-col h-full">
             <div className="flex items-start justify-between">
               <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border-4 border-surface shadow-md overflow-hidden">
-                {emp.photo_path
-                  ? <img src={`/uploads/${emp.photo_path}?v=${photoVersion}`} alt={emp.name} className="w-full h-full object-cover" />
+                {emp.photo_path && !photoError
+                  ? <img
+                      src={`${getUploadUrl(emp.photo_path)}?v=${photoVersion}`}
+                      alt={emp.name}
+                      className="w-full h-full object-cover"
+                      onError={() => setPhotoError(true)}
+                    />
                   : <span className="material-symbols-outlined text-[48px]" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
                 }
               </div>
@@ -606,8 +617,13 @@ export default function EmployeeDashboard() {
                 <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border-2 border-outline-variant overflow-hidden shrink-0">
                   {photoPreview
                     ? <img src={photoPreview} className="w-full h-full object-cover" alt="Preview" />
-                    : currentPhotoPath
-                      ? <img src={`/uploads/${currentPhotoPath}?v=${photoVersion}`} className="w-full h-full object-cover" alt={editForm.name} />
+                    : currentPhotoPath && !editPhotoError
+                      ? <img
+                          src={`${getUploadUrl(currentPhotoPath)}?v=${photoVersion}`}
+                          className="w-full h-full object-cover"
+                          alt={editForm.name}
+                          onError={() => setEditPhotoError(true)}
+                        />
                       : <span className="material-symbols-outlined text-[40px]" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
                   }
                 </div>

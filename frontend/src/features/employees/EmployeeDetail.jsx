@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Badge from '../../components/ui/Badge'
+import { getUploadUrl } from '../../api/client.js'
 import { employeeService } from '../../api/employees.js'
 import { attendanceService } from '../../api/attendance.js'
 import { leaveService } from '../../api/leave.js'
@@ -21,6 +22,7 @@ export default function EmployeeDetail() {
   const [performance, setPerformance] = useState([])
   const [leaveBalance, setLeaveBalance] = useState([])
   const [loading, setLoading]     = useState(true)
+  const [photoError, setPhotoError] = useState(false)
 
   const fetchEmployee = useCallback(async () => {
     try {
@@ -89,8 +91,8 @@ export default function EmployeeDetail() {
         <div className="h-24 bg-primary/10"></div>
         <div className="px-xl pb-xl -mt-12 flex flex-col md:flex-row md:items-end justify-between gap-md">
           <div className="flex flex-col sm:flex-row sm:items-end gap-lg">
-            {employee.photo_path
-              ? <img src={`/uploads/${employee.photo_path}`} alt={employee.name} className="w-24 h-24 rounded-xl object-cover border-4 border-surface-container-lowest shadow-md" />
+            {employee.photo_path && !photoError
+              ? <img src={getUploadUrl(employee.photo_path)} alt={employee.name} className="w-24 h-24 rounded-xl object-cover border-4 border-surface-container-lowest shadow-md" onError={() => setPhotoError(true)} />
               : <div className="w-24 h-24 rounded-xl bg-primary flex items-center justify-center text-on-primary font-bold text-2xl border-4 border-surface-container-lowest shadow-md">{initials}</div>
             }
             <div className="pb-2">

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { getUploadUrl } from '../../api/client.js'
 import { leaveService } from '../../api/leave.js'
 
 const statusStyle = {
@@ -18,6 +19,8 @@ export default function LeaveManagement() {
   const [toast, setToast]             = useState(null)
   const [search, setSearch]           = useState('')
   const [filterType, setFilterType]   = useState('')
+  const [imgErrors, setImgErrors]     = useState(() => new Set())
+  const markImgError = (id) => setImgErrors(prev => new Set(prev).add(id))
   const [filterStatus, setFilterStatus] = useState('')
   const [page, setPage]               = useState(1)
   const limit = 20
@@ -131,8 +134,8 @@ export default function LeaveManagement() {
                 <tr key={req.id} className="hover:bg-surface-container-low transition-colors">
                   <td className="px-lg py-md">
                     <div className="flex items-center gap-sm">
-                      {req.employee?.photo_path
-                        ? <img src={`/uploads/${req.employee.photo_path}`} alt={req.employee.name} className="w-9 h-9 rounded-full object-cover border border-outline-variant shrink-0" />
+                      {req.employee?.photo_path && !imgErrors.has(req.id)
+                        ? <img src={getUploadUrl(req.employee.photo_path)} alt={req.employee.name} className="w-9 h-9 rounded-full object-cover border border-outline-variant shrink-0" onError={() => markImgError(req.id)} />
                         : <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">{(req.employee?.name ?? '?').split(' ').map(n => n[0]).join('')}</div>
                       }
                       <div><p className="font-bold">{req.employee?.name ?? '—'}</p><p className="text-label-sm text-on-surface-variant">{req.employee?.department?.name ?? '—'}</p></div>

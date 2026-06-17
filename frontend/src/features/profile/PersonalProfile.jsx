@@ -32,6 +32,8 @@ export default function PersonalProfile() {
   const [photoPreview, setPhotoPreview]     = useState(null)
   const [currentPhotoPath, setCurrentPhotoPath] = useState(null)
   const [photoVersion, setPhotoVersion] = useState(() => Date.now())
+  const [photoError, setPhotoError] = useState(false)
+  const [editPhotoError, setEditPhotoError] = useState(false)
 
   const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm_password: '' })
   const [pwStatus, setPwStatus] = useState(null)
@@ -45,7 +47,10 @@ export default function PersonalProfile() {
         if (p.employee_id) {
           try {
             const eRes = await client.get(`/employees/${p.employee_id}`)
-            if (eRes.ok) setEmployee(await eRes.json())
+            if (eRes.ok) {
+              setEmployee(await eRes.json())
+              setPhotoError(false)
+            }
           } catch {
             // employee record not accessible — skip silently
           }
@@ -78,6 +83,7 @@ export default function PersonalProfile() {
     if (empResult.status === 'fulfilled') {
       const emp = empResult.value
       setCurrentPhotoPath(emp.photo_path ?? null)
+      setEditPhotoError(false)
       setEditForm({
         name:           emp.name           ?? p?.name  ?? user?.name  ?? '',
         email:          emp.work_email     ?? p?.email ?? user?.email ?? '',
@@ -145,6 +151,8 @@ export default function PersonalProfile() {
 
       setEmployee({ ...empUpdated, photo_path: finalPhotoPath })
       setCurrentPhotoPath(finalPhotoPath)
+      setPhotoError(false)
+      setEditPhotoError(false)
       updateUser({ name: userUpdated.name, email: userUpdated.email, photo_path: finalPhotoPath, photo_ts: Date.now() })
       setEditOpen(false)
     } catch (err) {
@@ -184,8 +192,13 @@ export default function PersonalProfile() {
         <div className="relative flex flex-col md:flex-row items-start md:items-end gap-lg">
           <div className="relative">
             <div className="w-32 h-32 md:w-40 md:h-40 rounded-xl bg-primary/10 flex items-center justify-center text-primary border-4 border-surface-container-lowest shadow-md overflow-hidden">
-              {employee?.photo_path
-                ? <img src={`/uploads/${employee.photo_path}?v=${photoVersion}`} alt={displayName} className="w-full h-full object-cover" />
+              {employee?.photo_path && !photoError
+                ? <img
+                    src={`${client.getUploadUrl(employee.photo_path)}?v=${photoVersion}`}
+                    alt={displayName}
+                    className="w-full h-full object-cover"
+                    onError={() => setPhotoError(true)}
+                  />
                 : <span className="material-symbols-outlined text-[80px]" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
               }
             </div>
@@ -431,8 +444,13 @@ export default function PersonalProfile() {
                 <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border-2 border-outline-variant overflow-hidden shrink-0">
                   {photoPreview
                     ? <img src={photoPreview} className="w-full h-full object-cover" alt="Preview" />
-                    : currentPhotoPath
-                      ? <img src={`/uploads/${currentPhotoPath}?v=${photoVersion}`} className="w-full h-full object-cover" alt={editForm.name} />
+                    : currentPhotoPath && !editPhotoError
+                      ? <img
+                          src={`${client.getUploadUrl(currentPhotoPath)}?v=${photoVersion}`}
+                          className="w-full h-full object-cover"
+                          alt={editForm.name}
+                          onError={() => setEditPhotoError(true)}
+                        />
                       : <span className="material-symbols-outlined text-[40px]" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
                   }
                 </div>

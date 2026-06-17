@@ -94,3 +94,5 @@ kubeconfig.*
 *.kubeconfig
 .kube/
 kubernetes/secrets.yaml
+.vercel
+.env*
